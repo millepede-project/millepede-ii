@@ -707,7 +707,7 @@ SUBROUTINE spbits(nsparr,nsparc,ncmprs)               ! collect elements
 
     END DO
 
-    n1=(n+1)*ibfw
+    n1=(n+1)*nspc
     WRITE(*,*) ' '
     WRITE(*,*) 'SPBITS: sparse structure constructed ',nsparr(1,n1), ' words'
     WRITE(*,*) 'SPBITS: dimension parameter of matrix',nsparr(2,1)-1

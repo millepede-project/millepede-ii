@@ -52,7 +52,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-06-00 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-06-01 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -120,6 +120,7 @@
 !! * 191004: Checking global parameters for disjoint blocks. In case of solution by
 !!   inversion (optionally with constraints handled by elimination) switch to
 !!   \ref mpmod::matsto "block diagonal" storage mode.
+!! * 200429: Modifications for compilation with PGI compiler (make -f Makefile_pgi).
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -612,9 +613,11 @@ PROGRAM mptwo
     !$    INTEGER(mpi) :: MXTHRD
     !$    INTEGER(mpi) :: NPROC
 
+    REAL etime
+    
     SAVE
     !     ...
-    CALL etime(ta,rstp)
+    rstp=etime(ta)
     CALL fdate(chdate)
 
     !     millepede monitoring file
@@ -630,6 +633,10 @@ PROGRAM mptwo
 #ifdef __GFORTRAN__
     WRITE(*,111)  __GNUC__ , __GNUC_MINOR__ , __GNUC_PATCHLEVEL__
 111 FORMAT(' compiled with gcc ',i0,'.',i0,'.',i0)
+#endif
+#ifdef __PGIC__
+    WRITE(*,111)  __PGIC__ , __PGIC_MINOR__ , __PGIC_PATCHLEVEL__
+111 FORMAT(' compiled with pgi ',i0,'.',i0,'.',i0)
 #endif
     WRITE(*,*) ' '
     WRITE(*,*) '  <  Millepede II-P starting ... ',chdate
@@ -680,13 +687,13 @@ PROGRAM mptwo
         CALL mvopen(1,'mpdebug.txt')
     END IF
 
-    CALL etime(ta,rstext)
+    rstext=etime(ta)
     times(0)=rstext-rstp ! time for text processing
 
     !     preparation of data sub-arrays
 
     CALL loop1
-    CALL etime(ta,rloop1)
+    rloop1=etime(ta)
     times(1)=rloop1-rstext ! time for LOOP1
 
     CALL loop2
@@ -702,7 +709,7 @@ PROGRAM mptwo
         WRITE(8,*) 'Cut on downweight fraction',dwcut
     END IF
 
-    CALL etime(ta,rloop2)
+    rloop2=etime(ta)
     times(2)=rloop2-rloop1 ! time for LOOP2
 
     IF(icheck > 0) THEN
@@ -940,7 +947,7 @@ PROGRAM mptwo
     WRITE(8,103) times(0),times(1),times(2),times(4),times(7),  &
         times(5),times(8),times(3),times(6)
 
-    CALL etime(ta,rst)
+    rst=etime(ta)
     deltat=rst-rstp
     ntsec=nint(deltat,mpi)
     CALL sechms(deltat,nhour,minut,secnd)
@@ -1399,25 +1406,34 @@ SUBROUTINE prpcon
         ! split into disjoint blocks
         ilast=max(ilast, matConsSort(2,jcgb))
         IF (icheck > 1) THEN
-            labelf=globalParLabelIndex(1,globalParVarToTotal(matConsSort(1,jcgb)))
-            labell=globalParLabelIndex(1,globalParVarToTotal(matConsSort(2,jcgb)))
+            IF (matConsSort(2,jcgb) > matConsSort(1,jcgb)) THEN
+                labelf=globalParLabelIndex(1,globalParVarToTotal(matConsSort(1,jcgb)))
+                labell=globalParLabelIndex(1,globalParVarToTotal(matConsSort(2,jcgb)))
+            ELSE
+                labelf=0; labell=0
+            END IF
             WRITE(*,*) ' Cons. sorted', jcgb, icgb, vecConsStart(icgb), labelf, labell
         END IF   
         IF (matConsSort(1,jcgb+1) > ilast) THEN
             ncblck=ncblck+1
             ifrst=matConsSort(1,isblck)
+            IF (ifrst > ilast) ifrst=ilast+1 ! empty constraint block (enforce npar=0)
             matConsBlocks(1,ncblck)=isblck
             matConsBlocks(2,ncblck)=ifrst ! save first parameter in block
             matConsBlocks(3,ncblck)=ilast ! save last parameter in block
             ncon=jcgb+1-isblck
-            npar=ilast+1-matConsSort(1,isblck)
+            npar=ilast+1-ifrst
             nconmx=max(nconmx,ncon)
             nparmx=max(nparmx,npar)
             mszcon=mszcon+ncon*npar          ! (sum of) block size for constraint matrix     
             mszprd=mszprd+(ncon*ncon+ncon)/2 ! (sum of) block size for product matrix     
             IF (icheck > 0) THEN
-                labelf=globalParLabelIndex(1,globalParVarToTotal(ifrst))
-                labell=globalParLabelIndex(1,globalParVarToTotal(ilast))
+                IF (ilast > ifrst) THEN
+                    labelf=globalParLabelIndex(1,globalParVarToTotal(ifrst))
+                    labell=globalParLabelIndex(1,globalParVarToTotal(ilast))
+                ELSE
+                    labelf=0; labell=0
+                END IF
                 WRITE(*,*) ' Cons. block ', ncblck, isblck, jcgb, labelf, labell
             ENDIF    
             ! reset for new block
@@ -2103,7 +2119,6 @@ SUBROUTINE peprep(mode)
 
     INTEGER(mpi) :: ibuf
     INTEGER(mpi) :: ichunk
-    INTEGER(mpi) :: iproc
     INTEGER(mpi) :: isfrst
     INTEGER(mpi) :: islast
     INTEGER(mpi) :: ist
@@ -2116,22 +2131,24 @@ SUBROUTINE peprep(mode)
     INTEGER(mpi) :: nbad
     INTEGER(mpi) :: nerr
     INTEGER(mpi) :: inone
-    !$    INTEGER(mpi) :: OMP_GET_THREAD_NUM
 
 
     isfrst(ibuf)=readBufferPointer(ibuf)+1
     islast(ibuf)=readBufferDataI(readBufferPointer(ibuf))
 
     IF (mode > 0) THEN
+#ifdef __PGIC__
+        ! to prevent "PGF90-F-0000-Internal compiler error. Could not locate uplevel instance for stblock"
+        ichunk=256
+#else    
         ichunk=MIN((numReadBuffer+mthrd-1)/mthrd/32+1,256)
+#endif        
         ! parallelize record loop
         !$OMP  PARALLEL DO &
         !$OMP   DEFAULT(PRIVATE) &
         !$OMP   SHARED(numReadBuffer,readBufferPointer,readBufferDataI,readBufferDataD,ICHUNK,iscerr,dscerr) &
         !$OMP   SCHEDULE(DYNAMIC,ICHUNK)
         DO ibuf=1,numReadBuffer ! buffer for current record
-            iproc=0
-            !$        IPROC=OMP_GET_THREAD_NUM()         ! thread number
             ist=isfrst(ibuf)
             nst=islast(ibuf)
             DO ! loop over measurements
@@ -2804,6 +2821,7 @@ SUBROUTINE ploopb(lunp)
     REAL(mps) :: slopes(3)
     REAL(mps) :: steps(3)
     REAL, DIMENSION(2) :: ta
+    REAl etime
 
     INTEGER(mpi), INTENT(IN)                  :: lunp
 
@@ -2813,7 +2831,7 @@ SUBROUTINE ploopb(lunp)
 
     nrej=nrejec(0)+nrejec(1)+nrejec(2)+nrejec(3)    ! rejects
     IF(nrej > 9999999) nrej=9999999
-    CALL etime(ta,rstb)
+    rstb=etime(ta)
     deltim=rstb-rstart
     CALL sechms(deltim,nhour,minut,secnd) ! time
     nsecnd=nint(secnd,mpi)
@@ -2860,6 +2878,7 @@ SUBROUTINE ploopc(lunp)
     REAL(mps) :: slopes(3)
     REAL(mps) :: steps(3)
     REAL, DIMENSION(2) :: ta
+    REAL etime
 
     INTEGER(mpi), INTENT(IN)                  :: lunp
     CHARACTER (LEN=4):: ccalcm(4)
@@ -2868,7 +2887,7 @@ SUBROUTINE ploopc(lunp)
 
     nrej=nrejec(0)+nrejec(1)+nrejec(2)+nrejec(3)    ! rejects
     IF(nrej > 9999999) nrej=9999999
-    CALL etime(ta,rstb)
+    rstb=etime(ta)
     deltim=rstb-rstart
     CALL sechms(deltim,nhour,minut,secnd) ! time
     nsecnd=nint(secnd,mpi)
@@ -2900,13 +2919,13 @@ SUBROUTINE ploopd(lunp)
     REAL :: rstb
     REAL(mps) :: secnd
     REAL, DIMENSION(2) :: ta
-
+    REAL etime
 
     INTEGER(mpi), INTENT(IN)                  :: lunp
     CHARACTER (LEN=4):: ccalcm(4)
     DATA ccalcm / ' end','   S', ' F  ',' FMS' /
     SAVE
-    CALL etime(ta,rstb)
+    rstb=etime(ta)
     deltim=rstb-rstart
     CALL sechms(deltim,nhour,minut,secnd) ! time
     nsecnd=NINT(secnd,mpi)
@@ -6870,6 +6889,7 @@ SUBROUTINE xloopn                !
     REAL(mps) :: concu2
     REAL(mps) :: concut
     REAL, DIMENSION(2) :: ta
+    REAL etime
     INTEGER(mpi) :: i
     INTEGER(mpi) :: iact
     INTEGER(mpi) :: iagain
@@ -7074,7 +7094,7 @@ SUBROUTINE xloopn                !
     WRITE(*,*)'Reading files and accumulating vectors/matrices ...'
     WRITE(*,*) ' '
 
-    CALL etime(ta,rstart)
+    rstart=etime(ta)
     iterat=-1
     litera= 0
     jcalcm=-1
@@ -7115,7 +7135,7 @@ SUBROUTINE xloopn                !
                 CALL ploopd(6) ! solution line
                 CALL ploopd(lunlog)
             END IF
-            CALL etime(ta,rstart)
+            rstart=etime(ta)
             ! CHK
             IF (IABS(jcalcm) <= 1) THEN
                 idx=jcalcm+4
@@ -7621,6 +7641,11 @@ SUBROUTINE filetc
             ELSE
                 WRITE(*,*) 'Open error for file:',text(ia:ib),' - stop'
                 CALL peend(16,'Aborted, open error for file')
+                IF(text(ia:ia) /= '/') THEN 
+                    CALL getenv('PWD',text)
+                    CALL rltext(text,ia,ib,nab)
+                    WRITE(*,*) 'PWD:',text(ia:ib)
+                END IF    
                 STOP
             END IF
         ELSE
@@ -7691,6 +7716,11 @@ SUBROUTINE filetc
     IF(ios /= 0) THEN
         WRITE(*,*) 'Open error for steering file - stop'
         CALL peend(11,'Aborted, open error for steering file')
+        IF(filnam(1:1) /= '/') THEN 
+            CALL getenv('PWD',text)
+            CALL rltext(text,ia,ib,nab)
+            WRITE(*,*) 'PWD:',text(ia:ib)
+        END IF   
         STOP
     END IF
     ifile =0
@@ -9104,6 +9134,7 @@ SUBROUTINE petime
 
     IMPLICIT NONE
     REAL, DIMENSION(2) :: ta
+    REAL etime
     REAL :: rst
     REAL :: delta
     REAL :: rstp
@@ -9121,7 +9152,7 @@ SUBROUTINE petime
     DATA ncount/0/
     !     ...
     ncount=ncount+1
-    CALL etime(ta,rst)
+    rst=etime(ta)
     IF(ncount > 1) THEN
         delta=rst
         nsecd1=INT(delta,mpi) ! -> integer
@@ -9186,6 +9217,7 @@ SUBROUTINE binopn(kfile, ithr, ierr)
     INTEGER(mpi) :: moddate
     CHARACTER (LEN=1024) :: fname
     CHARACTER (LEN=7) :: cfile
+    INTEGER stat
 
 
     ierr=0
@@ -9225,7 +9257,7 @@ SUBROUTINE binopn(kfile, ithr, ierr)
         RETURN
     END IF
     ! get status
-    CALL stat(fname(1:lfn),ibuff,ios)
+    ios=stat(fname(1:lfn),ibuff)
     !print *, ' STAT ', ios, ibuff(10), moddate
     IF(ios /= 0) THEN
         ierr=1
