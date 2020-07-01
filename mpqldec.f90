@@ -4,7 +4,7 @@
 !! \author Claus Kleinwort, DESY, 2015 (Claus.Kleinwort@desy.de)
 !!
 !! \copyright
-!! Copyright (c) 2015-2019 Deutsches Elektronen-Synchroton,
+!! Copyright (c) 2015-2020 Deutsches Elektronen-Synchroton,
 !! Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 !! This library is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU Library General Public License as
@@ -32,6 +32,7 @@ MODULE mpqldec
     INTEGER(mpi) :: ncon   !< number of constraints
     INTEGER(mpi) :: nblock !< number of blocks
     INTEGER(mpi) :: iblock !< active block
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: sparseV !< sparsity structure matV
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: matV !< unit normals (v_i) of Householder reflectors
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: matL !< lower diagonal matrix L
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: vecN !< normal vector
@@ -62,6 +63,8 @@ SUBROUTINE qlini(n,m,l)
     nblock=l
     iblock=1
     ! allocate 
+    length=5*ncon
+    CALL mpalloc(sparseV,length,'QLDEC: sparsity structure of V')
     length=npar*ncon
     CALL mpalloc(matV,length,'QLDEC: V')
     length=ncon*ncon
@@ -153,6 +156,11 @@ SUBROUTINE qldec(a)
         ! store normal vector
         matV(ioff1+1:ioff1+kn)=vecN(1:kn)
         matV(ioff1+kn+1:ioff1+npar)=0.0_mpd
+        ! sparsity structure
+        ioff3=(k-1)*5
+        sparseV(ioff3+1)=1    ! number of non-zero regions
+        sparseV(ioff3+2)=1    ! start
+        sparseV(ioff3+3)=kn   ! end
     END DO
 
 END SUBROUTINE qldec
@@ -300,6 +308,13 @@ SUBROUTINE qldecb(a,bpar,bcon)
             matV(ioff1+1:ioff1+npar)=0.0_mpd
             matV(ioff1+ifirst-ipoff:ioff1+ilast-ipoff)=vecN(ifirst:ilast)
             matV(ioff1+kn-ipoff)=vecN(kn)
+            ! sparsity structure
+            ioff3=(k-1)*5
+            sparseV(ioff3+1)=2               ! number of non-zero regions
+            sparseV(ioff3+2)=ifirst-ipoff    ! start 1 
+            sparseV(ioff3+3)=ilast-ipoff     ! end 1
+            sparseV(ioff3+4)=kn-ipoff        ! start 2
+            sparseV(ioff3+5)=kn-ipoff        ! end 2
         END DO
     END DO
     
@@ -495,7 +510,6 @@ SUBROUTINE qlssq(aprod,A,t)
             REAL(mpd), INTENT(OUT)   :: y(n)
         END SUBROUTINE aprod
     END INTERFACE
-
     length=npar
     CALL mpalloc(Av,length,'qlssq: A*v')
 
@@ -582,14 +596,16 @@ SUBROUTINE qlpssq(aprod,B,m,t)
     LOGICAL, INTENT(IN)               :: t
 
     INTERFACE
-        SUBROUTINE aprod(n,l,x,y) ! y=A*x
+        SUBROUTINE aprod(n,l,x,y,is) ! y=A*x
             USE mpdef
             INTEGER(mpi), INTENT(in) :: n
             INTEGER(mpl), INTENT(in) :: l
             REAL(mpd), INTENT(IN)    :: x(n)
             REAL(mpd), INTENT(OUT)   :: y(n)
+            INTEGER(mpi), INTENT(in) :: is(*)
         END SUBROUTINE aprod
     END INTERFACE
+    !$POMP INST BEGIN(qlpssq)
 
     length=npar
     length=npar*ncon
@@ -599,7 +615,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
     ! A*V
     ioff1=0
     DO i=1,ncon
-        CALL aprod(npar,0_mpl,matV(ioff1+1:ioff1+npar),Av(ioff1+1:ioff1+npar))
+        CALL aprod(npar,0_mpl,matV(ioff1+1:ioff1+npar),Av(ioff1+1:ioff1+npar),sparseV(i*5-4))
         ioff1=ioff1+npar
     END DO
 
@@ -648,6 +664,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
     END DO
 
     CALL mpdealloc(Av)
+    !$POMP INST END(qlpssq)
 
 END SUBROUTINE qlpssq
 

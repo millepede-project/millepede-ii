@@ -9,7 +9,7 @@
 !! \author Claus Kleinwort, DESY (maintenance and developement)
 !!
 !! \copyright
-!! Copyright (c) 2009 - 2019 Deutsches Elektronen-Synchroton,
+!! Copyright (c) 2009 - 2020 Deutsches Elektronen-Synchroton,
 !! Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 !! This library is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU Library General Public License as
@@ -54,6 +54,7 @@
 !!        DBSVX     LARGE symmetric matrix vector (CHK)
 !!        DBGAX     general matrix vector
 !!        DBAVAT    AVAT product
+!!        DBAVATS   AVAT product for sparse A (CHK)
 !!        DBMPRV    print parameter and matrix
 !!        DBPRV     print matrix  (CHK)
 !!
@@ -68,6 +69,7 @@
 !!        SORT1K   sort 1-dim key-array (CHK)
 !!        SORT2K   sort 2-dim key-array
 !!        SORT2I   sort 2-dim key-array with index (CHK)
+!!        SORT22   sort 2-dim key-array with two additional values (CHK)
 !!
 
 !----------------------------------------------------------------------
@@ -1335,6 +1337,89 @@ SUBROUTINE dbavat(v,a,w,n,ms)
     END DO                   ! end do I
 END SUBROUTINE dbavat
 
+!> A V AT product (similarity, sparse).
+!!
+!! Multiply symmetric N-by-N matrix from the left with sparse M-by-N
+!! matrix and from the right with the transposed of the same general
+!! matrix to form symmetric M-by-M matrix (used for error propagation).
+!!
+!! \param [in]     V  symmetric N-by-N matrix
+!! \param [in]     A  sparse M-by-N matrix, content 
+!! \param [in]     IS sparse M-by-N matrix, structure
+!! \param [in,out] W  symmetric M-by-M matrix
+!! \param [in]     MS rows of A (-rows: don't reset W)
+!! \param [in]     N  columns of A
+!! \param [in]     SC scratch array
+!!
+!! Sparsity structure:
+!!  - IS(1..M): row offsets
+!!  - IS(M+1..N+M+1): column offsets
+!!  - IS(IS(1)+1..IS(M+1)): non-zero columns (column number, index for A)
+!!  - IS(IS(M+1)+1..IS(M+N+1)): non-zero rows (row number, index for A)
+!!
+SUBROUTINE dbavats(v,a,is,w,n,ms,sc)
+    USE mpdef
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: i
+    INTEGER(mpi) :: ic
+    INTEGER(mpi) :: ij
+    INTEGER(mpi) :: ijs
+    INTEGER(mpi) :: in
+    INTEGER(mpi) :: ir
+    INTEGER(mpi) :: j
+    INTEGER(mpi) :: k
+    INTEGER(mpi) :: l
+    INTEGER(mpi) :: lk
+    INTEGER(mpi) :: m
+
+    REAL(mpd), INTENT(IN)             :: v(*)
+    REAL(mpd), INTENT(IN)             :: a(*)
+    INTEGER(mpi), INTENT(IN)          :: is(*)
+    REAL(mpd), INTENT(INOUT)          :: w(*)
+    INTEGER(mpi), INTENT(IN)          :: n
+    INTEGER(mpi), INTENT(IN)          :: ms
+    INTEGER(mpi), INTENT(OUT)          :: sc(*)
+
+    REAL(mpd) :: cik
+    !     ...
+    m=ms
+    IF (m > 0) THEN
+        DO i=1,(m*m+m)/2
+            w(i)=0.0_mpd             ! reset output matrix
+        END DO
+    ELSE
+        m=-m
+    END IF
+
+    ! offsets in V
+    sc(1)=0
+    DO k=2,n
+        sc(k)=sc(k-1)+k-1
+    END DO
+    
+    ijs=0
+    DO i=1,m
+        ijs=ijs+i-1
+        DO k=1,n
+            cik=0.0_mpd
+            DO l=is(i)+1,is(i+1),2
+                ic=is(l)
+                in=is(l+1)
+                lk=sc(max(k,ic))+min(k,ic)
+                cik=cik+a(in)*v(lk)
+            END DO
+            DO j=is(m+k)+1,is(m+k+1),2
+                ir=is(j)
+                in=is(j+1)
+                IF (ir > i) EXIT
+                ij=ijs+ir
+                w(ij)=w(ij)+cik*a(in)
+            END DO
+        END DO
+    END DO
+END SUBROUTINE dbavats
+
 !> Print symmetric matrix, vector.
 !!
 !! Prints the n-vector X and the symmetric N-by-N  covariance  matrix
@@ -1713,7 +1798,7 @@ SUBROUTINE sort2i(a,n)
     INTEGER(mpi) ::maxlev
     INTEGER(mpi) ::a1       ! pivot key
     INTEGER(mpi) ::a2       ! pivot key
-    INTEGER(mpi) ::at       ! pivot key
+    INTEGER(mpi) ::at(3)
 
     INTEGER(mpi), INTENT(IN OUT) :: a(3,*)
     INTEGER(mpi), INTENT(IN)     :: n
@@ -1724,15 +1809,9 @@ SUBROUTINE sort2i(a,n)
     r=n
 10  IF(r-l == 1) THEN     ! sort two elements L and R
         IF(a(1,l) > a(1,r).OR.( a(1,l) == a(1,r).AND.a(2,l) > a(2,r))) THEN
-            at=a(1,l)       ! exchange L <-> R
-            a(1,l)=a(1,r)
-            a(1,r)=at
-            at=a(2,l)
-            a(2,l)=a(2,r)
-            a(2,r)=at
-            at=a(3,l)
-            a(3,l)=a(3,r)
-            a(3,r)=at
+            at=a(:,l)       ! exchange L <-> R
+            a(:,l)=a(:,r)
+            a(:,r)=at
         END IF
         r=l
     END IF
@@ -1759,15 +1838,9 @@ SUBROUTINE sort2i(a,n)
         IF(a(1,j) > a1) GO TO 30
         IF(a(1,j) == a1.AND.a(2,j) > a2) GO TO 30
         IF(i <= j) THEN
-            at=a(1,i)     ! exchange I <-> J
-            a(1,i)=a(1,j)
-            a(1,j)=at
-            at=a(2,i)
-            a(2,i)=a(2,j)
-            a(2,j)=at
-            at=a(3,i)
-            a(3,i)=a(3,j)
-            a(3,j)=at
+            at=a(:,i)       ! exchange I <-> J
+            a(:,i)=a(:,j)
+            a(:,j)=at
             GO TO 20
         END IF
         IF(lev+2 > nlev) THEN
@@ -1788,6 +1861,94 @@ SUBROUTINE sort2i(a,n)
     END IF
     GO TO 10
 END SUBROUTINE sort2i
+
+!> Quick sort 2 with index.
+!!
+!! Quick sort of A(4,N) integer.
+!!
+!! \param[in,out] a vector (pair) of integers, sorted at return and an index
+!! \param[in]     n size of vector
+
+SUBROUTINE sort22(a,n)
+    USE mpdef
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: nlev          ! stack size
+    PARAMETER (nlev=2*32) ! ... for N = 2**32 = 4.3 10**9
+    INTEGER(mpi) :: i
+    INTEGER(mpi) ::j
+    INTEGER(mpi) ::l
+    INTEGER(mpi) ::r
+    INTEGER(mpi) ::lev
+    INTEGER(mpi) ::lr(nlev)
+    INTEGER(mpi) ::lrh
+    INTEGER(mpi) ::maxlev
+    INTEGER(mpi) ::a1       ! pivot key
+    INTEGER(mpi) ::a2       ! pivot key
+    INTEGER(mpi) ::at(4)
+
+    INTEGER(mpi), INTENT(IN OUT) :: a(4,*)
+    INTEGER(mpi), INTENT(IN)     :: n
+    !     ...
+    maxlev=0
+    lev=0
+    l=1
+    r=n
+    IF (n<=1) RETURN
+10  IF(r-l == 1) THEN     ! sort two elements L and R
+        IF(a(1,l) > a(1,r).OR.( a(1,l) == a(1,r).AND.a(2,l) > a(2,r))) THEN
+            at=a(:,l)       ! exchange L <-> R
+            a(:,l)=a(:,r)
+            a(:,r)=at
+        END IF
+        r=l
+    END IF
+    IF(r == l) THEN
+        IF(lev <= 0) THEN
+            WRITE(*,*) 'SORT22 (quicksort): maxlevel used/available =', maxlev,'/64'
+            RETURN
+        END IF
+        lev=lev-2
+        l=lr(lev+1)
+        r=lr(lev+2)
+    ELSE
+        !        LRH=(L+R)/2
+        lrh=(l/2)+(r/2)          ! avoid bit overflow
+        IF(MOD(l,2) == 1.AND.MOD(r,2) == 1) lrh=lrh+1
+        a1=a(1,lrh)      ! middle
+        a2=a(2,lrh)
+        i=l-1            ! find limits [J,I] with [L,R]
+        j=r+1
+20      i=i+1
+        IF(a(1,i) < a1) GO TO 20
+        IF(a(1,i) == a1.AND.a(2,i) < a2) GO TO 20
+30      j=j-1
+        IF(a(1,j) > a1) GO TO 30
+        IF(a(1,j) == a1.AND.a(2,j) > a2) GO TO 30
+        IF(i <= j) THEN
+            at=a(:,i)       ! exchange I <-> J
+            a(:,i)=a(:,j)
+            a(:,j)=at
+            GO TO 20
+        END IF
+        IF(lev+2 > nlev) THEN
+            CALL peend(33,'Aborted, stack overflow in quicksort')
+            STOP 'SORT22 (quicksort): stack overflow'
+        END IF
+        IF(r-i < j-l) THEN
+            lr(lev+1)=l
+            lr(lev+2)=j
+            l=i
+        ELSE
+            lr(lev+1)=i
+            lr(lev+2)=r
+            r=j
+        END IF
+        lev=lev+2
+        maxlev=MAX(maxlev,lev)
+    END IF
+    GO TO 10
+END SUBROUTINE sort22
 
 !> Chi2/ndf cuts.
 !!

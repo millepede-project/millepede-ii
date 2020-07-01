@@ -1,4 +1,3 @@
-
 ! Code converted using TO_F90 by Alan Miller
 ! Date: 2012-03-16  Time: 11:06:00
 
@@ -10,7 +9,7 @@
 !! \author Claus Kleinwort, DESY (maintenance and developement)
 !!
 !! \copyright
-!! Copyright (c) 2009 - 2019 Deutsches Elektronen-Synchroton,
+!! Copyright (c) 2009 - 2020 Deutsches Elektronen-Synchroton,
 !! Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 !! This library is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU Library General Public License as
@@ -52,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-06-01 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-07-00 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -121,6 +120,9 @@
 !!   inversion (optionally with constraints handled by elimination) switch to
 !!   \ref mpmod::matsto "block diagonal" storage mode.
 !! * 200429: Modifications for compilation with PGI compiler (make -f Makefile_pgi).
+!! * 200701: Implementation of parameter groups (sets of adjacent global parameters (labels)
+!!   appearing in the binary files *always* together). Used to speed up construction of global matrix.
+!!   Similarity operations are now aware of sparse (rectangular) matrices.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -372,8 +374,7 @@
 !! For local fit \ref an-chisq "setChi^2" cut \ref mpmod::chicut "chicut" to \a number1 [1.],
 !! \ref mpmod::chirem "chirem" to \a number2 [1.].
 !! \subsection cmd-compress compress
-!! Set compression flag \ref mpmod::mcmprs "mcmprs" for \ref mpbits.f90 "sparse storage"
-!! to 1 (true) (and \ref mpmod::msngpe "msngpe" to 1).
+!! Obsolete. Compression is default.
 !! \subsection cmd-closeandreopen closeandreopen
 !! Set flag \ref mpmod::keepopen "keepOpen" to zero to enable closing and reopening of binary files
 !! to limit the number of concurrently open files.
@@ -652,6 +653,7 @@ PROGRAM mptwo
 
     CALL filetc   ! command line and steering file analysis
     CALL filetx   ! read text files
+
     IF (icheck > 0) THEN
         WRITE(*,*) '!!!   Checking input only, no calculation of a solution   !!!'
         WRITE(8,*) '!!!   Checking input only, no calculation of a solution   !!!'
@@ -1024,9 +1026,7 @@ SUBROUTINE solglo(ivgbi)
     REAL(mpd) :: ynorm
     REAL(mpd) :: gmati
     REAL(mpd) :: diag
-    INTEGER(mpl) :: ijadd
-    INTEGER(mpl) :: jk
-    INTEGER(mpl) :: ii
+    REAL(mpd) :: matij
     LOGICAL :: checka
     EXTERNAL avprod, mcsolv, mvsolv
     SAVE
@@ -1067,17 +1067,7 @@ SUBROUTINE solglo(ivgbi)
     gmati=globalCorrections(ivgbi)
     ERR=SQRT(ABS(REAL(gmati,mps)))
     IF(gmati < 0.0_mpd) ERR=-ERR
-    IF(matsto == 1) THEN ! normal matrix               ! ???
-        ii=ivgbi
-        jk=(ii*ii+ii)/2
-    ELSE IF(matsto == 2) THEN ! sparse matrix
-        jk=ijadd(ivgbi,ivgbi)
-    END IF
-    IF (jk > 0) THEN
-        diag=globalMatD(jk)
-    ELSE
-        diag=REAL(globalMatF(-jk),mpd)
-    END IF
+    diag=matij(ivgbi,ivgbi)
     gcor2=REAL(1.0_mpd-1.0_mpd/(gmati*diag),mps) ! global correlation (squared)
     WRITE(*,102) itgbl,par,REAL(globalParPreSigma(itgbi),mps),dpa,ERR,gcor2,itn
 101 FORMAT(1X,'    label     parameter    presigma      differ',  &
@@ -1117,9 +1107,7 @@ SUBROUTINE solgloqlp(ivgbi)
     REAL(mpd) :: trcond
     REAL(mpd) :: gmati
     REAL(mpd) :: diag
-    INTEGER(mpl) :: ijadd
-    INTEGER(mpl) :: jk
-    INTEGER(mpl) :: ii
+    REAL(mpd) :: matij
 
     EXTERNAL avprod, mcsolv, mvsolv
     SAVE
@@ -1168,17 +1156,7 @@ SUBROUTINE solgloqlp(ivgbi)
     gmati=globalCorrections(ivgbi)
     ERR=SQRT(ABS(REAL(gmati,mps)))
     IF(gmati < 0.0_mpd) ERR=-ERR
-    IF(matsto == 1) THEN ! normal matrix               ! ???
-        ii=ivgbi
-        jk=(ii*ii+ii)/2
-    ELSE IF(matsto == 2) THEN ! sparse matrix
-        jk=ijadd(ivgbi,ivgbi)
-    END IF
-    IF (jk > 0) THEN
-        diag=globalMatD(jk)
-    ELSE
-        diag=REAL(globalMatF(-jk),mpd)
-    END IF
+    diag=matij(ivgbi,ivgbi)
     gcor2=REAL(1.0_mpd-1.0_mpd/(gmati*diag),mps) ! global correlation (squared)
     WRITE(*,102) itgbl,par,REAL(globalParPreSigma(itgbi),mps),dpa,ERR,gcor2,itn
 101 FORMAT(1X,'    label     parameter    presigma      differ',  &
@@ -1428,7 +1406,7 @@ SUBROUTINE prpcon
             mszcon=mszcon+ncon*npar          ! (sum of) block size for constraint matrix     
             mszprd=mszprd+(ncon*ncon+ncon)/2 ! (sum of) block size for product matrix     
             IF (icheck > 0) THEN
-                IF (ilast > ifrst) THEN
+                IF (ilast > ifrst) THEN 
                     labelf=globalParLabelIndex(1,globalParVarToTotal(ifrst))
                     labell=globalParLabelIndex(1,globalParVarToTotal(ilast))
                 ELSE
@@ -2122,6 +2100,7 @@ SUBROUTINE peprep(mode)
     INTEGER(mpi) :: isfrst
     INTEGER(mpi) :: islast
     INTEGER(mpi) :: ist
+    INTEGER(mpi) :: itgbi
     INTEGER(mpi) :: j
     INTEGER(mpi) :: ja
     INTEGER(mpi) :: jb
@@ -2185,7 +2164,7 @@ SUBROUTINE peprep(mode)
                     CALL isjajb(nst,ist,ja,jb,jsp)
                     IF(jb == 0) EXIT
                     DO j=1,ist-jb
-                        readBufferDataI(jb+j)=inone( readBufferDataI(jb+j) ) ! translate to index
+                        itgbi=inone( readBufferDataI(jb+j) ) ! generate index
                     END DO
                 END DO
             END IF
@@ -2281,6 +2260,151 @@ SUBROUTINE pechk(ibuf, nerr)
     ENDIF
 
 END SUBROUTINE pechk
+
+!> Parameter group info update.
+!!
+!! Update last record number for consecutive labels.
+!!
+SUBROUTINE pepgrp
+    USE mpmod
+
+    IMPLICIT NONE
+
+    INTEGER(mpi) :: ibuf
+    INTEGER(mpi) :: ichunk
+    INTEGER(mpi) :: istart
+    INTEGER(mpi) :: itgbi
+    INTEGER(mpi) :: isfrst
+    INTEGER(mpi) :: islast
+    INTEGER(mpi) :: ist
+    INTEGER(mpi) :: j
+    INTEGER(mpi) :: ja
+    INTEGER(mpi) :: jb
+    INTEGER(mpi) :: jsp
+    INTEGER(mpi) :: jstart
+    INTEGER(mpi) :: jtgbi
+    INTEGER(mpi) :: lstart
+    INTEGER(mpi) :: ltgbi
+    INTEGER(mpi) :: nst
+    INTEGER(mpi) :: inone
+
+    isfrst(ibuf)=readBufferPointer(ibuf)+1
+    islast(ibuf)=readBufferDataI(readBufferPointer(ibuf))
+
+    CALL useone ! make (INONE) usable
+    globalParHeader(-2)=-1 ! set flag to inhibit further updates
+
+#ifdef __PGIC__
+    ! to prevent "PGF90-F-0000-Internal compiler error. Could not locate uplevel instance for stblock"
+    ichunk=256
+#else    
+    ichunk=MIN((numReadBuffer+mthrd-1)/mthrd/32+1,256)
+#endif          
+    ! parallelize record loop
+    !$OMP  PARALLEL DO &
+    !$OMP   DEFAULT(PRIVATE) &
+    !$OMP   SHARED(numReadBuffer,readBufferPointer,readBufferDataI,readBufferDataD,ICHUNK,iscerr,dscerr) &
+    !$OMP   SCHEDULE(DYNAMIC,ICHUNK)
+    DO ibuf=1,numReadBuffer ! buffer for current record
+        ist=isfrst(ibuf)
+        nst=islast(ibuf)
+        DO ! loop over measurements
+            CALL isjajb(nst,ist,ja,jb,jsp)
+            IF(jb == 0) EXIT
+            IF (ist > jb) THEN
+                DO j=1,ist-jb
+                    readBufferDataI(jb+j)=inone( readBufferDataI(jb+j) ) ! translate to index
+                END DO
+                ! sort
+                CALL sort1k(readBufferDataI(jb+1),ist-jb)
+            END IF    
+        END DO
+    END DO
+    !$OMP  END PARALLEL DO
+        
+    !$POMP INST BEGIN(pepgrp)    
+    DO ibuf=1,numReadBuffer ! buffer for current record
+        ist=isfrst(ibuf)
+        nst=islast(ibuf)
+        DO ! loop over measurements
+            CALL isjajb(nst,ist,ja,jb,jsp)
+            IF(jb == 0) EXIT
+            IF (ist > jb) THEN
+                ltgbi=-1
+                lstart=-1
+                ! build up groups
+                DO j=1,ist-jb
+                    itgbi=readBufferDataI(jb+j)
+                    istart=globalParLabelIndex(3,itgbi)     ! label of group start
+                    IF (istart == 0) THEN                   ! not yet in group
+                        IF (itgbi /= ltgbi+1)THEN           ! start group
+                            globalParLabelIndex(3,itgbi)=globalParLabelIndex(1,itgbi)
+                        ELSE                                ! extend group
+                            globalParLabelIndex(3,itgbi)=globalParLabelIndex(3,ltgbi)
+                        END IF
+                    END IF
+                    ltgbi=itgbi
+                END DO
+                ! split groups:
+                ! - start inside group?         
+                itgbi=readBufferDataI(jb+1)
+                istart=globalParLabelIndex(3,itgbi)         ! label of group start
+                jstart=globalParLabelIndex(1,itgbi)         ! label of first parameter
+                IF (istart /= jstart) THEN                  ! start new group   
+                    DO WHILE (globalParLabelIndex(3,itgbi) == istart)
+                        globalParLabelIndex(3,itgbi) = jstart
+                        itgbi=itgbi+1
+                        IF (itgbi > globalParHeader(-1)) EXIT
+                    END DO                
+                END IF
+                ! - not neigbours anymore
+                ltgbi=readBufferDataI(jb+1)
+                DO j=2,ist-jb
+                    itgbi=readBufferDataI(jb+j)
+                    IF (itgbi /= ltgbi+1) THEN
+                        ! split after ltgbi
+                        lstart=globalParLabelIndex(3,ltgbi) ! label of last group start
+                        jtgbi=ltgbi+1                       ! new group after ltgbi
+                        jstart=globalParLabelIndex(1,jtgbi)
+                        DO WHILE (globalParLabelIndex(3,jtgbi) == lstart)
+                            globalParLabelIndex(3,jtgbi) = jstart
+                            jtgbi=jtgbi+1
+                            IF (jtgbi > globalParHeader(-1)) EXIT
+                            IF (jtgbi == itgbi) jstart=globalParLabelIndex(1,jtgbi)
+                        END DO
+                        ! split at itgbi
+                        jtgbi=itgbi                        
+                        istart=globalParLabelIndex(3,jtgbi) ! label of group start
+                        jstart=globalParLabelIndex(1,jtgbi) ! label of first parameter
+                        IF (istart /= jstart) THEN          ! start new group   
+                            DO WHILE (globalParLabelIndex(3,jtgbi) == istart)
+                                globalParLabelIndex(3,jtgbi) = jstart
+                                jtgbi=jtgbi+1
+                                IF (jtgbi > globalParHeader(-1)) EXIT
+                            END DO                
+                        END IF
+                    ENDIF
+                    ltgbi=itgbi
+                END DO
+                ! - end inside group?         
+                itgbi=readBufferDataI(ist)
+                IF (itgbi < globalParHeader(-1)) THEN
+                    istart=globalParLabelIndex(3,itgbi)     ! label of group start
+                    itgbi=itgbi+1
+                    jstart=globalParLabelIndex(1,itgbi)     ! label of new group start
+                    DO WHILE (globalParLabelIndex(3,itgbi) == istart)
+                        globalParLabelIndex(3,itgbi) = jstart
+                        itgbi=itgbi+1
+                        IF (itgbi > globalParHeader(-1)) EXIT
+                    END DO
+                END IF                                          
+            END IF    
+        END DO
+    END DO
+    globalParHeader(-2)=0 ! reset flag to reenable further updates
+    !$POMP INST END(pepgrp)
+
+END SUBROUTINE pepgrp
 
 !> Decode Millepede record.
 !!
@@ -2412,8 +2536,8 @@ SUBROUTINE loopn
     REAL(mpd):: adder
     REAL(mpd)::funref
     REAL(mpd)::dchi2s
+    REAL(mpd)::matij
     REAL(mpd)::sndf
-    INTEGER(mpl):: ii
     SAVE
     !     ...
     isfrst(ibuf)=readBufferPointer(ibuf)+1
@@ -2539,6 +2663,23 @@ SUBROUTINE loopn
         WRITE(*,111) nparl,ncrit,usei,used,peaki,peakd
 111     FORMAT(' Write cache usage (#flush,#overrun,<levels>,',  &
             'peak(levels))'/2I7,',',4(f6.1,'%'))
+        ! fill part of MINRES preconditioner matrix from binary files (formerly in mgupdt)
+        IF (metsol >= 3) THEN
+            IF (mbandw == 0) THEN
+                ! default preconditioner (diagonal)
+                DO i=1, nvgb
+                    matPreCond(i)=matij(i,i)
+                END DO   
+            ELSE IF (mbandw > 0) THEN
+                ! band matrix
+                DO i=1, nvgb
+                    ia=indPreCond(i) ! index of diagonal element
+                    DO j=max(1,i-mbandw+1),i
+                        matPreCond(ia-i+j)=matij(i,j)
+                    END DO
+                END DO
+            END IF
+        END IF   
         ! fill second half (j>i) of global matric for extended storage
         IF (mextnd > 0) CALL mhalf2()
     END IF
@@ -2582,20 +2723,8 @@ SUBROUTINE loopn
         !        plot diagonal elements
         elmt=0.0
         DO i=1,nvgb        ! diagonal elements
-            ii=0
-            IF(matsto == 2) ii=i
-            IF(matsto == 1) THEN
-                ii=i
-                ii=(ii*ii+ii)/2
-            ELSE IF(matsto == 3) THEN             ! block diagonal symmetric matrix
-                ib=globalIndexRanges(i)
-                ii=i-matParBlockOffsets(1,ib)
-                ii=(ii*ii+ii)/2+vecParBlockOffsets(ib)
-            END IF
-            IF(ii /= 0) THEN
-                elmt=REAL(globalMatD(ii),mps)
-                IF(elmt > 0.0) CALL hmpent(23,1.0/SQRT(elmt))
-            END IF
+            elmt=REAL(matij(i,i),mps)
+            IF(elmt > 0.0) CALL hmpent(23,1.0/SQRT(elmt))
         END DO
     END IF
 
@@ -3091,6 +3220,107 @@ SUBROUTINE mupdat(i,j,add)       !
 END SUBROUTINE mupdat
 
 
+!> Update global matrix for parameter group.
+!!
+!! Add values -SUB to matrix elements (continous block in smaller index) .
+!!
+!! \param [in]  i   larger index
+!! \param [in]  j1  smaller index first group
+!! \param [in]  j2  smaller index last group
+!! \param [in]  il  subtrahends first row
+!! \param [in]  jl  subtrahends first col
+!! \param [in]  sub subtrahends matrix
+
+SUBROUTINE mgupdt(i,j1,j2,il,jl,sub) 
+    USE mpmod
+
+    IMPLICIT NONE
+
+    INTEGER(mpi), INTENT(IN)                      :: i
+    INTEGER(mpi), INTENT(IN)                      :: j1
+    INTEGER(mpi), INTENT(IN)                      :: j2
+    INTEGER(mpi), INTENT(IN)                      :: il
+    INTEGER(mpi), INTENT(IN)                      :: jl
+    REAL(mpd), INTENT(IN)             :: sub(*)
+
+    INTEGER(mpl):: ij
+    INTEGER(mpi):: ia
+    INTEGER(mpi):: ib
+    INTEGER(mpi):: iprc
+    INTEGER(mpi):: ir
+    INTEGER(mpi):: ja
+    INTEGER(mpi):: jb
+    INTEGER(mpi):: iblk
+    INTEGER(mpi):: ijl
+    INTEGER(mpi):: k
+    INTEGER(mpi):: lr
+    INTEGER(mpi):: nc
+    !     ...
+    IF(i <= 0.OR.j1 <= 0.OR.j2 > i) RETURN
+    ia=globalAllIndexGroups(i)      ! first (global) row
+    ib=globalAllIndexGroups(i+1)-1  ! last (global) row
+    ja=globalAllIndexGroups(j1)     ! first (global) column
+    jb=globalAllIndexGroups(j2+1)-1 ! last (global) column
+        
+    IF(matsto == 1) THEN                ! full symmetric matrix
+        ij=ia
+        ij=(ij*ij-ij)/2                 ! ISYM index offset (global matrix)
+        k=il
+        ijl=(k*k-k)/2                   ! ISYM index offset (subtrahends matrix)
+        DO ir=ia,ib
+            nc=min(ir,jb)-ja            ! number of columns -1 
+            globalMatD(ij+ja:ij+ja+nc)=globalMatD(ij+ja:ij+ja+nc)-sub(ijl+jl:ijl+jl+nc)
+            ij=ij+ir
+            ijl=ijl+k
+            k=k+1
+        END DO    
+    ELSE IF(matsto == 2) THEN           ! sparse symmetric matrix
+        CALL ijpgrp(i,j1,ij,lr,iprc)         ! index of first element of group 'j1' 
+        !print *, ' mgupdt ', i,j1,j2,il,jl,ij,lr,iprc
+        IF (ij == 0) THEN
+            PRINT *, ' MGUPDT: ij=0', i,j1,j2,il,jl,ij,lr,iprc
+            STOP 
+        END IF
+        k=il
+        ijl=(k*k-k)/2                   ! ISYM index offset (subtrahends matrix)
+        DO ir=ia,ib
+            nc=min(ir,jb)-ja            ! number of columns -1 
+            IF (jb >= ir) THEN           ! diagonal element
+                globalMatD(ir)=globalMatD(ir)-sub(ijl+jl+nc)
+                nc=nc-1
+            END IF 
+            ! off-diagonal elements
+            IF (iprc == 1) THEN
+                globalMatD(ij:ij+nc)=globalMatD(ij:ij+nc)-sub(ijl+jl:ijl+jl+nc)
+            ELSE
+                globalMatF(ij:ij+nc)=globalMatF(ij:ij+nc)-REAL(sub(ijl+jl:ijl+jl+nc),mps)
+            END IF 
+            ij=ij+lr
+            ijl=ijl+k
+            k=k+1
+        END DO    
+    ELSE IF(matsto == 3) THEN           ! block diagonal symmetric matrix
+        iblk=globalIndexRanges(ja)
+        ! local (row,col) offset in block
+        ia=ia-matParBlockOffsets(1,iblk)
+        ib=ib-matParBlockOffsets(1,iblk)
+        ja=ja-matParBlockOffsets(1,iblk)
+        jb=jb-matParBlockOffsets(1,iblk)
+        ij=(ia*ia-ia)/2+vecParBlockOffsets(iblk) ! global ISYM offset
+        k=il
+        ijl=(k*k-k)/2                   ! ISYM index offset (subtrahends matrix)
+        DO ir=ia,ib
+            nc=min(ir,jb)-ja            ! number of columns -1 
+            globalMatD(ij+ja:ij+ja+nc)=globalMatD(ij+ja:ij+ja+nc)-sub(ijl+jl:ijl+jl+nc)
+            ij=ij+ir
+            ijl=ijl+k
+            k=k+1
+        END DO    
+    END IF
+
+END SUBROUTINE mgupdt
+
+
 !> Loop over records in read buffer (block), fits and sums.
 !!
 !! Loop over records in current read buffer block (with multiple threads).
@@ -3155,6 +3385,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
     INTEGER(mpl) :: icost
     INTEGER(mpi) :: id
     INTEGER(mpi) :: idiag
+    INTEGER(mpi) :: ieq
     INTEGER(mpi) :: iext
     INTEGER(mpi) :: ij
     INTEGER(mpi) :: ije
@@ -3162,6 +3393,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
     INTEGER(mpi) :: ijsym
     INTEGER(mpi) :: ik
     INTEGER(mpi) :: ike
+    INTEGER(mpi) :: il
     INTEGER(mpi) :: im
     INTEGER(mpi) :: imeas
     INTEGER(mpi) :: in
@@ -3172,22 +3404,31 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
     INTEGER(mpi) :: ioffd
     INTEGER(mpi) :: ioffe
     INTEGER(mpi) :: ioffi
+    INTEGER(mpi) :: ioffq
+    INTEGER(mpi) :: iprc
+    INTEGER(mpi) :: iprcnx
     INTEGER(mpi) :: iprdbg
     INTEGER(mpi) :: iproc
     INTEGER(mpi) :: irbin
     INTEGER(mpi) :: irow
     INTEGER(mpi) :: isfrst
+    INTEGER(mpi) :: isize
     INTEGER(mpi) :: islast
     INTEGER(mpi) :: ist
     INTEGER(mpi) :: iter
     INTEGER(mpi) :: itgbi
     INTEGER(mpi) :: ivgbj
     INTEGER(mpi) :: ivgbk
+    INTEGER(mpi) :: ivpgrp
     INTEGER(mpi) :: j
+    INTEGER(mpi) :: j1
     INTEGER(mpi) :: ja
     INTEGER(mpi) :: jb
     INTEGER(mpi) :: jk
+    INTEGER(mpi) :: jl
+    INTEGER(mpi) :: jl1
     INTEGER(mpi) :: jn
+    INTEGER(mpi) :: jnx
     INTEGER(mpi) :: joffd
     INTEGER(mpi) :: joffi
     INTEGER(mpi) :: jproc
@@ -3198,6 +3439,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
     INTEGER(mpi) :: kbnd
     INTEGER(mpi) :: kfl
     INTEGER(mpi) :: kx
+    INTEGER(mpi) :: lvpgrp
     INTEGER(mpi) :: mbdr
     INTEGER(mpi) :: mbnd
     INTEGER(mpi) :: mside
@@ -3218,6 +3460,8 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
     INTEGER(mpi) :: nst
     INTEGER(mpi) :: nter
     INTEGER(mpi) :: nweig
+    INTEGER(mpi) :: ngrp
+    INTEGER(mpi) :: npar
 
     INTEGER(mpi), INTENT(IN OUT)                     :: nrej(0:3)
     INTEGER(mpi), INTENT(IN OUT)                     :: ndfs
@@ -3233,11 +3477,13 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
     REAL(mpd):: dw1
     REAL(mpd)::dw2
     REAL(mpd)::summ
+    INTEGER(mpi) :: ijprec
 
     !$    INTEGER(mpi) OMP_GET_THREAD_NUM
 
     LOGICAL:: lprnt
     LOGICAL::lhist
+
     CHARACTER (LEN=3):: chast
     DATA chuber/1.345_mpd/  ! constant for Huber down-weighting
     DATA cauchy/2.3849_mpd/ ! constant for Cauchy down-weighting
@@ -3265,9 +3511,10 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
     !$OMP      readBufferDataD,writeBufferHeader,writeBufferInfo, &
     !$OMP      writeBufferData,writeBufferIndices,writeBufferUpdates,globalVector,globalCounter, &
     !$OMP      globalParameter,globalParLabelIndex,globalIndexUsage,backIndexUsage, &
-    !$OMP      measBins,numMeas,measIndex,measRes,measHists, &
+    !$OMP      measBins,numMeas,measIndex,measRes,measHists,globalAllParToGroup,globalAllIndexGroups, &
+    !$OMP      localCorrections,localEquations, &
     !$OMP      NAGB,NVGB,NAGBN,ICALCM,ICHUNK,NLOOPN,NRECER,NPRDBG,IPRDBG, &
-    !$OMP      NEWITE,CHICUT,LHUBER,CHUBER,ITERAT,NRECPR,MTHRD, &
+    !$OMP      NEWITE,CHICUT,LHUBER,CHUBER,ITERAT,NRECPR,MTHRD,NSPC,NAEQN, &
     !$OMP      DWCUT,CHHUGE,NRECP2,CAUCHY,LFITNP,LFITBB,IMONIT,IMONMD) &
     !$OMP   REDUCTION(+:NDFS,SNDF,DCHI2S,NREJ,NBNDR,NACCF,CHI2F,NDFF) &
     !$OMP   REDUCTION(MAX:NBNDX,NBDRX) &
@@ -3286,6 +3533,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
         ioffe=nvgb*iproc                                  ! offset 'e'
         ioffd=writeBufferHeader(-1)*iproc+writeBufferInfo(2,iproc+1)  ! offset data
         ioffi=writeBufferHeader(1)*iproc+writeBufferInfo(3,iproc+1)+2 ! offset indices
+        ioffq=naeqn*iproc                                 ! offset equations (measurements)
         !     ----- reset ------------------------------------------------------
         lprnt=.FALSE.
         lhist=(iproc == 0)
@@ -3375,6 +3623,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
         nalg=0                         ! count number of global derivatives
         nalc=0                         ! count number of local derivatives
         neq=0                          ! count number of equations
+                    
         ist=isfrst(ibuf)
         nst=islast(ibuf)
         DO ! loop over measurements
@@ -3382,6 +3631,9 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
             IF(ja == 0) EXIT
             rmeas=REAL(glder(ja),mpd)     ! data
             neq=neq+1                     ! count equation
+            localEquations(1,ioffq+neq)=ja
+            localEquations(2,ioffq+neq)=jb
+            localEquations(3,ioffq+neq)=ist
             !         subtract global ... from measured value
             DO j=1,ist-jb                 ! global parameter loop
                 itgbi=inder(jb+j)            ! global parameter label
@@ -3413,18 +3665,41 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
         IF(nalc <= 0) GO TO 90
   
         ngg=(nalg*nalg+nalg)/2
+        ngrp=0
         IF (icalcm == 1) THEN
-            DO k=1,nalg*nalc
-                localGlobalMatrix(k)=0.0_mpd ! reset global-local matrix
-            END DO
-            writeBufferIndices(ioffi-1)=nrc       ! index header:
-            writeBufferIndices(ioffi  )=nalg      ! event number, number of global par
+            localGlobalMatrix(:nalg*nalc)=0.0_mpd ! reset global-local matrix
+            localGlobalMap(:nalg*nalc)=0          ! reset global-local map
+            ! store parameter group indices  
             CALL sort1k(globalIndexUsage(ioffc+1),nalg) ! sort global par.
+            lvpgrp=-1
+            npar=0
             DO k=1,nalg
                 iext=globalIndexUsage(ioffc+k)
-                writeBufferIndices(ioffi+k)=iext    ! global par indices
-                backIndexUsage(ioffe+iext)=k    ! update back index
+                backIndexUsage(ioffe+iext)=k      ! update back index
+                ivpgrp=globalAllParToGroup(iext)  ! group
+                IF (ivpgrp /= lvpgrp) THEN
+                    ngrp=ngrp+1
+                    writeBufferIndices(ioffi+ngrp)=ivpgrp    ! global par group indices
+                    lvpgrp=ivpgrp
+                    npar=npar+globalAllIndexGroups(ivpgrp+1)-globalAllIndexGroups(ivpgrp)
+                END IF    
             END DO
+            ! check NPAR==NALG
+            IF (npar /= nalg) THEN
+                PRINT *, '  mismatch of number of global parameters ', nrc, nalg, npar, ngrp
+                PRINT *, globalIndexUsage(ioffc+1:ioffc+nalg)
+                PRINT *, writeBufferIndices(ioffi+1:ioffi+ngrp)
+                j=0
+                DO k=1,ngrp
+                    ivpgrp=writeBufferIndices(ioffi+k)
+                    j=j+globalAllIndexGroups(ivpgrp+1)-globalAllIndexGroups(ivpgrp)
+                    IF (globalAllParToGroup(globalIndexUsage(ioffc+j)) /= ivpgrp) &
+                        print *, ' bad group ', k, j, ivpgrp, globalIndexUsage(ioffc+j)
+                END DO
+                STOP ' mismatch of number of global parameters '
+            ENDIF
+            writeBufferIndices(ioffi-1)=nrc       ! index header:
+            writeBufferIndices(ioffi  )=ngrp      ! event number, number of global par groups
             DO k=1,ngg
                 writeBufferUpdates(ioffd+k)=0.0_mpd ! reset global-global matrix
             END DO
@@ -3433,7 +3708,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
   
         nter=1                         ! first loop without down-weighting
         IF(nloopn /= 1.AND.lhuber /= 0) nter=lhuber
-        localCorrections(1:neq) = 0._mpd
+        localCorrections(ioffq+1:ioffq+neq) = 0._mpd
   
         !      check matrix for bordered band structure (MBDR+MBND+1 <= NALC)
         mbnd=-1
@@ -3467,20 +3742,16 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
             DO i=1,(nalc*nalc+nalc)/2 ! GF: FIXME - not really, local parameter number...
                 clmat(i)=0.0_mpd               ! (p)reset matrix
             END DO
-            neq=0
             ndown=0
             nweig=0
-            ist=isfrst(ibuf)
-            nst=islast(ibuf)
-            DO ! loop over measurements
-                CALL isjajb(nst,ist,ja,jb,jsp)
-                IF(ja == 0) EXIT
+            DO ieq=1,neq! loop over measurements
+                ja=localEquations(1,ioffq+ieq)
+                jb=localEquations(2,ioffq+ieq)
                 rmeas=REAL(glder(ja),mpd)     ! data
                 rerr =REAL(glder(jb),mpd)     ! ... and the error
                 wght =1.0_mpd/rerr**2         ! weight from error
-                neq=neq+1                     ! count equation
                 nweig=nweig+1
-                resid=rmeas-localCorrections(neq)           ! subtract previous fit
+                resid=rmeas-localCorrections(ioffq+ieq)           ! subtract previous fit
                 IF(nloopn /= 1.AND.iter /= 1.AND.lhuber /= 0) THEN
                     IF(iter <= 3) THEN
                         IF(ABS(resid) > chuber*rerr) THEN     ! down-weighting
@@ -3566,7 +3837,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
                     mbdr=kbdrx
                 END IF
             END IF
-  
+            
             IF (mbnd >= 0) THEN
                 !      fast solution for border banded matrix (inverse for ICALCM>0)
                 IF (nloopn == 1) THEN
@@ -3609,23 +3880,20 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
   
             summ=0.0_mpd
             suwt=0.0
-            neq=0
             imeas=0
-            ist=isfrst(ibuf)
-            nst=islast(ibuf)
-            DO ! loop over measurements
-                CALL isjajb(nst,ist,ja,jb,jsp)
-                IF(ja == 0) EXIT
+            DO ieq=1,neq! loop over measurements
+                ja=localEquations(1,ioffq+ieq)
+                jb=localEquations(2,ioffq+ieq)
+                ist=localEquations(3,ioffq+ieq)
                 rmeas=REAL(glder(ja),mpd)     ! data (global contrib. subtracted)
                 rerr =REAL(glder(jb),mpd)     ! ... and the error
                 wght =1.0_mpd/rerr**2         ! weight from error
-                neq=neq+1                     ! count equation
                 rmloc=0.0                     ! local fit result reset
                 DO j=1,jb-ja-1                ! local parameter loop
                     ij=inder(ja+j)
                     rmloc=rmloc+REAL(glder(ja+j),mpd)*blvec(ij) ! local fit result
                 END DO
-                localCorrections(neq)=rmloc   ! save local fit result
+                localCorrections(ioffq+ieq)=rmloc   ! save local fit result
                 rmeas=rmeas-rmloc             ! reduced to residual
     
                 !         calculate pulls? (needs covariance matrix)
@@ -3720,6 +3988,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
                 END IF
                 summ=summ+dchi2        ! accumulate chi-square sum
             END DO
+
             ndf=neq-nrank
             resing=(REAL(nweig,mps)-REAL(suwt,mps))/REAL(nweig,mps)
             IF (lhist) THEN
@@ -3823,12 +4092,10 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
         !      update of global matrix and vector according to the "Millepede"
         !      principle, from the global/local information
     
-        ist=isfrst(ibuf)
-        nst=islast(ibuf)
-        DO ! loop over measurements
-            CALL isjajb(nst,ist,ja,jb,jsp)
-            IF(ja <= 0) EXIT
-    
+        DO ieq=1,neq! loop over measurements
+            ja=localEquations(1,ioffq+ieq)
+            jb=localEquations(2,ioffq+ieq)
+            ist=localEquations(3,ioffq+ieq)    
             rmeas=REAL(glder(ja),mpd)     ! data residual
             rerr =REAL(glder(jb),mpd)     ! ... and the error
             wght =1.0_mpd/rerr**2         ! weight from measurement error
@@ -3879,11 +4146,11 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
                         ik=inder(ja+k)           ! local index
                         jk=ik+(ije-1)*nalc       ! matrix index
                         localGlobalMatrix(jk)=localGlobalMatrix(jk)+dw2*wght*REAL(glder(jb+j),mpd)*REAL(glder(ja+k),mpd)
+                        localGlobalMap(jk)=localGlobalMap(jk)+1
                     END DO
                 END IF
             END DO
         END DO
-  
   
         !      ----- final matrix update ----------------------------------------
         !      update global matrices and vectors
@@ -3891,9 +4158,42 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
         !      (inverse local matrix) * (rectang. matrix) -> CORM
         !                                        T
         !      resulting symmetrix matrix  =   G   *   Gamma^{-1}   *   G
-  
-        CALL dbavat(clmat,localGlobalMatrix,writeBufferUpdates(ioffd+1),nalc,-nalg)
-  
+        
+        ! check sparsity of localGlobalMatrix (with par. groups)
+        isize=nalc+nalg+1 ! row/clolumn offsets
+        ! check rows
+        k=0 ! offset
+        DO i=1, nalg
+            localGlobalStructure(i)=isize
+            DO j=1, nalc 
+                IF (localGlobalMap(k+j) > 0) THEN
+                    localGlobalStructure(isize+1)=j    ! column
+                    localGlobalStructure(isize+2)=k+j  ! index
+                    isize=isize+2
+                ENDIF
+            END DO
+            k=k+nalc
+        END DO
+        ! <50% non-zero elements?
+        IF (isize-localGlobalStructure(1) < nalc*nalg) THEN
+            ! check columns (too)
+            DO j=1, nalc
+                localGlobalStructure(nalg+j)=isize
+                k=0 ! offset
+                DO i=1, nalg 
+                    IF (localGlobalMap(k+j) > 0) THEN
+                        localGlobalStructure(isize+1)=i    ! row
+                        localGlobalStructure(isize+2)=k+j  ! index
+                        isize=isize+2
+                    ENDIF
+                    k=k+nalc
+                END DO
+            END DO
+            localglobalstructure(nalg+nalc+1)=isize
+            CALL dbavats(clmat,localGlobalMatrix,localGlobalStructure,writeBufferUpdates(ioffd+1),nalc,-nalg,scflag)
+        ELSE
+            CALL dbavat(clmat,localGlobalMatrix,writeBufferUpdates(ioffd+1),nalc,-nalg)
+        END IF
         !      (rectang. matrix) * (local param vector)   -> CORV
         !      resulting vector = G * q (q = local parameter)
         !      CALL DBGAX(DQ(IGLMA/2+1),BLVEC,DQ(ICORV/2+1),NALG,NALC)  ! not done
@@ -3902,7 +4202,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
         !      update cache status
         writeBufferInfo(1,iproc+1)=writeBufferInfo(1,iproc+1)+1
         writeBufferInfo(2,iproc+1)=writeBufferInfo(2,iproc+1)+ngg
-        writeBufferInfo(3,iproc+1)=writeBufferInfo(3,iproc+1)+nalg+2
+        writeBufferInfo(3,iproc+1)=writeBufferInfo(3,iproc+1)+ngrp+2
         !      check free space
         nfred=writeBufferHeader(-1)-writeBufferInfo(2,iproc+1)-writeBufferHeader(-2)
         nfrei=writeBufferHeader(1)-writeBufferInfo(3,iproc+1)-writeBufferHeader(2)
@@ -3917,21 +4217,40 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
             !$OMP CRITICAL
             writeBufferHeader(-4)=writeBufferHeader(-4)+1
             writeBufferHeader(4)=writeBufferHeader(4)+1
-    
+
             DO ib=1,nb
-                ijn=0
+                il=1 ! row in update matrix
                 DO in=1,writeBufferIndices(joffi)
                     i=writeBufferIndices(joffi+in)
-                    !         DQ(IGVEC/2+I)=DQ(IGVEC/2+I)+DQ(ICORV/2+IN)  ! not done: = zero
-                    DO jn=1,in
-                        ijn=ijn+1
-                        j=writeBufferIndices(joffi+jn)
-                        CALL mupdat(i,j,-writeBufferUpdates(joffd+ijn))  ! matrix update
+                    j=writeBufferIndices(joffi+1)                     ! 1. group
+                    iprc=ijprec(i,j)                                  ! group pair precision
+                    jl=1                                              ! col in update matrix
+                    ! start (rows) for continous groups
+                    j1=j
+                    jl1=jl
+                    ! other groups for row
+                    DO jn=2,in
+                        jl=jl+globalAllIndexGroups(j+1)-globalAllIndexGroups(j)
+                        jnx=writeBufferIndices(joffi+jn)              ! next group
+                        iprcnx=ijprec(i,jnx)                          ! group pair precision
+                        ! end of continous groups?
+                        IF (.NOT.((jnx == j+1).AND.(iprc == iprcnx))) THEN                            
+                            CALL mgupdt(i,j1,j,il,jl1,writeBufferUpdates(joffd+1))  ! matrix update
+                            !print *, ' update ', ib,i,j1,j,il,jl1,0,iprc,jnx,iprcnx
+                            ! restart continous groups
+                            j1=jnx                                    ! new 1. column
+                            jl1=jl
+                            iprc=iprcnx
+                        END IF
+                        j=jnx                                         ! last group 
                     END DO
+                    CALL mgupdt(i,j1,j,il,jl1,writeBufferUpdates(joffd+1))          ! final matrix update
+                    !print *, '.update ', ib, i,j1,j,il,jl1,1,iprc
+                    il=il+globalAllIndexGroups(i+1)-globalAllIndexGroups(i)
                 END DO
-                joffd=joffd+ijn
+                joffd=joffd+(il*il-il)/2
                 joffi=joffi+writeBufferIndices(joffi)+2
-            END DO
+            END DO    
             !$OMP END CRITICAL
             !       reset counter, pointers
             DO k=1,3
@@ -3972,7 +4291,8 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
   
         !$OMP  PARALLEL &
         !$OMP  DEFAULT(PRIVATE) &
-        !$OMP  SHARED(writeBufferHeader,writeBufferInfo,writeBufferIndices,writeBufferUpdates,MTHRD)
+        !$OMP  SHARED(writeBufferHeader,writeBufferInfo,writeBufferIndices,writeBufferUpdates,MTHRD) &
+        !$OMP  SHARED(globalAllParToGroup,globalAllIndexGroups,nspc)
         iproc=0
         !$ IPROC=OMP_GET_THREAD_NUM()         ! thread number
         DO jproc=0,mthrd-1
@@ -3982,24 +4302,42 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
             joffi=writeBufferHeader(1)*jproc+2 ! offset indices
             DO ib=1,nb
                 !         print *, '   buf end ', JPROC,IB,writeBufferIndices(JOFFI-1),writeBufferIndices(JOFFI)
-                ijn=0
+                il=1 ! row in update matrix
                 DO in=1,writeBufferIndices(joffi)
                     i=writeBufferIndices(joffi+in)
                     !$        IF (MOD(I,MTHRD).EQ.IPROC) THEN
-                    DO jn=1,in
-                        ijn=ijn+1
-                        j=writeBufferIndices(joffi+jn)
-                        CALL mupdat(i,j,-writeBufferUpdates(joffd+ijn))  ! matrix update
+                    j=writeBufferIndices(joffi+1)                     ! 1. group
+                    iprc=ijprec(i,j)                                  ! group pair precision
+                    jl=1                                              ! col in update matrix
+                    ! start (rows) for continous groups
+                    j1=j
+                    jl1=jl
+                    ! other groups for row
+                    DO jn=2,in
+                        jl=jl+globalAllIndexGroups(j+1)-globalAllIndexGroups(j)
+                        jnx=writeBufferIndices(joffi+jn)              ! next group
+                        iprcnx=ijprec(i,jnx)                          ! group pair precision
+                        ! end of continous groups?
+                        IF (.NOT.((jnx == j+1).AND.(iprc == iprcnx))) THEN                            
+                            CALL mgupdt(i,j1,j,il,jl1,writeBufferUpdates(joffd+1))  ! matrix update
+                            !print *, ' update ', ib,i,j1,j,il,jl1,0,iprc,jnx,iprcnx
+                            ! restart continous groups
+                            j1=jnx                                    ! new 1. column
+                            jl1=jl
+                            iprc=iprcnx
+                        END IF
+                        j=jnx                                         ! last group 
                     END DO
-                !$        ELSE
-                !$          IJN=IJN+IN
-                !$        ENDIF
+                    CALL mgupdt(i,j1,j,il,jl1,writeBufferUpdates(joffd+1))          ! final matrix update
+                    !print *, '.update ', ib, i,j1,j,il,jl1,1,iprc
+                    !$        END IF
+                    il=il+globalAllIndexGroups(i+1)-globalAllIndexGroups(i)
                 END DO
-                joffd=joffd+ijn
+                joffd=joffd+(il*il-il)/2
                 joffi=joffi+writeBufferIndices(joffi)+2
             END DO
         END DO
-    !$OMP END PARALLEL
+        !$OMP END PARALLEL
     END IF
 
     IF(newite.AND.iterat == 2) THEN ! get worst records (for printrecord -1 -1)
@@ -4231,10 +4569,12 @@ SUBROUTINE prtstat
     INTEGER(mpi) :: icount
     INTEGER(mpi) :: itgbi
     INTEGER(mpi) :: itgbl
+    INTEGER(mpi) :: itpgrp
     INTEGER(mpi) :: ivgbi
     INTEGER(mpi) :: lup
     INTEGER(mpi) :: ncon
     INTEGER(mpi) :: k
+    CHARACTER :: c1
 
     SAVE
     !     ...
@@ -4248,15 +4588,17 @@ SUBROUTINE prtstat
     DO itgbi=1,ntgb  ! all parameter variables
         itgbl=globalParLabelIndex(1,itgbi)
         ivgbi=globalParLabelIndex(2,itgbi)
+        c1=' '
+        IF (globalParLabelIndex(3,itgbi) == itgbl) c1='>'
         par=REAL(globalParameter(itgbi),mps)      ! initial value
         presig=REAL(globalParPreSigma(itgbi),mps) ! initial presigma
         icount=globalParCounts(itgbi) ! from binary files
         ncon=globalParCons(itgbi) ! number of active constraints
 
         IF (ivgbi <= 0) THEN
-            WRITE(lup,110) itgbl,par,presig,icount,ncon,ivgbi
+            WRITE(lup,110) c1,itgbl,par,presig,icount,ncon,ivgbi
         ELSE
-            WRITE(lup,111) itgbl,par,presig,icount,ncon
+            WRITE(lup,111) c1,itgbl,par,presig,icount,ncon
         END IF
     END DO
     ! appearance statistics
@@ -4265,19 +4607,20 @@ SUBROUTINE prtstat
         WRITE(lup,*) '! Appearance statistics '
         WRITE(lup,*) '!      Label  First file and record  Last file and record   #files  #paired-par'
         DO itgbi=1,ntgb
-            WRITE(lup,112) globalParLabelIndex(1,itgbi), (appearanceCounter(itgbi*5+k), k=-4,0), pairCounter(itgbi)
+            itpgrp=globalParLabelIndex(4,itgbi)
+            WRITE(lup,112) globalParLabelIndex(1,itgbi), (appearanceCounter(itgbi*5+k), k=-4,0), pairCounter(itpgrp)
         END DO
     END IF
     REWIND lup
     CLOSE(UNIT=lup)
 
-110 FORMAT(' ! ',i10,2X,2G14.5,2i12,'  fixed',I2)
-111 FORMAT(' ! ',i10,2X,2G14.5,2i12,'  variable')
+110 FORMAT(' !',a1,i10,2X,2G14.5,2i12,'  fixed',I2)
+111 FORMAT(' !',a1,i10,2X,2G14.5,2i12,'  variable')
 112 FORMAT(' !.',i10,6i11)
 END SUBROUTINE prtstat    ! print input statistics
 
 
-!> Product symmetric (sub block) matrix times vector.
+!> Product symmetric (sub block) matrix times sparse vector.
 !!
 !! A(sym) * X => B. Used by \ref minresmodule::minres "MINRES" method (Is most CPU intensive part).
 !! The matrix A is the global matrix in full symmetric or (compressed) sparse storage.
@@ -4287,32 +4630,37 @@ END SUBROUTINE prtstat    ! print input statistics
 !! \param [in]   n   size of (sub block) matrix
 !! \param [in]   l   offset of (sub block) matrix
 !! \param [in]   x   vector X
-!! \param [in]   b   result vector B
+!! \param [out]  b   result vector B
+!! \param [in]   is  sparsity structure of x (number of non-zero regions, {region start, end})
 
-SUBROUTINE avprd0(n,l,x,b)
+SUBROUTINE avprds(n,l,x,b,is)
     USE mpmod
 
     IMPLICIT NONE
     INTEGER(mpi) :: i
-    INTEGER(mpi) :: iencdb
-    INTEGER(mpi) :: iencdm
+    INTEGER(mpi) :: ia
+    INTEGER(mpi) :: ib
+    INTEGER(mpi) :: in
+    INTEGER(mpi) :: ipg
     INTEGER(mpi) :: iproc
     INTEGER(mpi) :: ir
+    INTEGER(mpi) :: irgn
     INTEGER(mpi) :: j
-    INTEGER(mpi) :: jc
-    INTEGER(mpi) :: jj
+    INTEGER(mpi) :: ja
+    INTEGER(mpi) :: jb
     INTEGER(mpi) :: jn
+    INTEGER(mpi) :: jrgn
+    INTEGER(mpi) :: lj
 
     INTEGER(mpi), INTENT(IN)          :: n
     INTEGER(mpl), INTENT(IN)          :: l
     REAL(mpd), INTENT(IN)             :: x(n)
     REAL(mpd), INTENT(OUT)            :: b(n)
+    INTEGER(mpi), INTENT(IN)          :: is(*)
     INTEGER(mpl) :: k
     INTEGER(mpl) :: kk
-    INTEGER(mpl) :: kl
     INTEGER(mpl) :: ku
     INTEGER(mpl) :: ll
-    INTEGER(mpl) :: lj
     INTEGER(mpl) :: indij
     INTEGER(mpl) :: indid
     INTEGER(mpl) :: ij
@@ -4364,103 +4712,334 @@ SUBROUTINE avprd0(n,l,x,b)
        !$OMP END PARALLEL DO
     ELSE
         ! sparse, compressed matrix
-        IF(sparseMatrixOffsets(2,1) /= n+1) THEN
+        IF(sparseMatrixOffsets(2,1) /= n) THEN
             CALL peend(24,'Aborted, vector/matrix size mismatch')
             STOP 'AVPRD0: mismatched vector and matrix'
         END IF
-        iencdb=nencdb
-        iencdm=ishft(1,iencdb)-1
-        ! parallelize row loop
+        ! parallelize row (group) loop
         ! slot of 1024 'I' for next idle thread
         !$OMP PARALLEL DO &
-        !$OMP  PRIVATE(IR,K,KK,LL,KL,KU,INDID,INDIJ,J,JC,JN,LJ,JJ) &
+        !$OMP  PRIVATE(I,IR,K,KK,LL,KU,INDID,INDIJ,J,JN,LJ) &
+        !$OMP  PRIVATE(IA,IB,IN,JA,JB,IRGN,JRGN) &
+        !$OMP  REDUCTION(+:B) &
+        !$OMP  SCHEDULE(DYNAMIC,ichunk)
+        DO ipg=1,napgrp
+            iproc=0
+            !$     IPROC=OMP_GET_THREAD_NUM()         ! thread number
+            ! row group
+            ia=globalAllIndexGroups(ipg)     ! first (global) row
+            ib=globalAllIndexGroups(ipg+1)-1 ! last (global) row
+            in=ib-ia+1                       ! number of rows
+            ! check x region
+            irgn=1 ! non-zero region in x
+            DO WHILE (ia > is(2*irgn+1).AND.irgn < is(1))
+                irgn=irgn+1 
+            END DO  
+            !
+            ! diagonal elements            
+            IF (ia <= is(2*irgn+1).AND.ib >= is(2*irgn)) THEN
+                b(ia:ib)=globalMatD(ia:ib)*x(ia:ib)
+            ELSE
+                b(ia:ib)=0.0_mpd   
+            END IF       
+            ! off-diagonals double precision
+            ir=ipg
+            kk=sparseMatrixOffsets(1,ir) ! offset in 'd' (column lists)
+            ll=sparseMatrixOffsets(2,ir) ! offset in 'j' (matrix)
+            ku=sparseMatrixOffsets(1,ir+1)-kk
+            indid=kk
+            indij=ll
+            IF (sparseMatrixColumns(indid+1) /= 0) THEN  ! no compression
+                DO i=ia,ib
+                    IF (i <= is(2*irgn+1).AND.i >= is(2*irgn)) THEN
+                        DO k=1,ku
+                            j=sparseMatrixColumns(indid+k)
+                            b(j)=b(j)+globalMatD(indij+k)*x(i)
+                        END DO
+                    END IF
+                    jrgn=1 ! non-zero region in x
+                    DO k=1,ku
+                        j=sparseMatrixColumns(indid+k)
+                        DO WHILE (j > is(2*jrgn+1).AND.jrgn < is(1))
+                            jrgn=jrgn+1 
+                        END DO
+                        IF (j <= is(2*jrgn+1).AND.j >= is(2*jrgn)) THEN
+                            b(i)=b(i)+globalMatD(indij+k)*x(j)
+                        END IF    
+                    END DO
+                    indij=indij+ku
+                END DO    
+            ELSE
+                jrgn=1 ! non-zero region in x
+                ! regions of continous column groups
+                DO k=2,ku-2,2
+                    j=sparseMatrixColumns(indid+k)         ! first group 
+                    ja=globalAllIndexGroups(j)             ! first (global) column
+                    lj=sparseMatrixColumns(indid+k-1)      ! region offset 
+                    jn=sparseMatrixColumns(indid+k+1)-lj   ! number of columns
+                    jb=ja+jn-1                             ! last (global) column
+                    ! check x region
+                    DO WHILE (ja > is(2*jrgn+1).AND.jrgn < is(1))
+                        jrgn=jrgn+1 
+                    END DO
+                    IF (ja <= is(2*jrgn+1).AND.jb >= is(2*jrgn)) THEN
+                        lj=1                               ! index (in group region)
+                        DO i=ia,ib
+                            b(i)=b(i)+dot_product(globalMatD(indij+lj:indij+lj+jn-1),x(ja:jb))
+                            lj=lj+jn
+                        END DO
+                    END IF
+                    IF (mextnd == 0.AND.ia <= is(2*irgn+1).AND.ib >= is(2*irgn)) THEN
+                        lj=1
+                        DO j=ja,jb
+                            b(j)=b(j)+dot_product(globalMatD(indij+lj:indij+jn*in:jn),x(ia:ib))
+                            lj=lj+1
+                        END DO
+                    END IF
+                    indij=indij+in*jn
+                END DO    
+            END IF
+            ! mixed precision
+            IF (nspc > 1) THEN
+                ir=ipg+napgrp+1                     ! off-diagonals single precision
+                kk=sparseMatrixOffsets(1,ir) ! offset in 'd' (column lists)
+                ll=sparseMatrixOffsets(2,ir) ! offset in 'j' (matrix)
+                ku=sparseMatrixOffsets(1,ir+1)-kk
+                indid=kk
+                indij=ll
+                IF (sparseMatrixColumns(indid+1) /= 0) THEN  ! no compression
+                    DO i=ia,ib
+                        DO k=1,ku
+                            j=sparseMatrixColumns(indid+k)
+                            b(j)=b(j)+REAL(globalMatF(indij+k),mpd)*x(i)
+                            b(i)=b(i)+REAL(globalMatF(indij+k),mpd)*x(j)
+                        END DO
+                        indij=indij+ku
+                    END DO    
+                ELSE
+                    jrgn=1 ! non-zero region in x
+                    ! regions of continous column groups
+                    DO k=2,ku-2,2
+                        j=sparseMatrixColumns(indid+k)         ! first group 
+                        ja=globalAllIndexGroups(j)             ! first (global) column
+                        lj=sparseMatrixColumns(indid+k-1)      ! region offset 
+                        jn=sparseMatrixColumns(indid+k+1)-lj   ! number of columns
+                        jb=ja+jn-1                             ! last (global) column
+                        ! check x region
+                        DO WHILE (ja > is(2*jrgn+1).AND.jrgn < is(1))
+                            jrgn=jrgn+1 
+                        END DO
+                        IF (ja <= is(2*jrgn+1).AND.jb >= is(2*jrgn)) THEN
+                            lj=1                               ! index (in group region)
+                            DO i=ia,ib
+                                b(i)=b(i)+dot_product(REAL(globalMatF(indij+lj:indij+lj+jn-1),mpd),x(ja:jb))
+                                lj=lj+jn
+                            END DO
+                        END IF
+                        IF (mextnd == 0.AND.ia <= is(2*irgn+1).AND.ib >= is(2*irgn)) THEN
+                            lj=1
+                            DO j=ja,jb
+                                b(j)=b(j)+dot_product(REAL(globalMatF(indij+lj:indij+jn*in:jn),mpd),x(ia:ib))
+                                lj=lj+1
+                            END DO
+                        END IF  
+                        indij=indij+in*jn
+                    END DO    
+                END IF    
+            END IF
+        END DO
+    ENDIF
+
+END SUBROUTINE avprds
+
+!> Product symmetric (sub block) matrix times vector.
+!!
+!! A(sym) * X => B. Used by \ref minresmodule::minres "MINRES" method (Is most CPU intensive part).
+!! The matrix A is the global matrix in full symmetric or (compressed) sparse storage.
+!! In full symmetric storage it could be block diagonal (MATSTO=3) and only a
+!! single block is used in the product.
+!!
+!! \param [in]   n   size of (sub block) matrix
+!! \param [in]   l   offset of (sub block) matrix
+!! \param [in]   x   vector X
+!! \param [out]  b   result vector B
+
+SUBROUTINE avprd0(n,l,x,b)
+    USE mpmod
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: i
+    INTEGER(mpi) :: ia
+    INTEGER(mpi) :: ib
+    INTEGER(mpi) :: in
+    INTEGER(mpi) :: ipg
+    INTEGER(mpi) :: iproc
+    INTEGER(mpi) :: ir
+    INTEGER(mpi) :: j
+    INTEGER(mpi) :: ja
+    INTEGER(mpi) :: jb
+    INTEGER(mpi) :: jn
+    INTEGER(mpi) :: lj
+
+    INTEGER(mpi), INTENT(IN)          :: n
+    INTEGER(mpl), INTENT(IN)          :: l
+    REAL(mpd), INTENT(IN)             :: x(n)
+    REAL(mpd), INTENT(OUT)            :: b(n)
+    INTEGER(mpl) :: k
+    INTEGER(mpl) :: kk
+    INTEGER(mpl) :: ku
+    INTEGER(mpl) :: ll
+    INTEGER(mpl) :: indij
+    INTEGER(mpl) :: indid
+    INTEGER(mpl) :: ij
+    INTEGER(mpi) :: ichunk
+    !$    INTEGER(mpi) OMP_GET_THREAD_NUM
+    SAVE
+    !     ...
+    !$ DO i=1,n
+    !$    b(i)=0.0_mpd             ! reset 'global' B()
+    !$ END DO
+    ichunk=MIN((n+mthrd-1)/mthrd/8+1,1024)
+    IF(matsto == 1) THEN
+        ! full symmetric matrix
+        ! parallelize row loop
+        ! private copy of B(N) for each thread, combined at end, init with 0.
+        ! slot of 1024 'I' for next idle thread
+        !$OMP  PARALLEL DO &
+        !$OMP  PRIVATE(J,IJ) &
         !$OMP  REDUCTION(+:B) &
         !$OMP  SCHEDULE(DYNAMIC,ichunk)
         DO i=1,n
+            ij=i
+            ij=(ij*ij-ij)/2
+            b(i)=globalMatD(ij+i)*x(i)
+            DO j=1,i-1
+                b(j)=b(j)+globalMatD(ij+j)*x(i)
+                b(i)=b(i)+globalMatD(ij+j)*x(j)
+            END DO
+        END DO
+        !$OMP END PARALLEL DO
+    ELSE IF(matsto == 3) THEN
+        ! full symmetric block diagonal matrix, single block only
+        ! parallelize row loop
+        ! private copy of B(N) for each thread, combined at end, init with 0.
+        ! slot of 1024 'I' for next idle thread
+        !$OMP  PARALLEL DO &
+        !$OMP  PRIVATE(J,IJ) &
+        !$OMP  REDUCTION(+:B) &
+        !$OMP  SCHEDULE(DYNAMIC,ichunk)
+        DO i=1,n
+            ij=i
+            ij=(ij*ij-ij)/2+l ! apply offset of block
+            b(i)=globalMatD(ij+i)*x(i)
+            DO j=1,i-1
+                b(j)=b(j)+globalMatD(ij+j)*x(i)
+                b(i)=b(i)+globalMatD(ij+j)*x(j)
+            END DO
+        END DO
+       !$OMP END PARALLEL DO
+    ELSE
+        ! sparse, compressed matrix
+        IF(sparseMatrixOffsets(2,1) /= n) THEN
+            CALL peend(24,'Aborted, vector/matrix size mismatch')
+            STOP 'AVPRD0: mismatched vector and matrix'
+        END IF
+        ! parallelize row (group) loop
+        ! slot of 1024 'I' for next idle thread
+        !$OMP PARALLEL DO &
+        !$OMP  PRIVATE(I,IR,K,KK,LL,KU,INDID,INDIJ,J,JN,LJ) &
+        !$OMP  PRIVATE(IA,IB,IN,JA,JB) &
+        !$OMP  REDUCTION(+:B) &
+        !$OMP  SCHEDULE(DYNAMIC,ichunk)
+        DO ipg=1,napgrp
             iproc=0
             !$     IPROC=OMP_GET_THREAD_NUM()         ! thread number
-            b(i)=globalMatD(i)*x(i)    ! diagonal elements
-            !                                ! off-diagonals double precision
-            ir=i
+            ! row group
+            ia=globalAllIndexGroups(ipg)     ! first (global) row
+            ib=globalAllIndexGroups(ipg+1)-1 ! last (global) row
+            in=ib-ia+1                       ! number of rows  
+            !
+            ! diagonal elements            
+            b(ia:ib)=globalMatD(ia:ib)*x(ia:ib)       
+            ! off-diagonals double precision
+            ir=ipg
             kk=sparseMatrixOffsets(1,ir) ! offset in 'd' (column lists)
             ll=sparseMatrixOffsets(2,ir) ! offset in 'j' (matrix)
-            kl=0
-            ku=sparseMatrixOffsets(1,ir+1)-1-kk
+            ku=sparseMatrixOffsets(1,ir+1)-kk
             indid=kk
             indij=ll
-            IF (sparseMatrixColumns(indid) /= 0) THEN  ! no compression
-                DO k=kl,ku
-                    j=sparseMatrixColumns(indid+k)
-                    b(j)=b(j)+globalMatD(indij+k)*x(i)
-                    b(i)=b(i)+globalMatD(indij+k)*x(j)
-                END DO
+            IF (sparseMatrixColumns(indid+1) /= 0) THEN  ! no compression
+                DO i=ia,ib
+                    DO k=1,ku
+                        j=sparseMatrixColumns(indid+k)
+                        b(j)=b(j)+globalMatD(indij+k)*x(i)
+                        b(i)=b(i)+globalMatD(indij+k)*x(j)
+                    END DO
+                    indij=indij+ku
+                END DO    
             ELSE
-                lj=0
-                ku=((ku+1)*8)/9-1         ! number of regions (-1)
-                indid=indid+ku/8+1        ! skip group offsets
-                IF (mextnd>0) THEN
-                    ! extended storage
-                    DO kl=0,ku
-                        jc=sparseMatrixColumns(indid+kl)
-                        j=ishft(jc,-iencdb)
-                        jn=IAND(jc, iencdm)
-                        b(i)=b(i)+dot_product(globalMatD(indij+lj:indij+lj+jn-1),x(j:j+jn-1))
+                ! regions of continous column groups
+                DO k=2,ku-2,2
+                    j=sparseMatrixColumns(indid+k)         ! first group 
+                    ja=globalAllIndexGroups(j)             ! first (global) column
+                    lj=sparseMatrixColumns(indid+k-1)      ! region offset 
+                    jn=sparseMatrixColumns(indid+k+1)-lj   ! number of columns
+                    jb=ja+jn-1                             ! last (global) column
+                    lj=1                                   ! index (in group region)
+                    DO i=ia,ib
+                        b(i)=b(i)+dot_product(globalMatD(indij+lj:indij+lj+jn-1),x(ja:jb))
                         lj=lj+jn
-                    END DO    
-                ELSE
-                    DO kl=0,ku
-                        jc=sparseMatrixColumns(indid+kl)
-                        j=ishft(jc,-iencdb)
-                        jn=IAND(jc, iencdm)
-                        DO jj=1,jn
-                            b(j)=b(j)+globalMatD(indij+lj)*x(i)
-                            b(i)=b(i)+globalMatD(indij+lj)*x(j)
-                            j=j+1
+                    END DO
+                    IF (mextnd == 0) THEN
+                        lj=1
+                        DO j=ja,jb
+                            b(j)=b(j)+dot_product(globalMatD(indij+lj:indij+jn*in:jn),x(ia:ib))
                             lj=lj+1
                         END DO
-                    END DO
-                END IF 
+                    END IF
+                    indij=indij+in*jn
+                END DO    
             END IF
-
+            ! mixed precision
             IF (nspc > 1) THEN
-                ir=i+n+1                     ! off-diagonals single precision
+                ir=ipg+napgrp+1                     ! off-diagonals single precision
                 kk=sparseMatrixOffsets(1,ir) ! offset in 'd' (column lists)
-                ll=sparseMatrixOffsets(2,ir) ! offset in '.' (matrix)
-                kl=0
-                ku=sparseMatrixOffsets(1,ir+1)-1-kk
+                ll=sparseMatrixOffsets(2,ir) ! offset in 'j' (matrix)
+                ku=sparseMatrixOffsets(1,ir+1)-kk
                 indid=kk
                 indij=ll
-                IF (sparseMatrixColumns(indid) /= 0) THEN  ! no compression
-                    DO k=kl,ku
-                        j=sparseMatrixColumns(indid+k)
-                        b(j)=b(j)+REAL(globalMatF(indij+k),mpd)*x(i)
-                        b(i)=b(i)+REAL(globalMatF(indij+k),mpd)*x(j)
-                    END DO
+                IF (sparseMatrixColumns(indid+1) /= 0) THEN  ! no compression
+                    DO i=ia,ib
+                        DO k=1,ku
+                            j=sparseMatrixColumns(indid+k)
+                            b(j)=b(j)+REAL(globalMatF(indij+k),mpd)*x(i)
+                            b(i)=b(i)+REAL(globalMatF(indij+k),mpd)*x(j)
+                        END DO
+                        indij=indij+ku
+                    END DO    
                 ELSE
-                    lj=0
-                    ku=((ku+1)*8)/9-1         ! number of regions (-1)
-                    indid=indid+ku/8+1        ! skip group offsets
-                    DO kl=0,ku
-                        jc=sparseMatrixColumns(indid+kl)
-                        j=ishft(jc,-iencdb)
-                        jn=IAND(jc, iencdm)
-                        IF (mextnd>0) THEN
-                            ! extended storage
-                            DO jj=1,jn
-                                b(i)=b(i)+REAL(globalMatF(indij+lj),mpd)*x(j)
-                                j=j+1
+                    ! regions of continous column groups
+                    DO k=2,ku-2,2
+                        j=sparseMatrixColumns(indid+k)         ! first group 
+                        ja=globalAllIndexGroups(j)             ! first (global) column
+                        lj=sparseMatrixColumns(indid+k-1)      ! region offset 
+                        jn=sparseMatrixColumns(indid+k+1)-lj   ! number of columns
+                        jb=ja+jn-1                             ! last (global) column
+                        lj=1                                   ! index (in group region)
+                        DO i=ia,ib
+                            b(i)=b(i)+dot_product(REAL(globalMatF(indij+lj:indij+lj+jn-1),mpd),x(ja:jb))
+                            lj=lj+jn
+                        END DO
+                        IF (mextnd == 0) THEN
+                            lj=1
+                            DO j=ja,jb
+                                b(j)=b(j)+dot_product(REAL(globalMatF(indij+lj:indij+jn*in:jn),mpd),x(ia:ib))
                                 lj=lj+1
                             END DO
-                        ELSE
-                            DO jj=1,jn
-                                b(j)=b(j)+REAL(globalMatF(indij+lj),mpd)*x(i)
-                                b(i)=b(i)+REAL(globalMatF(indij+lj),mpd)*x(j)
-                                j=j+1
-                                lj=lj+1
-                            END DO
-                        END IF       
-                    END DO
-                END IF
+                        END IF  
+                        indij=indij+in*jn
+                    END DO    
+                END IF    
             END IF
         END DO
     ENDIF
@@ -4507,6 +5086,135 @@ SUBROUTINE avprod(n,x,b)
 END SUBROUTINE avprod
 
 
+!> Index (region length and precision) for sparse storage of parameter groups.
+!!
+!! Calculate index for parameter group block matrix (region of continous groups)
+!!
+!! \param  [in]  itema  row number
+!! \param  [in]  itemb  column number
+!! \param  [out] ij     index of first element (>(<) 0: double(single) precision element, =0: not existing)
+!! \param  [out] lr     length of region (2nd row in group has index ij+lr) 
+!! \param  [out] iprc   precision (1: REAL(mpd), 2: REAL(mps)) 
+
+SUBROUTINE ijpgrp(itema,itemb,ij,lr,iprc)
+    USE mpmod
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: ispc
+    INTEGER(mpi) :: item1
+    INTEGER(mpi) :: item2
+    INTEGER(mpi) :: itemc
+    INTEGER(mpi) :: jtem
+    INTEGER(mpi) :: jtemn
+    INTEGER(mpi) :: np
+
+    INTEGER(mpi), INTENT(IN) :: itema
+    INTEGER(mpi), INTENT(IN) :: itemb
+    INTEGER(mpl), INTENT(OUT) :: ij
+    INTEGER(mpi), INTENT(OUT) :: lr
+    INTEGER(mpi), INTENT(OUT) :: iprc   
+    
+    INTEGER(mpl) :: k
+    INTEGER(mpl) :: kk
+    INTEGER(mpl) :: kl
+    INTEGER(mpl) :: ku
+    INTEGER(mpl) :: ll
+    !     ...
+    ij=0
+    lr=0
+    iprc=0
+    item1=MAX(itema,itemb)          ! larger index
+    item2=MIN(itema,itemb)          ! smaller index
+    IF(item2 <= 0.OR.item1 > napgrp) RETURN
+    np=globalAllIndexGroups(item1+1)-globalAllIndexGroups(item1) ! size of group item1
+    ! loop over precisions
+    outer: DO ispc=1,nspc
+        kk=sparseMatrixOffsets(1,item1) ! offset (column lists)
+        ll=sparseMatrixOffsets(2,item1) ! offset (matrix)
+        kl=1
+        ku=sparseMatrixOffsets(1,item1+1)-kk
+        item1=item1+napgrp+1
+        iprc=ispc
+        IF (sparseMatrixColumns(kk+1) == 0) THEN     ! compression ?
+            ! compressed (list of continous regions of parameter groups (pairs of offset and 1. group index)
+            kl=2
+            ku=ku-2
+            IF(ku < kl) CYCLE outer  ! not found
+            DO
+                k=2*((kl+ku)/4)                   ! binary search
+                jtem=sparseMatrixColumns(kk+k)    ! first column (group) of region
+                jtemn=sparseMatrixColumns(kk+k+2) ! first column (group) after region
+                IF(item2 >= jtem.AND.item2 < jtemn) THEN
+                    ! length of region
+                    lr=sparseMatrixColumns(kk+k+1)-sparseMatrixColumns(kk+k-1)
+                    IF (globalAllIndexGroups(item2)-globalAllIndexGroups(jtem) >= lr) CYCLE outer ! outside region
+                    EXIT ! found
+                END IF    
+                IF(item2 < jtem) THEN
+                    ku=k-2
+                ELSE IF(item2 >= jtemn) THEN
+                    kl=k+2
+                END IF
+                IF(kl <= ku) CYCLE
+                CYCLE outer ! not found
+            END DO
+            ! group offset in row
+            ij=sparseMatrixColumns(kk+k-1)
+            ! absolute offset 
+            ij=ll+ij*np+globalAllIndexGroups(item2)-globalAllIndexGroups(jtem)+1
+            
+        ELSE
+            ! simple column list
+            itemc=globalAllIndexGroups(item2) ! first (col) index of group 
+            lr=INT(ku,mpi)                    ! number of columns
+            IF(ku < kl) CYCLE outer ! not found
+            DO
+                k=(kl+ku)/2                  ! binary search
+                jtem=sparseMatrixColumns(kk+k)
+                IF(itemc == jtem) EXIT ! found
+                IF(itemc < jtem) THEN
+                    ku=k-1
+                ELSE IF(itemc > jtem) THEN
+                    kl=k+1
+                END IF
+                IF(kl <= ku) CYCLE
+                CYCLE outer  ! not found
+            END DO
+            ij=ll+k
+            
+        END IF
+        RETURN
+    END DO outer
+
+END SUBROUTINE ijpgrp
+
+!> Precision for storage of parameter groups.
+!!
+!! \param  [in]  itema  row number
+!! \param  [in]  itemb  column number
+!! \return  precision (1: REAL(mpd), 2: REAL(mps)) 
+
+FUNCTION ijprec(itema,itemb)  
+    USE mpmod
+
+    IMPLICIT NONE
+
+    INTEGER(mpi) :: lr
+    INTEGER(mpl) :: ij
+
+    INTEGER(mpi), INTENT(IN) :: itema
+    INTEGER(mpi), INTENT(IN) :: itemb
+    INTEGER(mpi) :: ijprec
+    
+    !     ...
+    ijprec=1
+    IF (matsto == 2.AND.nspc > 1) THEN ! sparse storage with mixed precision
+        ! check groups
+        CALL ijpgrp(itema,itemb,ij,lr,ijprec)
+    END IF
+
+END FUNCTION ijprec
+
 !> Index for sparse storage.
 !!
 !! In case of (compressed) sparse storage calculate index for off-diagonal matrix element.
@@ -4519,101 +5227,95 @@ FUNCTION ijadd(itema,itemb)      ! index using "d" and "z"
     USE mpmod
 
     IMPLICIT NONE
-    INTEGER(mpi) :: iencdb
-    INTEGER(mpi) :: iencdm
-    INTEGER(mpi) :: isgn
-    INTEGER(mpi) :: ispc
+
+    INTEGER(mpi) :: item1
     INTEGER(mpi) :: item2
-    INTEGER(mpi) :: jtem
-    INTEGER(mpi) :: jtemc
-    INTEGER(mpi) :: jtemn
+    INTEGER(mpi) :: ipg1
+    INTEGER(mpi) :: ipg2
+    INTEGER(mpi) :: lr
+    INTEGER(mpi) :: iprc
 
     INTEGER(mpi), INTENT(IN) :: itema
     INTEGER(mpi), INTENT(IN) :: itemb
 
     INTEGER(mpl) :: ijadd
-    INTEGER(mpl) :: k
-    INTEGER(mpl) :: kk
-    INTEGER(mpl) :: kl
-    INTEGER(mpl) :: ku
-    INTEGER(mpl) :: indid
-    INTEGER(mpl) :: nd
-    INTEGER(mpl) :: ll
-    INTEGER(mpl) :: k8
-    INTEGER(mpl) :: item1
+    INTEGER(mpl) :: ij
     !     ...
     ijadd=0
-    nd=sparseMatrixOffsets(2,1)-1   ! dimension of matrix
     item1=MAX(itema,itemb)          ! larger index
     item2=MIN(itema,itemb)          ! smaller index
-    IF(item2 <= 0.OR.item1 > nd) RETURN
+    !print *, ' ijadd ', item1, item2
+    IF(item2 <= 0.OR.item1 > nagb) RETURN
     IF(item1 == item2) THEN         ! diagonal element
         ijadd=item1
         RETURN
     END IF
     !                                   ! off-diagonal element
-    iencdb=nencdb                       ! encoding info
-    iencdm=ishft(1,iencdb)-1
-    isgn=-1
-    outer: DO ispc=1,nspc
-        kk=sparseMatrixOffsets(1,item1) ! offset in 'd' (column lists)
-        ll=sparseMatrixOffsets(2,item1) ! offset in 'j' (matrix)
-        kl=0
-        ku=sparseMatrixOffsets(1,item1+1)-1-kk
-        indid=kk
-        item1=item1+nd+1
-        isgn=-isgn
-        IF (sparseMatrixColumns(indid) == 0) THEN     ! compression ?
-    
-            ku=((ku+1)*8)/9-1        ! number of regions (-1)
-            indid=indid+ku/8+1       ! skip group offsets
-            kl=0
-            IF(ku < kl) CYCLE outer  ! not found
-            DO
-                k=(kl+ku)/2                    ! binary search
-                jtemc=sparseMatrixColumns(indid+k)              ! compressed information
-                jtem =ishft(jtemc,-iencdb)     ! first column of region
-                jtemn=jtem+IAND(jtemc,iencdm)  ! first column after region
-                IF(item2 >= jtem.AND.item2 < jtemn) EXIT ! found
-                IF(item2 < jtem) THEN
-                    ku=k-1
-                ELSE IF(item2 >= jtemn) THEN
-                    kl=k+1
-                END IF
-                IF(kl <= ku) CYCLE
-                CYCLE outer ! not found
-            END DO
-            k8=k/8                            ! region group (-1)
-            ll=ll+sparseMatrixColumns(kk+k8)  ! offset for group of (8) regions
-            DO kl=k8*8,k-1
-                ll=ll+IAND(sparseMatrixColumns(indid+kl),iencdm) ! add region lengths
-            END DO
-            ijadd=ll+item2-jtem
-    
-        ELSE
-    
-            IF(ku < kl) CYCLE outer ! not found
-            DO
-                k=(kl+ku)/2                  ! binary search
-                jtem=sparseMatrixColumns(indid+k)
-                jtemn=jtem
-                IF(item2 == jtem) EXIT ! found
-                IF(item2 < jtem) THEN
-                    ku=k-1
-                ELSE IF(item2 > jtem) THEN
-                    kl=k+1
-                END IF
-                IF(kl <= ku) CYCLE
-                CYCLE outer  ! not found
-            END DO
-            ijadd=ll+k
-
-        END IF
-        ijadd=ijadd*isgn
-        RETURN
-    END DO outer
+    ! get parameter groups
+    ipg1=globalAllParToGroup(item1)
+    ipg2=globalAllParToGroup(item2)
+    ! get offset for groups
+    CALL ijpgrp(ipg1,ipg2,ij,lr,iprc)
+    IF (ij == 0) RETURN
+    ! add offset inside groups
+    ijadd=ij+(item2-globalAllIndexGroups(ipg2))+(item1-globalAllIndexGroups(ipg1))*lr
+    ! reduced precision?
+    IF (iprc > 1) ijadd=-ijadd 
 
 END FUNCTION ijadd
+
+!> Get matrix element at (i,j).
+!!
+!! \param  [in]  itema  row number
+!! \param  [in]  itemb  column number
+!! \return value 
+
+FUNCTION matij(itema,itemb)
+    USE mpmod
+
+    IMPLICIT NONE
+
+    INTEGER(mpi) :: ib
+    INTEGER(mpi) :: item1
+    INTEGER(mpi) :: item2
+    INTEGER(mpl) :: i
+    INTEGER(mpl) :: j
+    INTEGER(mpl) :: ij
+    INTEGER(mpl) :: ijadd
+ 
+    INTEGER(mpi), INTENT(IN) :: itema
+    INTEGER(mpi), INTENT(IN) :: itemb
+
+    REAL(mpd) :: matij
+    !     ...
+    matij=0.0_mpd
+    item1=MAX(itema,itemb)          ! larger index
+    item2=MIN(itema,itemb)          ! smaller index
+    IF(item2 <= 0.OR.item1 > nagb) RETURN
+
+    i=item1
+    j=item2
+    
+    IF(matsto == 1) THEN                      ! full symmetric matrix
+        ij=(i*i-i)/2+j                        ! ISYM index
+        matij=globalMatD(ij)
+    ELSE IF(matsto == 2) THEN                 ! sparse symmetric matrix
+        ij=ijadd(item1,item2)                         ! inline code requires same time
+        IF (ij > 0) THEN
+            matij=globalMatD(ij)
+        ELSE IF (ij < 0) THEN
+            matij=REAL(globalMatF(-ij),mpd)
+        END IF
+    ELSE IF(matsto == 3) THEN                 ! block diagonal symmetric matrix
+        ib=globalIndexRanges(j)
+        ! local (row,col) in block
+        i=i-matParBlockOffsets(1,ib)
+        j=j-matParBlockOffsets(1,ib)
+        ij=(i*i-i)/2+j+vecParBlockOffsets(ib) ! global ISYM index
+        matij=globalMatD(ij)
+    END IF
+
+END FUNCTION matij
 
 !> Fill 2nd half of matrix for extended storage.
 !!
@@ -4623,68 +5325,73 @@ SUBROUTINE mhalf2
 
     IMPLICIT NONE
     INTEGER(mpi) :: i
+    INTEGER(mpi) :: ia
+    INTEGER(mpi) :: ib
     INTEGER(mpi) :: ichunk
-    INTEGER(mpi) :: iencdb
-    INTEGER(mpi) :: iencdm
+    INTEGER(mpi) :: in
+    INTEGER(mpi) :: ipg
     INTEGER(mpi) :: ir
     INTEGER(mpi) :: ispc
     INTEGER(mpi) :: j
-    INTEGER(mpi) :: jtem
-    INTEGER(mpi) :: jtemc
-    INTEGER(mpi) :: jtemn
-    INTEGER(mpi) :: nd
+    INTEGER(mpi) :: ja
+    INTEGER(mpi) :: jb
+    INTEGER(mpi) :: jn
+    INTEGER(mpi) :: lj
 
     INTEGER(mpl) :: ij
     INTEGER(mpl) :: ijadd
     INTEGER(mpl) :: k
     INTEGER(mpl) :: kk
-    INTEGER(mpl) :: kl
     INTEGER(mpl) :: ku
-    INTEGER(mpl) :: indid
     INTEGER(mpl) :: ll
-    INTEGER(mpl) :: k8
     !     ...
 
-    nd=INT(sparseMatrixOffsets(2,1),mpi)-1   ! dimension of matrix
-    ichunk=MIN((nd+mthrd-1)/mthrd/8+1,1024)
+    ichunk=MIN((napgrp+mthrd-1)/mthrd/8+1,1024)
 
-    iencdb=nencdb                       ! encoding info
-    iencdm=ishft(1,iencdb)-1
     DO ispc=1,nspc
         ! parallelize row loop
         ! slot of 1024 'I' for next idle thread
         !$OMP PARALLEL DO &
-        !$OMP  PRIVATE(I,IR,K,KK,LL,KL,KU,K8,INDID,IJ,J,JTEMC,JTEM,JTEMN) &
+        !$OMP  PRIVATE(I,IR,K,KK,LL,KU,IJ,J,LJ) &
+        !$OMP  PRIVATE(IA,IB,IN,JA,JB,JN) &
         !$OMP  SCHEDULE(DYNAMIC,ichunk)
-        DO i=1,nd
-            ir=i+(ispc-1)*(nd+1)
+        DO ipg=1,napgrp
+            ! row group
+            ia=globalAllIndexGroups(ipg)     ! first (global) row
+            ib=globalAllIndexGroups(ipg+1)-1 ! last (global) row
+            in=ib-ia+1                       ! number of rows
+            !
+            ir=ipg+(ispc-1)*(napgrp+1)
             kk=sparseMatrixOffsets(1,ir) ! offset in 'd' (column lists)
             ll=sparseMatrixOffsets(2,ir) ! offset in 'j' (matrix)
-            kl=sparseMatrixCompression(i+(ispc-1)*nd) ! number of regions in 1st half (j<i)
-                        
             ku=sparseMatrixOffsets(1,ir+1)-kk
-            !IF (sparseMatrixColumns(kk) == 0) THEN     ! compression ?
-            ku=(ku*8)/9-1        ! number of regions (-1)
-            indid=kk+ku/8+1      ! index of first region (after group offsets)
-            k8=kl/8                           ! region group (-1)
-            ll=ll+sparseMatrixColumns(kk+k8)  ! offset for group of (8) regions
-            DO k=k8*8,kl-1
-                ll=ll+IAND(sparseMatrixColumns(indid+k),iencdm) ! add region lengths
-            END DO
-            DO k=kl,ku
-                jtemc=sparseMatrixColumns(indid+k)              ! compressed information
-                jtem =ishft(jtemc,-iencdb)     ! first column of region
-                jtemn=jtem+IAND(jtemc,iencdm)  ! first column after region
-                DO j=jtem,jtemn-1
-                    ij=ijadd(i,j)
-                    IF (ispc==1) THEN
-                        globalMatD(ll)=globalMatD(ij)
-                    ELSE
-                        globalMatF(ll)=globalMatF(-ij)
-                    END IF
-                    ll=ll+1
+            ! regions of continous column groups
+            DO k=2,ku-2,2
+                j=sparseMatrixColumns(kk+k)         ! first group
+                ja=globalAllIndexGroups(j)          ! first (global) column
+                lj=sparseMatrixColumns(kk+k-1)      ! region offset
+                jn=sparseMatrixColumns(kk+k+1)-lj   ! number of columns
+                jb=ja+jn-1                          ! last (global) column
+                ! skip first half
+                IF (sparseMatrixColumns(kk+k+2) <= ipg) THEN
+                    ll=ll+in*jn
+                    CYCLE
+                END IF 
+                ! at diagonal or in second half  
+                DO i=ia,ib                             ! loop over rows 
+                    DO j=ja,jb                         ! loop over columns 
+                        ll=ll+1
+                        IF (j > i) THEN
+                            ij=ijadd(i,j)
+                            IF (ispc==1) THEN
+                                globalMatD(ll)=globalMatD(ij)
+                            ELSE
+                                globalMatF(ll)=globalMatF(-ij)
+                            END IF
+                        END IF
+                    END DO                    
                 END DO
-            END DO
+            END DO                 
         END DO
         !$OMP END PARALLEL DO
     END DO
@@ -4755,13 +5462,14 @@ INTEGER(mpi) FUNCTION inone(item)             ! translate 1-D identifier to nrs
     INTEGER(mpi) :: k
     INTEGER(mpi) :: iprime
     INTEGER(mpl) :: length
-    INTEGER(mpl), PARAMETER :: two = 2
+    INTEGER(mpl), PARAMETER :: four = 4
 
     inone=0
+    !print *, ' INONE ', item
     IF(item <= 0) RETURN
     IF(globalParHeader(-1) == 0) THEN
         length=128                   ! initial number
-        CALL mpalloc(globalParLabelIndex,two,length,'INONE: label & index')
+        CALL mpalloc(globalParLabelIndex,four,length,'INONE: label & index')
         CALL mpalloc(globalParHashTable,2*length,'INONE: hash pointer')
         globalParHashTable = 0
         globalParHeader(-0)=INT(length,mpi)       ! length of labels/indices
@@ -4771,6 +5479,7 @@ INTEGER(mpi) FUNCTION inone(item)             ! translate 1-D identifier to nrs
         globalParHeader(-4)=iprime(globalParHeader(-0))    ! prime number
         globalParHeader(-5)=0                 ! number of overflows
         globalParHeader(-6)=0                 ! nr of variable parameters
+        globalParHeader(-8)=0                 ! number of sorted items
     END IF
     outer: DO
         j=1+MOD(item,globalParHeader(-4))+globalParHeader(-0)
@@ -4792,6 +5501,8 @@ INTEGER(mpi) FUNCTION inone(item)             ! translate 1-D identifier to nrs
         globalParHashTable(k)=j                ! hash index
         globalParLabelIndex(1,j)=item          ! add new item
         globalParLabelIndex(2,j)=0             ! reset counter
+        globalParLabelIndex(3,j)=0             ! reset group info
+        globalParLabelIndex(4,j)=0             ! reset group info
         IF(globalParHeader(-1) /= globalParHeader(-0)) EXIT outer
         ! update with larger dimension and redefine index
         globalParHeader(-3)=globalParHeader(-3)*2
@@ -4821,24 +5532,27 @@ SUBROUTINE upone
     LOGICAL :: finalUpdate
     INTEGER(mpl) :: oldLength
     INTEGER(mpl) :: newLength
-    INTEGER(mpl), PARAMETER :: two = 2
+    INTEGER(mpl), PARAMETER :: four = 4
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: tempArr
     SAVE
     !     ...
     finalUpdate=(globalParHeader(-3) == globalParHeader(-1))
     IF(finalUpdate) THEN ! final (cleanup) call
-        CALL sort2k(globalParLabelIndex,globalParHeader(-1)) ! sort items
+        IF (globalParHeader(-1) > globalParHeader(-8)) THEN
+            CALL sort22(globalParLabelIndex,globalParHeader(-1)) ! sort items
+            globalParHeader(-8)=globalParHeader(-1)
+        END IF
     END IF
     ! save old LabelIndex
     nused = globalParHeader(-1)
     oldLength = globalParHeader(-0)
-    CALL mpalloc(tempArr,two,oldLength,'INONE: temp array')
+    CALL mpalloc(tempArr,four,oldLength,'INONE: temp array')
     tempArr(:,1:nused)=globalParLabelIndex(:,1:nused)
     CALL mpdealloc(globalParLabelIndex)
     CALL mpdealloc(globalParHashTable)
     ! create new LabelIndex
     newLength = globalParHeader(-3)
-    CALL mpalloc(globalParLabelIndex,two,newLength,'INONE: label & index')
+    CALL mpalloc(globalParLabelIndex,four,newLength,'INONE: label & index')
     CALL mpalloc(globalParHashTable,2*newLength,'INONE: hash pointer')
     globalParHashTable = 0
     globalParLabelIndex(:,1:nused) = tempArr(:,1:nused) ! copy back saved content
@@ -4866,6 +5580,34 @@ SUBROUTINE upone
         WRITE(lunlog,*) 'INONE:',globalParHeader(-1),' items stored.'
     END IF
 END SUBROUTINE upone                  ! update, redefine
+
+!> Make usable (sort items and redefine hash indices).
+SUBROUTINE useone
+    USE mpmod
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: i
+    INTEGER(mpi) :: j
+    INTEGER(mpi) :: k
+    SAVE
+    !     ...
+    IF (globalParHeader(-1) > globalParHeader(-8)) THEN
+        CALL sort22(globalParLabelIndex,globalParHeader(-1)) ! sort items
+        ! redefine hash
+        globalParHashTable = 0
+        outer: DO i=1,globalParHeader(-1)
+            j=1+MOD(globalParLabelIndex(1,i),globalParHeader(-4))+globalParHeader(-0)
+            inner: DO
+                k=j
+                j=globalParHashTable(k)
+                IF(j == 0) EXIT inner    ! unused hash code
+                IF(j == i) CYCLE outer ! found
+            ENDDO inner
+            globalParHashTable(k)=i
+        END DO outer
+        globalParHeader(-8)=globalParHeader(-1)
+    END IF
+END SUBROUTINE useone                  ! make usable
 
 !> largest prime number < N.
 !!
@@ -4917,6 +5659,8 @@ SUBROUTINE loop1
     INTEGER(mpi) :: itgbl
     INTEGER(mpi) :: ivgbi
     INTEGER(mpi) :: j
+    INTEGER(mpi) :: jgrp
+    INTEGER(mpi) :: lgrp
     INTEGER(mpi) :: mqi
     INTEGER(mpi) :: nc31
     INTEGER(mpi) :: nr
@@ -4927,6 +5671,7 @@ SUBROUTINE loop1
     REAL(mpd) :: prewt
 
     INTEGER(mpl) :: length
+    INTEGER(mpl) :: rows
     SAVE
     !     ...
     WRITE(lunlog,*) ' '
@@ -4978,7 +5723,10 @@ SUBROUTINE loop1
 
         DO
             CALL peread(nr)  ! read records
-            IF (skippedRecords == 0) CALL peprep(0)   ! prepare records
+            IF (skippedRecords == 0) THEN
+                CALL peprep(0)   ! prepare records
+                CALL pepgrp      ! update parameter group info
+            END IF    
             IF(nr <= 0) EXIT ! end of data?
         END DO
         !     release read buffer
@@ -5005,6 +5753,7 @@ SUBROUTINE loop1
         STOP 'LOOP1: no labels/parameters defined'
     END IF
     CALL upone ! finalize the global label table
+    
     WRITE(lunlog,*) 'LOOP1:',ntgb,  &
         ' is total number NTGB of labels/parameters'
     !     histogram number of entries per label ----------------------------
@@ -5069,6 +5818,44 @@ SUBROUTINE loop1
     WRITE(lunlog,*) 'LOOP1:',nvgb, ' is number NVGB of variable parameters'
     IF(iteren > mreqenf) CALL loop1i ! iterate entries cut
 
+    ! --- check for parameter groups
+    CALL hmpdef(15,0.0,120.0,'Number of parameters per group')
+    ntpgrp=0
+    DO j=1,ntgb
+        IF (globalParLabelIndex(3,j) == 0) CYCLE ! skip empty parameter
+        ! new group?
+        IF (globalParLabelIndex(1,j) == globalParLabelIndex(3,j)) ntpgrp=ntpgrp+1
+        globalParLabelIndex(4,j)=ntpgrp ! relation total index -> group
+        ! PRINT *, j, globalParLabelIndex(:,j)
+    END DO
+    ! check variable parameters
+    nvpgrp=0
+    DO j=1,ntgb
+        IF (globalParLabelIndex(2,j) <= 0) CYCLE ! skip fixed parameter
+        ! new group ?
+        IF (globalParLabelIndex(1,j) == globalParLabelIndex(3,j)) nvpgrp=nvpgrp+1  
+    END DO    
+    length=ntpgrp; rows=2
+    CALL mpalloc(globalTotIndexGroups,rows,length,'parameter groups, 1. index and size')
+    globalTotIndexGroups=0
+    ! fill 
+    lgrp=-1
+    DO j=1,ntgb
+        IF (globalParLabelIndex(3,j) == 0) CYCLE ! skip empty parameter
+        jgrp=globalParLabelIndex(4,j)
+        IF (jgrp /= lgrp) globalTotIndexGroups(1,jgrp)=j              ! first (total) index
+        globalTotIndexGroups(2,jgrp)=globalTotIndexGroups(2,jgrp)+1   ! (total) size
+        lgrp=jgrp
+    END DO
+    DO j=1,ntpgrp
+        CALL hmpent(15,REAL(globalTotIndexGroups(2,j),mps))
+    END DO 
+    IF(nhistp /= 0) CALL hmprnt(15) ! print histogram
+    CALL hmpwrt(15) ! write to his file
+    WRITE(lunlog,*) 'LOOP1:',ntpgrp,  &
+        ' is total number NTPGRP of label/parameter groups' 
+    !print *, ' globalTotIndexGroups ', globalTotIndexGroups   
+         
     !     translation table of length NVGB of total global indices ---------
     length=nvgb
     CALL mpalloc(globalParVarToTotal,length,'translation table  var -> total')
@@ -5079,7 +5866,7 @@ SUBROUTINE loop1
             globalParVarToTotal(indab)=i
         END IF
     END DO
-
+    
     !     regularization ---------------------------------------------------
     CALL mpalloc(globalParPreWeight,length,'pre-sigmas weights') ! presigma weights
     WRITE(*,112) ' Default pre-sigma =',regpre,  &
@@ -5332,6 +6119,7 @@ SUBROUTINE loop2
     INTEGER(mpi) :: itgbik
     INTEGER(mpi) :: ivgbij
     INTEGER(mpi) :: ivgbik
+    INTEGER(mpi) :: ivpgrp
     INTEGER(mpi) :: j
     INTEGER(mpi) :: ja
     INTEGER(mpi) :: jb
@@ -5345,6 +6133,7 @@ SUBROUTINE loop2
     INTEGER(mpi) :: label
     INTEGER(mpi) :: labelf
     INTEGER(mpi) :: labell
+    INTEGER(mpi) :: lvpgrp
     INTEGER(mpi) :: lu
     INTEGER(mpi) :: lun
     INTEGER(mpi) :: maeqnf
@@ -5394,21 +6183,27 @@ SUBROUTINE loop2
     INTEGER(mpi) :: maxEquations = 0
 
     INTERFACE ! needed for assumed-shape dummy arguments
-        SUBROUTINE ndbits(ndims,ncmprs,nsparr,ihst)
+        SUBROUTINE ndbits(npgrp,ndims,nsparr,ihst)
             USE mpdef
+            INTEGER(mpi), DIMENSION(:), INTENT(IN) :: npgrp
             INTEGER(mpl), DIMENSION(4), INTENT(OUT) :: ndims
-            INTEGER(mpi), DIMENSION(:), INTENT(OUT) :: ncmprs
             INTEGER(mpl), DIMENSION(:,:), INTENT(OUT) :: nsparr
             INTEGER(mpi), INTENT(IN) :: ihst
         END SUBROUTINE ndbits
-        SUBROUTINE spbits(nsparr,nsparc,ncmprs)
+        SUBROUTINE ckbits(npgrp,ndims)
             USE mpdef
+            INTEGER(mpi), DIMENSION(:), INTENT(IN) :: npgrp
+            INTEGER(mpl), DIMENSION(4), INTENT(OUT) :: ndims
+        END SUBROUTINE ckbits
+        SUBROUTINE spbits(npgrp,nsparr,nsparc)
+            USE mpdef
+            INTEGER(mpi), DIMENSION(:), INTENT(IN) :: npgrp
             INTEGER(mpl), DIMENSION(:,:), INTENT(IN) :: nsparr
             INTEGER(mpi), DIMENSION(:), INTENT(OUT) :: nsparc
-            INTEGER(mpi), DIMENSION(:), INTENT(IN) :: ncmprs
         END SUBROUTINE spbits
-        SUBROUTINE gpbmap(npair)
+        SUBROUTINE gpbmap(npgrp,npair)
             USE mpdef
+            INTEGER(mpi), DIMENSION(:,:), INTENT(IN) :: npgrp
             INTEGER(mpi), DIMENSION(:), INTENT(OUT) :: npair
         END SUBROUTINE gpbmap
     END INTERFACE
@@ -5440,24 +6235,64 @@ SUBROUTINE loop2
     CALL prpcon
 
     IF (icelim > 0) THEN ! elimination
-        nagb=nvgb         ! total number of parameters
-        nfgb=nvgb-ncgb    ! number of fit parameters
-        nprecond(1)=0     ! number of constraints for preconditioner
-        nprecond(2)=nfgb  ! matrix size for preconditioner
+        nagb=nvgb          ! total number of parameters
+        napgrp=nvpgrp      ! total number of parameter groups
+        nfgb=nvgb-ncgb     ! number of fit parameters
+        nprecond(1)=0      ! number of constraints for preconditioner
+        nprecond(2)=nfgb   ! matrix size for preconditioner
     ELSE                 ! Lagrange multipliers
-        nagb=nvgb+ncgb    ! total number of parameters
-        nfgb=nagb         ! number of fit parameters
-        nprecond(1)=ncgb  ! number of constraints for preconditioner
-        nprecond(2)=nvgb  ! matrix size for preconditioner
+        nagb=nvgb+ncgb     ! total number of parameters
+        napgrp=nvpgrp+ncgb ! total number of parameter groups
+        nfgb=nagb          ! number of fit parameters
+        nprecond(1)=ncgb   ! number of constraints for preconditioner
+        nprecond(2)=nvgb   ! matrix size for preconditioner
     ENDIF
     noff8=int8(nagb)*int8(nagb-1)/2
-
+    
+    ! all (variable) parameter groups 
+    length=napgrp+1
+    CALL mpalloc(globalAllIndexGroups,length,'all parameter groups, 1. index')
+    globalAllIndexGroups=0
+    ivpgrp=0
+    lvpgrp=-1
+    DO i=1,ntgb
+        ij=globalParLabelIndex(2,i)
+        IF (ij <= 0) CYCLE ! variable ?
+        IF (globalParLabelIndex(4,i) /= lvpgrp) THEN
+            ivpgrp=ivpgrp+1
+            globalAllIndexGroups(ivpgrp)=ij ! first index
+            lvpgrp=globalParLabelIndex(4,i)
+        END IF
+    END DO
+    ! Lagrange multipliers
+    IF (napgrp > nvpgrp) THEN
+        DO jcgb=1, ncgb
+            ivpgrp=ivpgrp+1
+            globalAllIndexGroups(ivpgrp)=nvgb+jcgb
+        END DO
+    END IF
+    globalAllIndexGroups(napgrp+1)=nagb+1
+    ! from all (variable) parameters to group
+    length=nagb
+    CALL mpalloc(globalAllParToGroup,length,'translation table all (var) par -> group')
+    globalAllParToGroup=0
+    DO i=1,napgrp
+        DO j=globalAllIndexGroups(i),globalAllIndexGroups(i+1)-1
+            globalAllParToGroup(j)=i
+        END DO 
+    END DO
+    !DO i=1,nvpgrp
+    !    itgbi=globalParVarToTotal(globalAllIndexGroups(i))
+    !    print *, " vargrp ", i, globalAllIndexGroups(i),globalAllIndexGroups(i+1)-globalAllIndexGroups(i), &
+    !                           globalParLabelIndex(1,itgbi)
+    !END DO
+        
     !     read all data files and add all variable index pairs -------------
 
-    IF (icheck > 1) CALL clbmap(ntgb)
+    IF (icheck > 1) CALL clbmap(ntpgrp)
 
     IF(matsto == 2) THEN
-        CALL clbits(nagb,mreqpe,mhispe,msngpe,mcmprs,mextnd,ndimbi,nencdb,nspc) ! get dimension for bit storage, encoding, precision info
+        CALL clbits(napgrp,mreqpe,mhispe,msngpe,mextnd,ndimbi,nspc) ! get dimension for bit storage, encoding, precision info
     END IF
     
     IF (imonit /= 0) THEN
@@ -5594,7 +6429,7 @@ SUBROUTINE loop2
                             appearanceCounter(joff+4) = nrec-ifd(kfile) ! (local) record number
                             ! count pairs
                             DO k=1,j
-                                CALL inbmap(ij,inder(jb+k))
+                                CALL inbmap(globalParLabelIndex(4,ij),globalParLabelIndex(4,inder(jb+k)))
                             END DO
                         END IF
                         
@@ -5649,12 +6484,21 @@ SUBROUTINE loop2
             ioff=ioff+1
             readBufferPointer(ibuf)=ioff
             readBufferDataI(ioff)=ioff+nagbn
-            DO i=1,nagbn                  ! reset global index array
+            joff=ioff
+            lvpgrp=-1
+            DO i=1,nagbn                  ! reset global index array, store parameter groups
                 iext=globalIndexUsage(i)
                 backIndexUsage(iext)=0
-                readBufferDataI(ioff+i)=iext
+                ivpgrp=globalAllParToGroup(iext)
+                !ivpgrp=iext
+                IF (ivpgrp /= lvpgrp) THEN
+                    joff=joff+1
+                    readBufferDataI(joff)=ivpgrp
+                    lvpgrp=ivpgrp
+                END IF    
             END DO
-            ioff=ioff+nagbn
+            readBufferDataI(ioff)=joff
+            ioff=joff
   
         END DO
         ioff=0
@@ -5691,7 +6535,7 @@ SUBROUTINE loop2
                         '(float)       [%]       [GB]'
                 END IF
                 nmatmo=nmatmo+1
-                CALL ckbits(ndimsa)
+                CALL ckbits(globalAllIndexGroups,ndimsa)
                 gbc=1.0E-9*REAL((mpi*ndimsa(2)+mpd*ndimsa(3)+mps*ndimsa(4))/mpi*(BIT_SIZE(1_mpi)/8),mps) ! GB compressed
                 gbu=1.0E-9*REAL(((mpi+mpd)*(ndimsa(3)+ndimsa(4)))/mpi*(BIT_SIZE(1_mpi)/8),mps)             ! GB uncompressed
                 cpr=100.0*gbc/gbu
@@ -5723,7 +6567,7 @@ SUBROUTINE loop2
     !     end=of=data=end=of=data=end=of=data=end=of=data=end=of=data=end=of
     
     IF (icheck > 1) THEN
-        CALL gpbmap(pairCounter)
+        CALL gpbmap(globalTotIndexGroups,pairCounter)
     END IF    
 
     
@@ -5747,7 +6591,7 @@ SUBROUTINE loop2
                 itgbi=inone(label)
                 ij=globalParLabelIndex(2,itgbi)         ! change to variable parameter
                 IF(ij > 0 .AND. nagb > nvgb) THEN
-                    CALL inbits(nvgb+jcgb,ij,inc)
+                    CALL inbits(globalAllParToGroup(nvgb+jcgb),globalAllParToGroup(ij),inc)
                 END IF
             END DO
         END DO
@@ -5778,7 +6622,7 @@ SUBROUTINE loop2
                     ivgbik=0
                     IF(itgbik /= 0) ivgbik=globalParLabelIndex(2,itgbik) ! variable-parameter index
                     IF(ivgbij > 0.AND.ivgbik > 0) THEN
-                        CALL inbits(ivgbij,ivgbik,mreqpe)
+                        CALL inbits(globalAllParToGroup(ivgbij),globalAllParToGroup(ivgbik),mreqpe)
                         IF (mprint > 1) WRITE(*,*) 'add index pair ',ivgbij,ivgbik
                     END IF
                 END DO
@@ -5913,12 +6757,9 @@ SUBROUTINE loop2
             ihis=15
             CALL hmpdef(ihis,0.0,REAL(mhispe,mps), 'NDBITS: #off-diagonal elements')
         END IF
-        length=nagb*nspc
-        CALL mpalloc(sparseMatrixCompression,length, 'sparse matrix row compression')
-        sparseMatrixCompression=0
         length=(nagb+1)*nspc
         CALL mpalloc(sparseMatrixOffsets,two,length, 'sparse matrix row offsets')
-        CALL ndbits(ndimsa,sparseMatrixCompression,sparseMatrixOffsets,ihis)
+        CALL ndbits(globalAllIndexGroups,ndimsa,sparseMatrixOffsets,ihis)
         ndgn=ndimsa(3)+ndimsa(4) ! actual number of off-diagonal elements
         matwords=ndimsa(2)+length ! size of sparsity structure
     
@@ -5968,7 +6809,10 @@ SUBROUTINE loop2
     CALL mpalloc(backIndexUsage,length,'global variable-index array')
     backIndexUsage=0
     length=nagbn*nalcn
-    CALL mpalloc(localGlobalMatrix,length,'local/global matrix')
+    CALL mpalloc(localGlobalMatrix,length,'local/global matrix, content')
+    CALL mpalloc(localGlobalMap,length,'local/global matrix, map (counts)')
+    length=2*nagbn*nalcn+nagbn+nalcn+1
+    CALL mpalloc(localGlobalStructure,length,'local/global matrix, (sparsity) structure')
     length=nggd*mthrd
     CALL mpalloc(writeBufferUpdates,length,'symmetric update matrices')
     writeBufferHeader(-1)=nggd                  ! number of words per thread
@@ -5993,6 +6837,8 @@ SUBROUTINE loop2
         WRITE(lu,102) '(appearing in fit matrix/vectors)'
         WRITE(lu,101) 'NAGB',nagb,'number of all parameters'
         WRITE(lu,102) '(including Lagrange multiplier or reduced)'
+        WRITE(lu,101) 'NTPGRP',ntpgrp,'total number of parameter groups'
+        WRITE(lu,101) 'NVPGRP',nvpgrp,'number of variable parameter groups'
         WRITE(lu,101) 'NFGB',nfgb,'number of fit parameters'
         WRITE(lu,101) 'MBANDW',mbandw,'band width of band matrix'
         WRITE(lu,102) '(if =0, no band matrix)'
@@ -6096,7 +6942,7 @@ SUBROUTINE loop2
         matsiz(1)=ndimsa(3)+nagb
         matsiz(2)=ndimsa(4)
         CALL mpalloc(sparseMatrixColumns,ndimsa(2),'sparse matrix column list')
-        CALL spbits(sparseMatrixOffsets,sparseMatrixColumns,sparseMatrixCompression)
+        CALL spbits(globalAllIndexGroups,sparseMatrixOffsets,sparseMatrixColumns)
     ELSE IF (matsto == 3) THEN
         matsiz(1)=vecParBlockOffsets(npblck+1) ! sum of block sizes
     END IF
@@ -6191,6 +7037,7 @@ SUBROUTINE monres
         lfirst=.false.
     END IF
 
+    !$POMP INST BEGIN(monres) 
     ! analyze histograms
     ioff=0
     DO i=1,ntgb
@@ -6236,6 +7083,7 @@ SUBROUTINE monres
             ioff=ioff+measBins
         END IF                                                                   
     END DO
+    !$POMP INST END(monres) 
  
 110 FORMAT(i5,2i10,3G14.5)
 END SUBROUTINE monres
@@ -6256,6 +7104,8 @@ SUBROUTINE vmprep(msize)
     INTEGER(mpl), INTENT(IN) :: msize(2)
 
     INTEGER(mpl) :: length
+    INTEGER(mpl), PARAMETER :: three = 3
+    
     SAVE
     !     ...
     !                         Vector/matrix storage
@@ -6263,8 +7113,9 @@ SUBROUTINE vmprep(msize)
     CALL mpalloc(globalVector,length,'rhs vector') ! double precision vector
     CALL mpalloc(globalCounter,length,'rhs counter') ! integer vector
     lenGlobalVec=nagb
-    length=naeqn
+    length=naeqn*mthrd
     CALL mpalloc(localCorrections,length,'residual vector of one record')
+    CALL mpalloc(localEquations,three,length,'mesurements indices (ISJAJB) of one record')
     length=nalcn*nalcn
     CALL mpalloc(aux,length,' local fit scratch array: aux')
     CALL mpalloc(vbnd,length,' local fit scratch array: vbnd')
@@ -6655,7 +7506,7 @@ SUBROUTINE mminrs
     REAL(mpd) :: rnorm
     REAL(mpd) :: ynorm
     LOGICAL :: checka
-    EXTERNAL avprd0, avprod, mvsolv, mcsolv
+    EXTERNAL avprds, avprod, mvsolv, mcsolv
     SAVE
     !     ...
     lun=lunlog                       ! log file
@@ -6686,7 +7537,7 @@ SUBROUTINE mminrs
 
     IF(mbandw == 0) THEN           ! default preconditioner
         IF(icalcm == 1) THEN
-            IF(nfgb < nvgb) CALL qlpssq(avprd0,matPreCond,1,.true.) ! transform preconditioner matrix
+            IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,1,.true.) ! transform preconditioner matrix
             CALL precon(nprecond(1),nprecond(2),matPreCond,matPreCond, matPreCond(1+nvgb),  &
                 matPreCond(1+nvgb+ncgb*nvgb),nrkd)
         END IF
@@ -6694,7 +7545,7 @@ SUBROUTINE mminrs
             globalCorrections, itnlim, nout, rtol, istop, itn, anorm, acond, rnorm, arnorm, ynorm)
     ELSE IF(mbandw > 0) THEN                          ! band matrix preconditioner
         IF(icalcm == 1) THEN
-            IF(nfgb < nvgb) CALL qlpssq(avprd0,matPreCond,mbandw,.true.) ! transform preconditioner matrix
+            IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,mbandw,.true.) ! transform preconditioner matrix
             WRITE(lun,*) 'MMINRS: EQUDEC started', nprecond(2), nprecond(1)
             CALL equdec(nprecond(2),nprecond(1),lprecm,matPreCond,indPreCond,nrkd,nrkd2)
             WRITE(lun,*) 'MMINRS: EQUDEC ended  ', nrkd, nrkd2
@@ -6744,7 +7595,7 @@ SUBROUTINE mminrsqlp
     REAL(mpd) :: mxxnrm
     REAL(mpd) :: trcond
 
-    EXTERNAL avprd0, avprod, mvsolv, mcsolv
+    EXTERNAL avprds, avprod, mvsolv, mcsolv
     SAVE
     !     ...
     lun=lunlog                       ! log file
@@ -6781,7 +7632,7 @@ SUBROUTINE mminrsqlp
 
     IF(mbandw == 0) THEN           ! default preconditioner
         IF(icalcm == 1) THEN
-            IF(nfgb < nvgb) CALL qlpssq(avprd0,matPreCond,1,.true.) ! transform preconditioner matrix
+            IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,1,.true.) ! transform preconditioner matrix
             CALL precon(nprecond(1),nprecond(2),matPreCond,matPreCond, matPreCond(1+nvgb),  &
                 matPreCond(1+nvgb+ncgb*nvgb),nrkd)
         END IF
@@ -6790,7 +7641,7 @@ SUBROUTINE mminrsqlp
             x=globalCorrections, istop=istop, itn=itn)
     ELSE IF(mbandw > 0) THEN                          ! band matrix preconditioner
         IF(icalcm == 1) THEN
-            IF(nfgb < nvgb) CALL qlpssq(avprd0,matPreCond,mbandw,.true.) ! transform preconditioner matrix
+            IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,mbandw,.true.) ! transform preconditioner matrix
             WRITE(lun,*) 'MMINRS: EQUDEC started', nprecond(2), nprecond(1)
             CALL equdec(nprecond(2),nprecond(1),lprecm,matPreCond,indPreCond,nrkd,nrkd2)
             WRITE(lun,*) 'MMINRS: EQUDEC ended  ', nrkd, nrkd2
@@ -6806,7 +7657,7 @@ SUBROUTINE mminrsqlp
     END IF
 
     !use elimination for constraints ?
-    IF(nfgb < nvgb) THEN  
+    IF(nfgb < nvgb) THEN 
         ! extend, transform back solution
         globalCorrections(nfgb+1:nvgb)=vecConsSolution(1:ncgb)
         CALL qlmlq(globalCorrections,1,.false.) ! Q*x
@@ -7162,7 +8013,6 @@ SUBROUTINE xloopn                !
             END IF
         END IF
           !     Block 2: new iteration with calculation of solution --------------
-
         IF(ABS(icalcm) == 1) THEN    ! ICALCM = +1 & -1
             DO i=1,nagb
                 globalCorrections(i)=globalVector(i)     ! copy rhs
@@ -8697,10 +9547,8 @@ SUBROUTINE intext(text,nline)
             !$          IOMP=1
             !$          IF (IOMP.GT.0) THEN
             !$             IF (NUMS.GE.1.AND.DNUM(1).GT.0.) MTHRD =NINT(dnum(1),mpi)
-            !$             IF (NUMS.GE.2) THEN
-            !$                MTHRDR=MTHRD
-            !$                IF (DNUM(2).GT.0.) MTHRDR=NINT(dnum(2),mpi)
-            !$             ENDIF
+            !$             MTHRDR=MTHRD
+            !$             IF (NUMS.GE.2.AND.DNUM(2).GT.0.) MTHRDR=NINT(dnum(2),mpi)
             !$          ELSE
             WRITE(*,*) 'WARNING: multithreading not available'
             !$          ENDIF
@@ -8710,18 +9558,18 @@ SUBROUTINE intext(text,nline)
         keystx='compress'
         mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
         IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
-            mcmprs=1
+            WRITE(*,*) 'WARNING: keyword COMPRESS is obsolete (compression is default)'
             RETURN
         END IF
         
         ! still experimental
-        !keystx='extendedStorage'
-        !mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
-        !IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
-        !    mextnd=1
-        !    ! compression enforced for extended storage (in mpbits)
-        !    RETURN
-        !END IF
+        keystx='extendedStorage'
+        mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
+        IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
+            mextnd=1
+            ! compression enforced for extended storage (in mpbits)
+            RETURN
+        END IF
           
         keystx='errlabels'
         mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison

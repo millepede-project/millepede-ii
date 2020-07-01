@@ -4,7 +4,7 @@
 !! \author Claus Kleinwort, DESY, 2012 (Claus.Kleinwort@desy.de)
 !!
 !! \copyright
-!! Copyright (c) 2012 - 2019 Deutsches Elektronen-Synchroton,
+!! Copyright (c) 2012 - 2020 Deutsches Elektronen-Synchroton,
 !! Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 !! This library is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU Library General Public License as
@@ -79,7 +79,6 @@ MODULE mpmod
     INTEGER(mpi) :: mreqpe=1  !< min number of pair entries
     INTEGER(mpi) :: mhispe=0  !< upper bound for pair entry histogrammimg
     INTEGER(mpi) :: msngpe=-1 !< upper bound for pair entry single precision storage
-    INTEGER(mpi) :: mcmprs=0  !< compression flag for sparsity (column indices)
     INTEGER(mpi) :: mextnd=0  !< flag for extended storage (both 'halves' of sym. mat. for improved access patterns)
     INTEGER(mpi) :: mthrd =1  !< number of (OpenMP) threads
     INTEGER(mpi) :: mxrec =0  !< max number of records
@@ -117,10 +116,13 @@ MODULE mpmod
     INTEGER(mpi) :: lvllog !< log level
     INTEGER(mpi) :: ntgb !< total number of global parameters
     INTEGER(mpi) :: nvgb !< number of variable global parameters
-    INTEGER(mpi) :: nagb !< number of all parameters (global par. + Lagrange mult.)
+    INTEGER(mpi) :: nagb !< number of all parameters (var. global par. + Lagrange mult.)
     INTEGER(mpi) :: nfgb !< number of fit parameters
     INTEGER(mpi) :: ncgb !< number of constraints
     INTEGER(mpi) :: ncgbe !< number of empty constraints (no variable parameters)
+    INTEGER(mpi) :: ntpgrp !< number of parameter groups
+    INTEGER(mpi) :: nvpgrp !< number of variable parameter groups
+    INTEGER(mpi) :: napgrp !< number of all parameter groups (variable + Lagrange mult.)
     INTEGER(mpi) :: npblck !< number of (disjoint) parameter blocks
     INTEGER(mpi) :: ncblck !< number of (disjoint) constraint blocks
     INTEGER(mpi) :: mszcon !< (integrated block) matrix size for constraint matrix
@@ -218,7 +220,8 @@ MODULE mpmod
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: globalParLabelIndex !< global parameters label, total -> var. index
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalParHashTable    !< global parameters hash table
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalParVarToTotal   !< global parameters variable -> total index
-    INTEGER(mpi), DIMENSION(-7:0) :: globalParHeader = 0 !< global parameters (mapping) header
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalAllParToGroup   !< all parameters variable -> group index
+    INTEGER(mpi), DIMENSION(-8:0) :: globalParHeader = 0 !< global parameters (mapping) header
                                                     !!
                                                     !!  0: length of labels/indices; \n
                                                     !! -1: number of stored items; \n
@@ -228,9 +231,11 @@ MODULE mpmod
                                                     !! -5: number of overflows; \n
                                                     !! -6: nr of variable parameters; \n
                                                     !! -7: call counter for build-up;
+                                                    !! -8: number of sorted items;
+    INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: globalTotIndexGroups   !< 1. (total) index, size per group
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalAllIndexGroups   !< 1. (all variable) index per group
 
     ! row information for sparse matrix
-    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: sparseMatrixCompression !< compression info (per row)
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: sparseMatrixColumns     !< (compressed) list of columns for sparse matrix
     INTEGER(mpl), DIMENSION(:,:), ALLOCATABLE :: sparseMatrixOffsets !< row offsets for column list, sparse matrix elements
     ! read buffer
@@ -260,8 +265,11 @@ MODULE mpmod
     REAL(mpd), DIMENSION(:), ALLOCATABLE::vzru !< local fit 'border solution'
     REAL(mpd), DIMENSION(:), ALLOCATABLE::scdiag !< local fit workspace (D)
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE:: scflag         !< local fit workspace (I)
+    INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: localEquations !< indices (ISJAJB) for local equations (measurements)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: localCorrections !< local fit corrections (to residuals)
-    REAL(mpd), DIMENSION(:), ALLOCATABLE :: localGlobalMatrix !< matrix correlating local and global par
+    REAL(mpd), DIMENSION(:), ALLOCATABLE :: localGlobalMatrix !< matrix correlating local and global par, content
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: localGlobalMap !< matrix correlating local and global par, map (counts)
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: localGlobalStructure !< matrix correlating local and global par, (sparsity) structure
     ! update of global matrix
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: writeBufferInfo  !< write buffer management (per thread)
     REAL(mps), DIMENSION(:,:), ALLOCATABLE :: writeBufferData     !< write buffer data (largest residual, Chi2/ndf, per thread)
