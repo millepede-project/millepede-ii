@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-07-00 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-07-01 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -123,6 +123,10 @@
 !! * 200701: Implementation of parameter groups (sets of adjacent global parameters (labels)
 !!   appearing in the binary files *always* together). Used to speed up construction of global matrix.
 !!   Similarity operations are now aware of sparse (rectangular) matrices.
+!! * 200716: The counting of the appearance of global parameters in the binary files can
+!!   now be done on record (e.g. track) level instead of equation (e.g. measurement) level.
+!!   This is enabled with the new command \ref cmd-countrecords and makes the iteration
+!!   of the first data loop (by \ref cmd-iterateentries) obsolete.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -380,6 +384,8 @@
 !! to limit the number of concurrently open files.
 !! \subsection cmd-constraint constraint
 !! Define \ref sssec_consinf "constraints" for global parameters.
+!! \subsection cmd-countrecords countrecords
+!! Set flag \ref mpmod::mcount "mcount" to 1 (true) to enable parameter counting om record level.
 !! \subsection cmd-debug debug
 !! Set number of records with debug printout \ref mpmod::mdebug "mdebug" to
 !! \a number1 [3], number of measurements with printout \ref mpmod::mdebg2 "mdebg2" to \a number2.
@@ -2263,36 +2269,44 @@ END SUBROUTINE pechk
 
 !> Parameter group info update.
 !!
-!! Update last record number for consecutive labels.
+!! Group parameters on level of equations or records (counting in addition).
 !!
 SUBROUTINE pepgrp
     USE mpmod
+    USE mpdalc
 
     IMPLICIT NONE
 
     INTEGER(mpi) :: ibuf
     INTEGER(mpi) :: ichunk
-    INTEGER(mpi) :: istart
-    INTEGER(mpi) :: itgbi
+    INTEGER(mpi) :: iproc
+    INTEGER(mpi) :: ioff
+    INTEGER(mpi) :: ioffbi
     INTEGER(mpi) :: isfrst
     INTEGER(mpi) :: islast
     INTEGER(mpi) :: ist
+    INTEGER(mpi) :: itgbi
     INTEGER(mpi) :: j
     INTEGER(mpi) :: ja
     INTEGER(mpi) :: jb
     INTEGER(mpi) :: jsp
-    INTEGER(mpi) :: jstart
-    INTEGER(mpi) :: jtgbi
-    INTEGER(mpi) :: lstart
-    INTEGER(mpi) :: ltgbi
+    INTEGER(mpi) :: nalg
     INTEGER(mpi) :: nst
     INTEGER(mpi) :: inone
+    INTEGER(mpl) :: length
+    !$ INTEGER(mpi) :: OMP_GET_THREAD_NUM
 
     isfrst(ibuf)=readBufferPointer(ibuf)+1
     islast(ibuf)=readBufferDataI(readBufferPointer(ibuf))
 
     CALL useone ! make (INONE) usable
     globalParHeader(-2)=-1 ! set flag to inhibit further updates
+    ! need back index
+    IF (mcount > 0) THEN
+        length=globalParHeader(-1)*mthrd
+        CALL mpalloc(backIndexUsage,length,'global variable-index array')
+        backIndexUsage=0
+    END IF
 
 #ifdef __PGIC__
     ! to prevent "PGF90-F-0000-Internal compiler error. Could not locate uplevel instance for stblock"
@@ -2303,22 +2317,54 @@ SUBROUTINE pepgrp
     ! parallelize record loop
     !$OMP  PARALLEL DO &
     !$OMP   DEFAULT(PRIVATE) &
-    !$OMP   SHARED(numReadBuffer,readBufferPointer,readBufferDataI,readBufferDataD,ICHUNK,iscerr,dscerr) &
+    !$OMP   SHARED(numReadBuffer,readBufferPointer,readBufferDataI,readBufferDataD,backIndexUsage,globalParHeader,ICHUNK,MCOUNT) &
     !$OMP   SCHEDULE(DYNAMIC,ICHUNK)
     DO ibuf=1,numReadBuffer ! buffer for current record
         ist=isfrst(ibuf)
         nst=islast(ibuf)
-        DO ! loop over measurements
-            CALL isjajb(nst,ist,ja,jb,jsp)
-            IF(jb == 0) EXIT
-            IF (ist > jb) THEN
-                DO j=1,ist-jb
-                    readBufferDataI(jb+j)=inone( readBufferDataI(jb+j) ) ! translate to index
-                END DO
-                ! sort
-                CALL sort1k(readBufferDataI(jb+1),ist-jb)
-            END IF    
-        END DO
+        IF (mcount > 0) THEN
+            ! count per record
+            iproc=0
+            !$       IPROC=OMP_GET_THREAD_NUM()         ! thread number
+            ioffbi=globalParHeader(-1)*iproc 
+            nalg=0
+            ioff=readBufferPointer(ibuf)
+            DO ! loop over measurements
+                CALL isjajb(nst,ist,ja,jb,jsp)
+                IF(jb == 0) EXIT
+                IF (ist > jb) THEN
+                    DO j=1,ist-jb
+                        itgbi=inone( readBufferDataI(jb+j) ) ! translate to index
+                        IF (backIndexUsage(ioffbi+itgbi) == 0) THEN
+                            nalg=nalg+1
+                            readBufferDataI(ioff+nalg)=itgbi
+                            backIndexUsage(ioffbi+itgbi)=nalg
+                        END IF
+                    END DO
+                END IF   
+            END DO
+            ! reset back index
+            DO j=1,nalg
+                itgbi=readBufferDataI(ioff+j)
+                backIndexUsage(ioffbi+itgbi)=0
+            END DO
+            ! sort (record)
+            CALL sort1k(readBufferDataI(ioff+1),nalg)
+            readBufferDataI(ioff)=ioff+nalg
+        ELSE   
+            ! count per equation 
+            DO ! loop over measurements
+                CALL isjajb(nst,ist,ja,jb,jsp)
+                IF(jb == 0) EXIT
+                IF (ist > jb) THEN
+                    DO j=1,ist-jb
+                        readBufferDataI(jb+j)=inone( readBufferDataI(jb+j) ) ! translate to index
+                    END DO
+                    ! sort (equation)
+                    CALL sort1k(readBufferDataI(jb+1),ist-jb)
+                END IF   
+            END DO
+        END IF               
     END DO
     !$OMP  END PARALLEL DO
         
@@ -2326,85 +2372,126 @@ SUBROUTINE pepgrp
     DO ibuf=1,numReadBuffer ! buffer for current record
         ist=isfrst(ibuf)
         nst=islast(ibuf)
-        DO ! loop over measurements
-            CALL isjajb(nst,ist,ja,jb,jsp)
-            IF(jb == 0) EXIT
-            IF (ist > jb) THEN
-                ltgbi=-1
-                lstart=-1
-                ! build up groups
-                DO j=1,ist-jb
-                    itgbi=readBufferDataI(jb+j)
-                    istart=globalParLabelIndex(3,itgbi)     ! label of group start
-                    IF (istart == 0) THEN                   ! not yet in group
-                        IF (itgbi /= ltgbi+1)THEN           ! start group
-                            globalParLabelIndex(3,itgbi)=globalParLabelIndex(1,itgbi)
-                        ELSE                                ! extend group
-                            globalParLabelIndex(3,itgbi)=globalParLabelIndex(3,ltgbi)
-                        END IF
-                    END IF
-                    ltgbi=itgbi
-                END DO
-                ! split groups:
-                ! - start inside group?         
-                itgbi=readBufferDataI(jb+1)
-                istart=globalParLabelIndex(3,itgbi)         ! label of group start
-                jstart=globalParLabelIndex(1,itgbi)         ! label of first parameter
-                IF (istart /= jstart) THEN                  ! start new group   
-                    DO WHILE (globalParLabelIndex(3,itgbi) == istart)
-                        globalParLabelIndex(3,itgbi) = jstart
-                        itgbi=itgbi+1
-                        IF (itgbi > globalParHeader(-1)) EXIT
-                    END DO                
-                END IF
-                ! - not neigbours anymore
-                ltgbi=readBufferDataI(jb+1)
-                DO j=2,ist-jb
-                    itgbi=readBufferDataI(jb+j)
-                    IF (itgbi /= ltgbi+1) THEN
-                        ! split after ltgbi
-                        lstart=globalParLabelIndex(3,ltgbi) ! label of last group start
-                        jtgbi=ltgbi+1                       ! new group after ltgbi
-                        jstart=globalParLabelIndex(1,jtgbi)
-                        DO WHILE (globalParLabelIndex(3,jtgbi) == lstart)
-                            globalParLabelIndex(3,jtgbi) = jstart
-                            jtgbi=jtgbi+1
-                            IF (jtgbi > globalParHeader(-1)) EXIT
-                            IF (jtgbi == itgbi) jstart=globalParLabelIndex(1,jtgbi)
-                        END DO
-                        ! split at itgbi
-                        jtgbi=itgbi                        
-                        istart=globalParLabelIndex(3,jtgbi) ! label of group start
-                        jstart=globalParLabelIndex(1,jtgbi) ! label of first parameter
-                        IF (istart /= jstart) THEN          ! start new group   
-                            DO WHILE (globalParLabelIndex(3,jtgbi) == istart)
-                                globalParLabelIndex(3,jtgbi) = jstart
-                                jtgbi=jtgbi+1
-                                IF (jtgbi > globalParHeader(-1)) EXIT
-                            END DO                
-                        END IF
-                    ENDIF
-                    ltgbi=itgbi
-                END DO
-                ! - end inside group?         
-                itgbi=readBufferDataI(ist)
-                IF (itgbi < globalParHeader(-1)) THEN
-                    istart=globalParLabelIndex(3,itgbi)     ! label of group start
-                    itgbi=itgbi+1
-                    jstart=globalParLabelIndex(1,itgbi)     ! label of new group start
-                    DO WHILE (globalParLabelIndex(3,itgbi) == istart)
-                        globalParLabelIndex(3,itgbi) = jstart
-                        itgbi=itgbi+1
-                        IF (itgbi > globalParHeader(-1)) EXIT
-                    END DO
-                END IF                                          
-            END IF    
-        END DO
+        IF (mcount == 0) THEN
+            ! equation level
+            DO ! loop over measurements
+                CALL isjajb(nst,ist,ja,jb,jsp)
+                IF(jb == 0) EXIT
+                CALL pargrp(jb+1,ist)                                
+            END DO
+        ELSE
+            ! record level, group     
+            CALL pargrp(ist,nst)
+            ! count
+            DO j=ist,nst
+                itgbi=readBufferDataI(j)
+                globalParLabelIndex(4,itgbi)=globalParLabelIndex(4,itgbi)+1
+            END DO                                
+        ENDIF    
     END DO
-    globalParHeader(-2)=0 ! reset flag to reenable further updates
+    ! free back index
+    IF (mcount > 0) THEN
+        CALL mpdealloc(backIndexUsage)
+    END IF
     !$POMP INST END(pepgrp)
+    globalParHeader(-2)=0 ! reset flag to reenable further updates
 
 END SUBROUTINE pepgrp
+
+!> Parameter group info update for block of parameters.
+!!
+!! Build and split groups (defined by common first parameter).
+!!
+!! \param [in]    inds   index of first parmeters in read buffer
+!! \param [in]    inde   index of last parmeters in read buffer
+!!
+SUBROUTINE pargrp(inds,inde)
+    USE mpmod
+
+    IMPLICIT NONE
+
+    INTEGER(mpi) :: istart
+    INTEGER(mpi) :: itgbi
+    INTEGER(mpi) :: j
+    INTEGER(mpi) :: jstart
+    INTEGER(mpi) :: jtgbi
+    INTEGER(mpi) :: lstart
+    INTEGER(mpi) :: ltgbi
+
+    INTEGER(mpi), INTENT(IN) :: inds
+    INTEGER(mpi), INTENT(IN) :: inde
+        
+    IF (inds > inde) RETURN
+    ltgbi=-1
+    lstart=-1
+    ! build up groups
+    DO j=inds,inde
+        itgbi=readBufferDataI(j)
+        istart=globalParLabelIndex(3,itgbi)     ! label of group start
+        IF (istart == 0) THEN                   ! not yet in group
+            IF (itgbi /= ltgbi+1)THEN           ! start group
+                globalParLabelIndex(3,itgbi)=globalParLabelIndex(1,itgbi)
+            ELSE                                ! extend group
+                globalParLabelIndex(3,itgbi)=globalParLabelIndex(3,ltgbi)
+            END IF
+        END IF
+        ltgbi=itgbi
+    END DO
+    ! split groups:
+    ! - start inside group?         
+    itgbi=readBufferDataI(inds)
+    istart=globalParLabelIndex(3,itgbi)         ! label of group start
+    jstart=globalParLabelIndex(1,itgbi)         ! label of first parameter
+    IF (istart /= jstart) THEN                  ! start new group   
+        DO WHILE (globalParLabelIndex(3,itgbi) == istart)
+            globalParLabelIndex(3,itgbi) = jstart
+            itgbi=itgbi+1
+            IF (itgbi > globalParHeader(-1)) EXIT
+        END DO                
+    END IF
+    ! - not neigbours anymore
+    ltgbi=readBufferDataI(inds)
+    DO j=inds+1,inde
+        itgbi=readBufferDataI(j)
+        IF (itgbi /= ltgbi+1) THEN
+            ! split after ltgbi
+            lstart=globalParLabelIndex(3,ltgbi) ! label of last group start
+            jtgbi=ltgbi+1                       ! new group after ltgbi
+            jstart=globalParLabelIndex(1,jtgbi)
+            DO WHILE (globalParLabelIndex(3,jtgbi) == lstart)
+                globalParLabelIndex(3,jtgbi) = jstart
+                jtgbi=jtgbi+1
+                IF (jtgbi > globalParHeader(-1)) EXIT
+                IF (jtgbi == itgbi) jstart=globalParLabelIndex(1,jtgbi)
+            END DO
+            ! split at itgbi
+            jtgbi=itgbi                        
+            istart=globalParLabelIndex(3,jtgbi) ! label of group start
+            jstart=globalParLabelIndex(1,jtgbi) ! label of first parameter
+            IF (istart /= jstart) THEN          ! start new group   
+                DO WHILE (globalParLabelIndex(3,jtgbi) == istart)
+                    globalParLabelIndex(3,jtgbi) = jstart
+                    jtgbi=jtgbi+1
+                    IF (jtgbi > globalParHeader(-1)) EXIT
+                END DO                
+            END IF
+        ENDIF
+        ltgbi=itgbi
+    END DO
+    ! - end inside group?         
+    itgbi=readBufferDataI(inde)
+    IF (itgbi < globalParHeader(-1)) THEN
+        istart=globalParLabelIndex(3,itgbi)     ! label of group start
+        itgbi=itgbi+1
+        jstart=globalParLabelIndex(1,itgbi)     ! label of new group start
+        DO WHILE (globalParLabelIndex(3,itgbi) == istart)
+            globalParLabelIndex(3,itgbi) = jstart
+            itgbi=itgbi+1
+            IF (itgbi > globalParHeader(-1)) EXIT
+        END DO
+    END IF                                          
+
+END SUBROUTINE pargrp
 
 !> Decode Millepede record.
 !!
@@ -5677,6 +5764,7 @@ SUBROUTINE loop1
     WRITE(lunlog,*) ' '
     WRITE(lunlog,*) 'LOOP1: starting'
     CALL mstart('LOOP1')
+    
     !     add labels from parameter, constraints, measurements -------------
     DO i=1, lenParameters
         idum=inone(listParameters(i)%label)
@@ -5803,7 +5891,7 @@ SUBROUTINE loop1
 
     indab=0
     DO i=1,ntgb
-        globalParCounts(i) = globalParLabelIndex(2,i)
+        globalParCounts(i) = globalParLabelIndex(2+2*mcount,i)
         IF (globalParPreSigma(i) < 0.0) THEN
             globalParLabelIndex(2,i)=-1     ! fixed (pre-sigma), not used in matrix (not active)
         ELSE IF(globalParCounts(i) < mreqenf) THEN
@@ -5816,7 +5904,14 @@ SUBROUTINE loop1
     globalParHeader(-6)=indab ! counted variable
     nvgb=indab  ! nr of variable parameters
     WRITE(lunlog,*) 'LOOP1:',nvgb, ' is number NVGB of variable parameters'
-    IF(iteren > mreqenf) CALL loop1i ! iterate entries cut
+    IF(iteren > mreqenf) THEN
+        IF (mcount == 0) THEN
+            CALL loop1i ! iterate entries cut
+        ELSE
+            WRITE(lunlog,*) 'LOOP1: counting records, NO iteration of entries cut !'
+            iteren=0
+        END IF
+    END IF        
 
     ! --- check for parameter groups
     CALL hmpdef(15,0.0,120.0,'Number of parameters per group')
@@ -5826,14 +5921,15 @@ SUBROUTINE loop1
         ! new group?
         IF (globalParLabelIndex(1,j) == globalParLabelIndex(3,j)) ntpgrp=ntpgrp+1
         globalParLabelIndex(4,j)=ntpgrp ! relation total index -> group
-        ! PRINT *, j, globalParLabelIndex(:,j)
     END DO
     ! check variable parameters
     nvpgrp=0
+    lgrp=-1
     DO j=1,ntgb
         IF (globalParLabelIndex(2,j) <= 0) CYCLE ! skip fixed parameter
         ! new group ?
-        IF (globalParLabelIndex(1,j) == globalParLabelIndex(3,j)) nvpgrp=nvpgrp+1  
+        IF (globalParLabelIndex(4,j) /= lgrp) nvpgrp=nvpgrp+1
+        lgrp=globalParLabelIndex(4,j)
     END DO    
     length=ntpgrp; rows=2
     CALL mpalloc(globalTotIndexGroups,rows,length,'parameter groups, 1. index and size')
@@ -5917,7 +6013,11 @@ SUBROUTINE loop1
         WRITE(*,*) ' '
         WRITE(*,101) '  NREC',nrec,'number of records'
         IF (nrecd > 0) WRITE(*,101) ' NRECD',nrec,'number of records containing doubles'
-        WRITE(*,101) 'MREQENF',mreqenf,'required number of entries (from binary files)'
+        IF (mcount == 0) THEN
+            WRITE(*,101) 'MREQENF',mreqenf,'required number of entries (eqns in binary files)'
+        ELSE
+            WRITE(*,101) 'MREQENF',mreqenf,'required number of entries (recs in binary files)'
+        ENDIF     
         IF(iteren > mreqenf) &
             WRITE(*,101) 'ITEREN',iteren,'iterate cut for parameters with less entries'
         WRITE(*,101) 'MREQENA',mreqena,'required number of entries (from accepted fits)'            
@@ -5946,7 +6046,11 @@ SUBROUTINE loop1
     WRITE(8,*)   ' '
     WRITE(8,101) '  NREC',nrec,'number of records'
     IF (nrecd > 0) WRITE(8,101) ' NRECD',nrec,'number of records containing doubles'
-    WRITE(8,101) 'MREQENF',mreqenf,'required number of entries (from binary files)'
+    IF (mcount == 0) THEN
+        WRITE(8,101) 'MREQENF',mreqenf,'required number of entries (eqns in binary files)'
+    ELSE
+        WRITE(8,101) 'MREQENF',mreqenf,'required number of entries (recs in binary files)'
+    ENDIF    
     IF(iteren > mreqenf) &
         WRITE(8,101) 'ITEREN',iteren,'iterate cut for parameters with less entries'
     WRITE(8,101) 'MREQENA',mreqena,'required number of entries (from accepted fits)'
@@ -6281,11 +6385,16 @@ SUBROUTINE loop2
             globalAllParToGroup(j)=i
         END DO 
     END DO
-    !DO i=1,nvpgrp
-    !    itgbi=globalParVarToTotal(globalAllIndexGroups(i))
-    !    print *, " vargrp ", i, globalAllIndexGroups(i),globalAllIndexGroups(i+1)-globalAllIndexGroups(i), &
-    !                           globalParLabelIndex(1,itgbi)
-    !END DO
+    IF (icheck > 2) THEN
+        print *
+        print *, ' Variable parameter groups ', nvpgrp
+        DO i=1,nvpgrp
+            itgbi=globalParVarToTotal(globalAllIndexGroups(i))
+            print *, i, globalAllIndexGroups(i),globalAllIndexGroups(i+1)-globalAllIndexGroups(i), &
+                globalParLabelIndex(1,itgbi)
+        END DO
+        print *
+    END IF 
         
     !     read all data files and add all variable index pairs -------------
 
@@ -9563,11 +9672,17 @@ SUBROUTINE intext(text,nline)
         END IF
         
         ! still experimental
-        keystx='extendedStorage'
+        !keystx='extendedStorage'
+        !mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
+        !IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
+        !    mextnd=1
+        !    RETURN
+        !END IF
+
+        keystx='countrecords'
         mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
         IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
-            mextnd=1
-            ! compression enforced for extended storage (in mpbits)
+            mcount=1
             RETURN
         END IF
           

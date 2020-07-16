@@ -578,12 +578,16 @@ SUBROUTINE qlpssq(aprod,B,m,t)
     INTEGER(mpi) :: i
     INTEGER(mpl) :: ioff1
     INTEGER(mpl) :: ioff2
+    INTEGER(mpi) :: ioffr
+    INTEGER(mpi) :: ir
     INTEGER(mpi) :: j
     INTEGER(mpi) :: j2
     INTEGER(mpi) :: k
     INTEGER(mpi) :: k2
     INTEGER(mpi) :: kn
     INTEGER(mpi) :: l
+    INTEGER(mpi) :: l1
+    INTEGER(mpi) :: l2
     INTEGER(mpl) :: length
     INTEGER(mpi) :: mbnd
     REAL(mpd) :: vtAv
@@ -625,6 +629,8 @@ SUBROUTINE qlpssq(aprod,B,m,t)
         kn=npar+k-ncon
         ! column offset
         ioff1=(k-1)*npar
+        ! redion offset
+        ioffr=(k-1)*5
         ! transformation (diagonal block)
         ! diagonal block
         ! v^t*A*v
@@ -651,14 +657,27 @@ SUBROUTINE qlpssq(aprod,B,m,t)
             k2=j2
             IF (t) k2=ncon+1-j2
             ioff2=(k2-1)*npar
-            vtvp=dot_product(matV(ioff1+1:ioff1+npar),matV(ioff2+1:ioff2+npar)) ! v^t*v'
-            vtAvp=dot_product(matV(ioff1+1:ioff1+npar),Av(ioff2+1:ioff2+npar)) ! v^t*(A*v')
-            DO i=1,kn 
-                Av(ioff2+i)=Av(ioff2+i)+2.0_mpd*((2.0_mpd*matV(ioff1+i)*vtAv-Av(ioff1+i))*vtvp-matV(ioff1+i)*vtAvp)
+            ! loop over non-zero regions
+            vtvp=0._mpd
+            vtAvp=0._mpd
+            DO ir=1, sparseV(ioffr+1)
+                l1=sparseV(ioffr+2*ir)   ! first non-zero element in region
+                l2=sparseV(ioffr+2*ir+1) ! last  non-zero element in region
+                vtvp=vtvp+dot_product(matV(ioff1+l1:ioff1+l2),matV(ioff2+l1:ioff2+l2)) ! v^t*v'
+                vtAvp=vtAvp+dot_product(matV(ioff1+l1:ioff1+l2),Av(ioff2+l1:ioff2+l2)) ! v^t*(A*v')
             END DO
-            DO i=kn+1,npar 
-                Av(ioff2+i)=Av(ioff2+i)-2.0_mpd*Av(ioff1+i)*vtvp
-            END DO
+            ! loop over non-zero regions
+            DO ir=1, sparseV(ioffr+1)
+                l1=sparseV(ioffr+2*ir)   ! first non-zero element in region
+                IF (l1 > kn) EXIT
+                l2=min(kn,sparseV(ioffr+2*ir+1)) ! last  non-zero element in region (<= kn)
+                Av(ioff2+l1:ioff2+l2)=Av(ioff2+l1:ioff2+l2) &
+                    +2.0_mpd*matV(ioff1+l1:ioff1+l2)*(2.0_mpd*vtAv*vtvp-vtAvp)
+            END DO   
+            ! some 'overlap'?
+            IF (vtvp /= 0._mpd) THEN
+                Av(ioff2+1:ioff2+npar)=Av(ioff2+1:ioff2+npar)-2.0_mpd*Av(ioff1+1:ioff1+npar)*vtvp
+            END IF
         END DO
 
     END DO
