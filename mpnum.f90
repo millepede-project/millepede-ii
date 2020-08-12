@@ -1838,6 +1838,7 @@ SUBROUTINE sort2i(a,n)
         IF(a(1,j) > a1) GO TO 30
         IF(a(1,j) == a1.AND.a(2,j) > a2) GO TO 30
         IF(i <= j) THEN
+            IF(a(1,i) == a(1,j).AND.a(2,i) == a(2,j)) GO TO 20 ! equal -> keep order
             at=a(:,i)       ! exchange I <-> J
             a(:,i)=a(:,j)
             a(:,j)=at

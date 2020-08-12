@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-07-01 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-07-02 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -1374,7 +1374,7 @@ SUBROUTINE prpcon
     END DO
     
     ! sort constraints
-    call sort2i(matConsSort,ncgb)
+    CALL sort2i(matConsSort,ncgb)
     
     ! loop over sorted constraints, try to split into blocks
     ncblck=0
