@@ -182,7 +182,7 @@ END SUBROUTINE qldec
 !! The lower triangular matrix L is stored in the M-by-M matrix matL.
 !!
 !! \param [in]     a     block compressed Npar-by-Ncon matrix
-!! \param [in]     bpar  3-by-NparBlock+1 matrix (with parameter block definition)
+!! \param [in]     bpar  2-by-NparBlock+1 matrix (with parameter block definition)
 !! \param [in]     bcon  3-by-NconBlock+1 matrix (with constraint block definition)
 !!
 SUBROUTINE qldecb(a,bpar,bcon)

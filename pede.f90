@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-07-02 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-07-03 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -5133,6 +5133,91 @@ SUBROUTINE avprd0(n,l,x,b)
 
 END SUBROUTINE avprd0
 
+!> Analyse sparsity structure.
+!!
+SUBROUTINE anasps
+    USE mpmod
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: ia
+    INTEGER(mpi) :: ib
+    INTEGER(mpi) :: in
+    INTEGER(mpi) :: ipg
+    INTEGER(mpi) :: ir
+    INTEGER(mpi) :: ispc
+    INTEGER(mpi) :: jn
+    INTEGER(mpi) :: lj
+    REAL(mps) :: avg
+
+
+    INTEGER(mpl) :: k
+    INTEGER(mpl) :: kk
+    INTEGER(mpl) :: ku
+    INTEGER(mpl) :: ll
+    INTEGER(mpl) :: indid
+    INTEGER(mpl), DIMENSION(12) :: icount
+    SAVE
+
+    ! require sparse storage
+    IF(matsto /= 2) RETURN
+    ! reset
+    icount=0
+    icount(4)=huge(icount(4))
+    icount(7)=huge(icount(7))
+    icount(10)=huge(icount(10))
+    ! loop over precisions
+    DO ispc=1,nspc
+        ! loop over row groups
+        DO ipg=1,napgrp
+            ! row group
+            ia=globalAllIndexGroups(ipg)     ! first (global) row
+            ib=globalAllIndexGroups(ipg+1)-1 ! last (global) row
+            in=ib-ia+1                       ! number of rows  
+
+            ir=ipg+(ispc-1)*(napgrp+1)
+            kk=sparseMatrixOffsets(1,ir) ! offset in 'd' (column lists)
+            ll=sparseMatrixOffsets(2,ir) ! offset in 'j' (matrix)
+            ku=sparseMatrixOffsets(1,ir+1)-kk
+            indid=kk
+            IF (sparseMatrixColumns(indid+1) /= 0) THEN  ! no compression
+                icount(1)=icount(1)+in
+                icount(2)=icount(2)+in*ku
+            ELSE
+                ! regions of continous column groups
+                DO k=2,ku-2,2
+                    lj=sparseMatrixColumns(indid+k-1)      ! region offset 
+                    jn=sparseMatrixColumns(indid+k+1)-lj   ! number of columns
+                    icount(3)=icount(3)+1       ! block (region) counter
+                    icount(4)=min(icount(4),jn) ! min number of columns per block (region)
+                    icount(5)=icount(5)+jn      ! sum number of columns per block (region)
+                    icount(6)=max(icount(6),jn) ! max number of columns per block (region)
+                    icount(7)=min(icount(7),in) ! min number of rows per block (region)
+                    icount(8)=icount(8)+in      ! sum number of rows per block (region)
+                    icount(9)=max(icount(9),in) ! max number of rows per block (region)
+                    icount(10)=min(icount(10),in*jn) ! min number of elements per block (region)
+                    icount(11)=icount(11)+in*jn      ! sum number of elements per block (region)
+                    icount(12)=max(icount(12),in*jn) ! max number of elements per block (region)
+                END DO    
+            END IF
+        END DO
+    END DO
+    
+    WRITE(*,*) "analysis of sparsity structure"
+    IF (icount(1) > 0) THEN
+        WRITE(*,101) "rows without compression/blocks ", icount(1)  
+        WRITE(*,101) "             contained elements ", icount(2)  
+    ENDIF
+    WRITE(*,101) "number of block matrices          ", icount(3)
+    avg=REAL(icount(5),mps)/REAL(icount(3),mps)
+    WRITE(*,101) "number of columns  (min,mean,max) ", icount(4), avg, icount(6)
+    avg=REAL(icount(8),mps)/REAL(icount(3),mps)
+    WRITE(*,101) "number of rows     (min,mean,max) ", icount(7), avg, icount(9)
+    avg=REAL(icount(11),mps)/REAL(icount(3),mps)
+    WRITE(*,101) "number of elements (min,mean,max) ", icount(10), avg, icount(12)
+101 FORMAT(2X,A34,I10,F10.3,I10)
+    
+END SUBROUTINE anasps
+
 !> Product symmetric matrix times vector.
 !!
 !! A(sym) * X => B. Used by \ref minresmodule::minres "MINRES" method (Is most CPU intensive part).
@@ -7052,6 +7137,7 @@ SUBROUTINE loop2
         matsiz(2)=ndimsa(4)
         CALL mpalloc(sparseMatrixColumns,ndimsa(2),'sparse matrix column list')
         CALL spbits(globalAllIndexGroups,sparseMatrixOffsets,sparseMatrixColumns)
+        CALL anasps    ! analyze sparsity structure
     ELSE IF (matsto == 3) THEN
         matsiz(1)=vecParBlockOffsets(npblck+1) ! sum of block sizes
     END IF
@@ -7357,7 +7443,12 @@ SUBROUTINE minver
             icoff=0
             ncon=0
         END IF
-        nfit=npar-ncon ! number of fit parameters (elimination)
+        ! number of fit parameters
+        IF (icelim > 0) THEN ! elimination
+            nfit=npar-ncon
+        ELSE                 ! Lagrange multipliers
+            nfit=npar+ncon
+        END IF
         !      WRITE(*,*) 'MINVER ICALCM=',ICALCM
         ! use elimination for constraints ?
         IF(nfit < npar) THEN
