@@ -510,6 +510,8 @@ SUBROUTINE qlssq(aprod,A,t)
             REAL(mpd), INTENT(OUT)   :: y(n)
         END SUBROUTINE aprod
     END INTERFACE
+    !$POMP INST BEGIN(qlssq)
+    
     length=npar
     CALL mpalloc(Av,length,'qlssq: A*v')
 
@@ -553,6 +555,7 @@ SUBROUTINE qlssq(aprod,A,t)
     END DO
 
     CALL mpdealloc(Av)
+    !$POMP INST END(qlssq)
 
 END SUBROUTINE qlssq
 

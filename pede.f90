@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-07-03 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-07-04 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -7364,6 +7364,7 @@ SUBROUTINE vmprep(msize)
 
     IF(metsol == 1) THEN
         CALL mpalloc(workspaceDiag,length,'diagonal of global matrix)')  ! double aux 1
+        CALL mpalloc(workspaceRow,length,'(pivot) row of global matrix)')
     !         CALL MEGARR('t D',2*NAGB,'auxiliary array')  ! double aux 8
     END IF
 
@@ -7470,7 +7471,7 @@ SUBROUTINE minver
         IF(icalcm == 1) THEN
             ! invert and solve
             CALL sqminl(globalMatD(imoff+1:), globalCorrections(ipoff+1:),nfit,nrank,  &
-                workspaceD,workspaceI)
+                workspaceD,workspaceI,workspaceRow)
             IF(nfit /= nrank) THEN
                 WRITE(*,*)   'Warning: the rank defect of the symmetric',nfit,  &
                     '-by-',nfit,' matrix is ',nfit-nrank,' (should be zero).'
@@ -8387,6 +8388,27 @@ SUBROUTINE xloopn                !
     ! monitoring of residuals
     IF (imonit > 0 .AND. btest(imonit,1)) CALL monres
     IF (lunmon > 0) CLOSE(UNIT=lunmon)
+    
+    IF(metsol <= 2) THEN ! inversion or diagonalization ?
+        !use elimination for constraints ?
+        IF(nfgb < nvgb) THEN
+            ! extend, transform matrix
+            ! loop over blocks
+            DO ib=1,npblck
+                ipoff=matParBlockOffsets(1,ib)
+                imoff=vecParBlockOffsets(ib)
+                icboff=matParBlockOffsets(2,ib) ! constraint block offset
+                icblst=matParBlockOffsets(2,ib+1) ! constraint block offset
+                npar=matParBlockOffsets(1,ib+1)-ipoff ! size of block (number of parameters)
+                ncon=matConsBlocks(1,icblst+1)-matConsBlocks(1,icboff+1) ! number of constraints in  (parameter) block
+                DO i=npar-ncon+1,npar
+                    ioff=((INT8(i)-1)*INT8(i))/2+imoff
+                    globalMatD(ioff+1:ioff+i)=0.0_mpd
+                END DO    
+            END DO
+            CALL qlssq(avprd0,globalMatD,.false.) ! Q^t*A*Q
+        END IF
+    END IF
 
     dwmean=sumndf/REAL(ndfsum,mpd)
     dratio=fvalue/dwmean/REAL(ndfsum-nfgb,mpd)
@@ -8556,27 +8578,6 @@ SUBROUTINE xloopn                !
   
     ELSE IF(metsol == 5) THEN
   
-    END IF
-
-    IF(metsol <= 2) THEN ! inversion or diagonalization ?
-        !use elimination for constraints ?
-        IF(nfgb < nvgb) THEN
-            ! extend, transform matrix
-            ! loop over blocks
-            DO ib=1,npblck
-                ipoff=matParBlockOffsets(1,ib)
-                imoff=vecParBlockOffsets(ib)
-                icboff=matParBlockOffsets(2,ib) ! constraint block offset
-                icblst=matParBlockOffsets(2,ib+1) ! constraint block offset
-                npar=matParBlockOffsets(1,ib+1)-ipoff ! size of block (number of parameters)
-                ncon=matConsBlocks(1,icblst+1)-matConsBlocks(1,icboff+1) ! number of constraints in  (parameter) block
-                DO i=npar-ncon+1,npar
-                    ioff=((i-1)*i)/2+imoff
-                    globalMatD(ioff+1:ioff+i)=0.0_mpd
-                END DO    
-            END DO
-            CALL qlssq(avprd0,globalMatD,.false.) ! Q^t*A*Q
-        END IF
     END IF
 
     CALL prtglo              ! print result

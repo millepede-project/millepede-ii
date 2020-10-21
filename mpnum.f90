@@ -222,8 +222,9 @@ END SUBROUTINE sqminv
 !! \param [out]    NRANK rank of matrix V
 !! \param [out]    DIAG  double precision scratch array
 !! \param [out]    NEXT  integer aux array
+!! \param [out]    VK    double precision scratch array (pivot)
 
-SUBROUTINE sqminl(v,b,n,nrank,diag,next)   !
+SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk)   !
     USE mpdef
 
     IMPLICIT NONE
@@ -236,10 +237,12 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next)   !
 
     REAL(mpd), INTENT(IN OUT)         :: v(*)
     REAL(mpd), INTENT(OUT)            :: b(n)
-    INTEGER(mpi), INTENT(IN)                      :: n
-    INTEGER(mpi), INTENT(OUT)                     :: nrank
+    INTEGER(mpi), INTENT(IN)          :: n
+    INTEGER(mpi), INTENT(OUT)         :: nrank
     REAL(mpd), INTENT(OUT)            :: diag(n)
-    INTEGER(mpi), INTENT(OUT)                     :: next(n)
+    INTEGER(mpi), INTENT(OUT)         :: next(n)
+    REAL(mpd), INTENT(OUT)            :: vk(n)
+    
     INTEGER(mpl) :: i8
     INTEGER(mpl) :: j8
     INTEGER(mpl) :: jj
@@ -248,8 +251,6 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next)   !
     INTEGER(mpl) :: kkmk
     INTEGER(mpl) :: jk
     INTEGER(mpl) :: jl
-    INTEGER(mpl) :: llk
-    INTEGER(mpl) :: ljl
     
     REAL(mpd) :: vkk
     REAL(mpd) :: vjk
@@ -303,6 +304,7 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next)   !
             DO j=1,n
                 IF(j == k) THEN
                     jk=kk
+                    vk(j)=0.
                 ELSE
                     IF(j < k) THEN
                         jk=jk+1
@@ -310,41 +312,23 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next)   !
                         jk=jk+int8(j)-1
                     END IF
                     v(jk)=v(jk)*vkk
+                    vk(j)=v(jk)
                 END IF
             END DO
             ! parallelize row loop
             ! slot of 128 'J' for next idle thread
             !$OMP PARALLEL DO &
-            !$OMP PRIVATE(JL,JK,L,LJL,LLK,VJK,J8) &
+            !$OMP PRIVATE(JL,VJK,J8) &
             !$OMP SCHEDULE(DYNAMIC,128)
             DO j=n,1,-1
+                IF(j == k) CYCLE
                 j8=int8(j)
                 jl=j8*(j8-1)/2
-                IF(j /= k) THEN
-                    IF(j < k) THEN
-                        jk=kkmk+j8
-                    ELSE
-                        jk=k8+jl
-                    END IF
-                    vjk  =v(jk)/vkk
-                    b(j) =b(j)-b(k)*vjk
-                    ljl=jl
-                    llk=kkmk
-                    DO l=1,MIN(j,k-1)
-                        ljl=ljl+1
-                        llk=llk+1
-                        v(ljl)=v(ljl)-v(llk)*vjk
-                    END DO
-                    ljl=ljl+1
-                    llk=kk
-                    DO l=k+1,j
-                        ljl=ljl+1
-                        llk=llk+l-1
-                        v(ljl)=v(ljl)-v(llk)*vjk
-                    END DO
-                END IF
+                vjk  =vk(j)/vkk
+                b(j) =b(j)-b(k)*vjk
+                v(jl+1:jl+j)=v(jl+1:jl+j)-vk(1:j)*vjk
             END DO
-        !$OMP END PARALLEL DO
+            !$OMP END PARALLEL DO
         ELSE
             DO k=1,n
                 k8=int8(k)
