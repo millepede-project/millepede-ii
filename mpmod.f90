@@ -31,7 +31,7 @@ MODULE mpmod
     SAVE
     ! steering parameters
     INTEGER(mpi) :: ictest=0  !< test mode '-t'
-    INTEGER(mpi) :: metsol=0  !< solution method (1: inversion, 2: diagonalization, 3: \ref minresqlpmodule::minresqlp "MINRES-QLP")
+    INTEGER(mpi) :: metsol=0  !< solution method (1: inversion, 2: diagonalization, 3: decomposition, 4: MINRES, 5: \ref minresqlpmodule::minresqlp "MINRES-QLP")
     INTEGER(mpi) :: matsto=2  !< (global) matrix storage mode (1: full, 2: sparse, 3: block diagonal)
     INTEGER(mpi) :: mprint=1  !< print flag (0: minimal, 1: normal, >1: more)
     INTEGER(mpi) :: mdebug=0  !< debug flag (number of records to print)

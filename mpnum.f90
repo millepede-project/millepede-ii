@@ -39,6 +39,7 @@
 !!
 !!     Solution by Cholesky decomposition of symmetric matrix
 !!        CHOLDC
+!!        CHDEC2, CHSLV2 for large (positive definite) matrix, use OpenMP (CHK)
 !!
 !!     Solution by Cholesky decomposition of variable-band matrix
 !!        VABDEC
@@ -859,6 +860,121 @@ SUBROUTINE cholin(g,v,n)
         ii=ii-i+1
     END DO
 END SUBROUTINE cholin
+
+!                                                 201026 C. Kleinwort, DESY-BELLE
+!> Cholesky decomposition (LARGE pos. def. matrices).
+!!
+!! Cholesky decomposition of the matrix G:      G =  L  D  L^T
+!!
+!!  - G = symmetric matrix, in symmetric storage mode, positive definite
+!!
+!!  - L = unit (upper!) triangular matrix (1's on diagonal)
+!!
+!!  - D = diagonal matrix (elements store on diagonal of L)
+!!
+!! The sqrts of the usual Cholesky decomposition are avoided by D.
+!! Matrices L and D are stored in the place of matrix G; after the
+!! decomposition, the solution is done by CHSLV2.
+!!
+!! \param [in,out] g symmetric matrix, replaced by D,L
+!! \param [in]     n size of matrix
+!! \param [out]    NRANK rank of matrix g
+!! \param [out]    EVMAX  largest element in D
+!! \param [out]    EVMIN  smallest element in D
+!!
+SUBROUTINE chdec2(g,n,nrank,evmax,evmin)
+    USE mpdef
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: i
+    INTEGER(mpi) :: j
+    
+    INTEGER(mpl) :: ii
+    INTEGER(mpl) :: jj
+    REAL(mpd) :: ratio
+        
+    REAL(mpd), INTENT(IN OUT)         :: g(*)
+    INTEGER(mpi), INTENT(IN)          :: n
+    INTEGER(mpi), INTENT(OUT)         :: nrank
+    REAL(mpd), INTENT(OUT)            :: evmin
+    REAL(mpd), INTENT(OUT)            :: evmax
+    
+    nrank=0 
+    ii=(INT8(n)*INT8(n+1))/2
+    DO i=n,1,-1
+        IF (g(ii) > 0.0_mpd) THEN
+            ! update rank, min, max eigenvalue
+            nrank=nrank+1
+            IF (nrank == 1) THEN
+                evmax=g(ii)
+                evmin=g(ii)
+            ELSE
+                evmax=max(evmax,g(ii))
+                evmin=min(evmin,g(ii))
+            END IF
+            g(ii)=1.0/g(ii)  ! (I,I) div !
+        END IF    
+        ii=ii-i
+        ! parallelize row loop
+        ! slot of 128 'J' for next idle thread
+        !$OMP PARALLEL DO &
+        !$OMP PRIVATE(RATIO,JJ) &
+        !$OMP SCHEDULE(DYNAMIC,128)
+        DO j=1,i-1
+            jj=(INT8(j-1)*INT8(j))/2
+            ratio=g(ii+j)*g(ii+i)              ! (I,J) (I,I)
+            g(jj+1:jj+j)=g(jj+1:jj+j)-g(ii+1:ii+j)*ratio   ! (K,J) (K,I)
+        END DO ! J
+        !$OMP END PARALLEL DO
+        g(ii+1:ii+i-1)=g(ii+1:ii+i-1)*g(ii+i)            ! (I,J)
+    END DO ! I   
+        
+END SUBROUTINE chdec2
+
+!                                                 201026 C. Kleinwort, DESY-BELLE
+!> Solve A*x=b using Cholesky decomposition.
+!!
+!! Backward, forward substitution.
+!!
+!! \param [in]      g  decomposed symmetric matrix
+!! \param [in,out]  x  rhs/solution
+!! \param [in]      n  size of matrix
+!!
+SUBROUTINE chslv2(g,x,n)
+    USE mpdef
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: i
+    INTEGER(mpi) :: k
+    INTEGER(mpl) :: ii
+    INTEGER(mpl) :: kk
+    REAL(mpd) :: dsum
+
+    REAL(mpd), INTENT(IN)            :: g(*)
+    REAL(mpd), INTENT(IN OUT)        :: x(n)
+    INTEGER(mpi), INTENT(IN)                     :: n
+    
+    ii=(INT8(n)*INT8(n+1))/2
+    DO i=n,1,-1
+        dsum=x(i)
+        kk=ii
+        DO k=i+1,n
+            dsum=dsum-g(kk+i)*x(k)             ! (K,I)
+            kk=kk+k
+        END DO
+        x(i)=dsum
+        ii=ii-i
+    END DO
+    DO i=1,n
+        dsum=x(i)*g(ii+i)                    ! (I,I)
+        DO k=1,i-1
+            dsum=dsum-g(k+ii)*x(k)             ! (K,I)
+        END DO
+        x(i)=dsum
+        ii=ii+i
+    END DO
+
+END SUBROUTINE chslv2
 
 !     variable band matrix operations ----------------------------------
 

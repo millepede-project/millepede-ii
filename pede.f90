@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-07-04 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-08-00 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -120,13 +120,14 @@
 !!   inversion (optionally with constraints handled by elimination) switch to
 !!   \ref mpmod::matsto "block diagonal" storage mode.
 !! * 200429: Modifications for compilation with PGI compiler (make -f Makefile_pgi).
-!! * 200701: Implementation of parameter groups (sets of adjacent global parameters (labels)
+!! * 200701: Implementation of \ref ch-pargroup "parameter groups" (sets of adjacent global parameters (labels)
 !!   appearing in the binary files *always* together). Used to speed up construction of global matrix.
 !!   Similarity operations are now aware of sparse (rectangular) matrices.
 !! * 200716: The counting of the appearance of global parameters in the binary files can
 !!   now be done on record (e.g. track) level instead of equation (e.g. measurement) level.
 !!   This is enabled with the new command \ref cmd-countrecords and makes the iteration
 !!   of the first data loop (by \ref cmd-iterateentries) obsolete.
+!! * 201027: New solution method \ref ch-mchdec "decomposition" implemented.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -241,6 +242,13 @@
 !! transposed constraints matrix is used to transform to an unconstrained problem.
 !! For sparse matrix storage the sparsity of the global matrix is preserved.
 !!
+!! \subsection ch-mchdec Decomposition
+!! The solution is obtained by a root-free Cholesky decomposition (LDLt).
+!! The covarinance matrix is *not* being calclulated.
+!! The method ia about a factor 2-3 faster than inversion (according to several tests).
+!! It is restricted to solution by elimination for problems with linear equality constraints
+!! (requires positive definite matrix).
+!!
 !! \section ch-regul Regularization
 !! Optionally a term \f$\tau\cdot\Vert\Vek{x}\Vert\f$ can be added to the objective function
 !! (to be minimized) where \f$\Vek{x}\f$ is the vector of global parameters
@@ -276,13 +284,20 @@
 !! the global matrix in parallel, each row by a single thread.
 !! The total cache size can be changed by the command \ref cmd-cache.
 !!
-!! \section ch-compression Compressed sparse matrix
+!! \section ch-sparsemat Sparse matrix storage
+!! \subsection ch-compression Compression
 !! In sparse storage mode for each row the list of column indices (and values) for the
 !! non-zero elements are stored. With compression regions of continous column indices
 !! are represented by the first index and their number (packed into a single 32bit
 !! integer). Compression is selected by the command \ref cmd-compress.
 !! In addition rare elements can be neglected (,histogrammed) or stored in single instead
 !! of double precision according to the \ref cmd-pairentries command.
+!! \subsection ch-pargroup Parameter groups
+!! With the implementation of parameter groups (sets of adjacent global parameters (labels)
+!! appearing in the binary files *always* together) the sparsity structure addresses
+!! not single values anymore but block matrices with sizes according to the contributing
+!! parameter groups. Groups with adjacent column ranges are combined into a single block matrix.
+!! The offset and first column index in a (block) row is stored.
 !!
 !! \section ch-gzip Gzipped C binary files
 !! The [zlib](zlib.net) can be used to directly read *gzipped* C binary files.
@@ -446,11 +461,15 @@
 !!
 !! Set \ref ch-methods "solution method" \ref mpmod::metsol "metsol" and
 !! storage mode \ref mpmod::matsto "matsto" according to \a name,
-!! (\c inversion : (1,1), \c diagonalization : (2,1),
-!! \c fullMINRES : (3,1) or \c sparseMINRES : (3,2),
-!! \c fullMINRES-QLP : (4,1) or \c sparseMINRES-QLP : (4,2)),
+!! (\c inversion : (1,1) or (1,3), \c diagonalization : (2,1),
+!! \c decomposition : (3,1) or (3,3),
+!! \c fullMINRES : (4,1) or \c sparseMINRES : (4,2),
+!! \c fullMINRES-QLP : (5,1) or \c sparseMINRES-QLP : (5,2)),
 !! (minimum) number of iterations \ref mpmod::mitera "mitera" to \a number1,
 !! convergence limit \ref mpmod::dflim "dflim" to \a number2.
+!!
+!! \c Inversion and \c diagonalization provide in addition to the solution the parameter errors
+!! (from the diagonal of the inverted global matrix). Solutions with \c MINRES are only approximate.
 !! \subsection cmd-monres monitorresiduals
 !! Set flag \ref mpmod::imonit "imonit" for monitoring of residuals to \a number1 [3]
 !! and increase number of bins (of size 0.1) for internal storage to \a number2 [100].
@@ -2644,7 +2663,7 @@ SUBROUTINE loopn
 
     IF(nloopn == 1) THEN      ! book histograms for 1. iteration
         CALL gmpdef(1,4,'Function value in iterations')
-        IF (metsol == 3 .OR. metsol == 4) THEN ! extend to GMRES, i.e. 4?
+        IF (metsol == 4 .OR. metsol == 5) THEN ! extend to GMRES, i.e. 6?
             CALL gmpdef(2,3,'Number of MINRES steps vs iteration nr')
         END IF
         CALL hmpdef( 5,0.0,0.0,'Number of degrees of freedom')
@@ -2677,7 +2696,7 @@ SUBROUTINE loopn
     IF(icalcm == 1) THEN
         globalMatD=0.0_mpd
         globalMatF=0.
-        IF (metsol >= 3) matPreCond=0.0_mpd
+        IF (metsol >= 4) matPreCond=0.0_mpd
     END IF
 
     IF(nloopn == 2) CALL hmpdef(6,0.0,0.0,'Down-weight fraction')
@@ -2751,7 +2770,7 @@ SUBROUTINE loopn
 111     FORMAT(' Write cache usage (#flush,#overrun,<levels>,',  &
             'peak(levels))'/2I7,',',4(f6.1,'%'))
         ! fill part of MINRES preconditioner matrix from binary files (formerly in mgupdt)
-        IF (metsol >= 3) THEN
+        IF (metsol >= 4) THEN
             IF (mbandw == 0) THEN
                 ! default preconditioner (diagonal)
                 DO i=1, nvgb
@@ -3173,7 +3192,7 @@ SUBROUTINE explfc(lunit)
     WRITE(lunit,101) 'slpr', 'ratio of the actual slope to inital slope.'
     WRITE(lunit,101) 'costh',  &
         'cosine of angle between search direction and -gradient'
-    IF (metsol == 3) THEN
+    IF (metsol == 4) THEN
         WRITE(lunit,101) 'iit',  &
             'number of internal iterations in MINRES algorithm'
         WRITE(lunit,101) 'st', 'stop code of MINRES algorithm'
@@ -3186,7 +3205,7 @@ SUBROUTINE explfc(lunit)
         WRITE(lunit,102) '= 5    the iteration limit was reached'
         WRITE(lunit,102) '= 6    Matrix x vector does not define a symmetric matrix'
         WRITE(lunit,102) '= 7    Preconditioner does not define a symmetric matrix'
-    ELSEIF (metsol == 4) THEN
+    ELSEIF (metsol == 5) THEN
         WRITE(lunit,101) 'iit',  &
             'number of internal iterations in MINRES-QLP algorithm'
         WRITE(lunit,101) 'st', 'stop code of MINRES-QLP algorithm'
@@ -3281,7 +3300,7 @@ SUBROUTINE mupdat(i,j,add)       !
         ij=ja+(ia*ia-ia)/2+vecParBlockOffsets(ib) ! global ISYM index
         globalMatD(ij)=globalMatD(ij)+add
     END IF
-    IF(metsol >= 3) THEN
+    IF(metsol >= 4) THEN
         IF(mbandw > 0) THEN     ! for Cholesky decomposition
             IF(ia <= nvgb) THEN   ! variable global parameter
                 ij=indPreCond(ia)-ia+ja
@@ -6423,6 +6442,11 @@ SUBROUTINE loop2
     !                     -  update globalIndexRanges
     CALL prpcon
 
+    IF (metsol == 3.AND.icelim <= 0) THEN
+        ! decomposition: enforce elimination
+        icelim=1
+        WRITE(lunlog,*) ' Elimination for constraints enforced for solution by decomposition!'
+    END IF
     IF (icelim > 0) THEN ! elimination
         nagb=nvgb          ! total number of parameters
         napgrp=nvpgrp      ! total number of parameter groups
@@ -6921,7 +6945,7 @@ SUBROUTINE loop2
         WRITE(lunlog,*) 'Detected', npblck, '(disjoint) parameter blocks, max size ', nparmx     
         WRITE(*,*)
         WRITE(*,*) 'Detected', npblck, '(disjoint) parameter blocks, max size ', nparmx
-        IF (metsol == 1.AND.matsto == 1.AND.nagb == nvgb) THEN
+        IF ((metsol == 1.OR.metsol == 3).AND.matsto == 1.AND.nagb == nvgb) THEN
             matsto=3 ! constraints with elimination implemented  
             WRITE(*,*) 'Using block diagonal storage mode'
         ELSE
@@ -7079,11 +7103,13 @@ SUBROUTINE loop2
         ELSE IF(metsol == 2) THEN
             WRITE(lu,*) '     METSOL = 2:  diagonalization'
         ELSE IF(metsol == 3) THEN
-            WRITE(lu,*) '     METSOL = 3:  MINRES (rtol', mrestl,')'
+            WRITE(lu,*) '     METSOL = 3:  decomposition'
         ELSE IF(metsol == 4) THEN
-            WRITE(lu,*) '     METSOL = 4:  MINRES-QLP (rtol', mrestl,')'
+            WRITE(lu,*) '     METSOL = 4:  MINRES (rtol', mrestl,')'
         ELSE IF(metsol == 5) THEN
-            WRITE(lu,*) '     METSOL = 5:  GMRES'
+            WRITE(lu,*) '     METSOL = 5:  MINRES-QLP (rtol', mrestl,')'
+        ELSE IF(metsol == 6) THEN
+            WRITE(lu,*) '     METSOL = 6:  GMRES'
         END IF
         WRITE(lu,*) '                  with',mitera,' iterations'
         IF(matsto == 1) THEN
@@ -7328,7 +7354,7 @@ SUBROUTINE vmprep(msize)
     CALL mpalloc(globalMatD,msize(1),'global matrix (D)' )
     CALL mpalloc(globalMatF,msize(2),'global matrix (F)')
 
-    IF(metsol >= 3) THEN                  ! GMRES/MINRES algorithms
+    IF(metsol >= 4) THEN                  ! GMRES/MINRES algorithms
         !        array space is:
         !           variable-width band matrix or diagonal matrix for parameters
         !           followed by rectangular matrix for constraints
@@ -7376,7 +7402,7 @@ SUBROUTINE vmprep(msize)
         CALL mpalloc(workspaceEigenVectors,length,'(rotation) matrix U')   ! rotation matrix
     END IF
 
-    IF(metsol >= 3) THEN
+    IF(metsol >= 4) THEN
         CALL mpalloc(vecXav,length,'vector X (AVPROD)')  ! double aux 1
         CALL mpalloc(vecBav,length,'vector B (AVPROD)')  ! double aux 1
     END IF
@@ -7505,6 +7531,121 @@ SUBROUTINE minver
     END DO 
     
 END SUBROUTINE minver
+
+!> Solution by Cholesky decomposition.
+!!
+!! Parallelized (CHDEC2), solve A*x=b with A=LDL^t positive definite.
+
+SUBROUTINE mchdec
+    USE mpmod
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: i
+    INTEGER(mpi) :: ib
+    INTEGER(mpi) :: icboff
+    INTEGER(mpi) :: icblst
+    INTEGER(mpi) :: icoff
+    INTEGER(mpi) :: ipoff
+    INTEGER(mpi) :: j
+    INTEGER(mpi) :: lun
+    INTEGER(mpi) :: ncon
+    INTEGER(mpi) :: nfit
+    INTEGER(mpi) :: npar
+    INTEGER(mpi) :: nrank
+    INTEGER(mpl) :: imoff
+    INTEGER(mpl) :: ioff1
+    
+    REAL(mpd) :: evmax
+    REAL(mpd) :: evmin
+        
+    EXTERNAL avprd0
+
+    SAVE
+    !     ...
+    lun=lunlog                       ! log file
+    IF(lunlog == 0) lunlog=6
+
+    IF(icalcm == 1) THEN
+        ! use elimination for constraints ?
+        IF(nfgb < nvgb) CALL qlssq(avprd0,globalMatD,.true.) ! Q^t*A*Q
+    END IF
+
+    ! loop over blocks 
+    DO ib=1,npblck
+        ipoff=matParBlockOffsets(1,ib)
+        imoff=vecParBlockOffsets(ib)
+        icboff=matParBlockOffsets(2,ib) ! constraint block offset
+        icblst=matParBlockOffsets(2,ib+1) ! constraint block offset
+        npar=matParBlockOffsets(1,ib+1)-ipoff ! size of block (number of parameters)
+        IF(icblst > icboff) THEN
+            icoff=matConsBlocks(1,icboff+1) ! first constraint in (parameter) block
+            ncon=matConsBlocks(1,icblst+1)-icoff ! number of constraints in  (parameter) block
+            icoff=icoff-1 ! true offset now
+        ELSE ! no constraints
+            icoff=0
+            ncon=0
+        END IF
+        ! number of fit parameters
+        IF (icelim > 0) THEN ! elimination
+            nfit=npar-ncon
+        ELSE                 ! Lagrange multipliers
+            nfit=npar+ncon
+        END IF
+        !      WRITE(*,*) 'MINVER ICALCM=',ICALCM
+        ! use elimination for constraints ?
+        IF(nfit < npar) THEN
+            CALL qlsetb(ib)
+            ! solve L^t*y=d by backward substitution
+            CALL qlbsub(vecConsResiduals(icoff+1:),vecConsSolution)
+            ! transform, reduce rhs
+            CALL qlmlq(globalCorrections(ipoff+1:),1,.true.) ! Q^t*b
+            ! correction from eliminated part
+            DO i=1,nfit
+                ioff1=((nfit+1)*nfit)/2+i+imoff
+                DO j=1,ncon
+                    globalCorrections(i+ipoff)=globalCorrections(i+ipoff)-globalMatD(ioff1)*vecConsSolution(j)
+                    ioff1=ioff1+nfit+j
+                END DO
+            END DO
+        END IF
+
+        IF(icalcm == 1) THEN
+            ! decompose and solve
+            CALL chdec2(globalMatD(imoff+1:),nfit,nrank,evmax,evmin)
+            IF(nfit /= nrank) THEN
+                WRITE(*,*)   'Warning: the rank defect of the symmetric',nfit,  &
+                    '-by-',nfit,' matrix is ',nfit-nrank,' (should be zero).'
+                WRITE(lun,*) 'Warning: the rank defect of the symmetric',nfit,  &
+                    '-by-',nfit,' matrix is ',nfit-nrank,' (should be zero).'
+                IF (iforce == 0 .AND. isubit == 0) THEN
+                    isubit=1
+                    WRITE(*,*)   '         --> enforcing SUBITO mode'
+                    WRITE(lun,*) '         --> enforcing SUBITO mode'
+                END IF
+            ELSE IF(ndefec == 0) THEN
+                IF(matsto == 1) THEN
+                    WRITE(lun,*) 'No rank defect of the symmetric matrix'
+                ELSE
+                    WRITE(lun,*) 'No rank defect of the symmetric block', ib, ' of size', npar
+                END IF     
+                WRITE(lun,*) '   largest  diagonal element (LDLt)', evmax
+                WRITE(lun,*) '   smallest diagonal element (LDLt)', evmin
+            END IF
+            ndefec=ndefec+nfit-nrank   ! rank defect
+
+        END IF
+        ! backward/forward substitution
+        CALL chslv2(globalMatD(imoff+1:),globalCorrections(ipoff+1:),nfit)
+
+        !use elimination for constraints ?
+        IF(nfit < npar) THEN
+            ! extend, transform back solution
+            globalCorrections(nfit+1+ipoff:npar+ipoff)=vecConsSolution(1:ncon)
+            CALL qlmlq(globalCorrections(ipoff+1:),1,.false.) ! Q*x
+        END IF   
+    END DO 
+    
+END SUBROUTINE mchdec
 
 !> Solution by diagonalization.
 SUBROUTINE mdiags
@@ -8010,8 +8151,10 @@ SUBROUTINE xloopn                !
         ELSE IF(metsol == 2) THEN
             WRITE(lunp,121) 'solution method:','diagonalization'
         ELSE IF(metsol == 3) THEN
-            WRITE(lunp,121) 'solution method:', 'minres (Paige/Saunders)'
+            WRITE(lunp,121) 'solution method:','decomposition'
         ELSE IF(metsol == 4) THEN
+            WRITE(lunp,121) 'solution method:', 'minres (Paige/Saunders)'
+        ELSE IF(metsol == 5) THEN
             WRITE(lunp,121) 'solution method:', 'minres-qlp (Choi/Paige/Saunders)'
             IF(mrmode == 1) THEN
                 WRITE(lunp,121) ' ', '   using QR factorization' ! only QR
@@ -8021,7 +8164,7 @@ SUBROUTINE xloopn                !
                 WRITE(lunp,121) ' ', '   using QR and QLP factorization' ! QR followed by QLP
                 WRITE(lunp,123) 'transition condition', mrtcnd
             END IF
-        ELSE IF(metsol == 5) THEN
+        ELSE IF(metsol == 6) THEN
             WRITE(lunp,121) 'solution method:',  &
                 'gmres (generalized minimzation of residuals)'
         END IF
@@ -8031,7 +8174,7 @@ SUBROUTINE xloopn                !
         IF(matrit > 1) THEN
             WRITE(lunp,122) 'matrix recalculation up to ',matrit, '. iteration'
         END IF
-        IF(metsol >= 3) THEN
+        IF(metsol >= 4) THEN
             IF(matsto == 1) THEN
                 WRITE(lunp,121) 'matrix storage:','full'
             ELSE IF(matsto == 2) THEN
@@ -8111,12 +8254,15 @@ SUBROUTINE xloopn                !
         wolfc2=0.5             ! not acurate
         minf=2
     ELSE IF(metsol == 3) THEN
-        wolfc2=0.1             ! accurate
-        minf=3
+        wolfc2=0.5             ! not acurate
+        minf=2
     ELSE IF(metsol == 4) THEN
         wolfc2=0.1             ! accurate
         minf=3
     ELSE IF(metsol == 5) THEN
+        wolfc2=0.1             ! accurate
+        minf=3
+    ELSE IF(metsol == 6) THEN
         wolfc2=0.1             ! accurate
         minf=3
     END IF
@@ -8174,7 +8320,7 @@ SUBROUTINE xloopn                !
                         CALL ploopb(lunlog)
                         litera=iterat
                         CALL gmpxyd(1,REAL(nloopn,mps),REAL(fvalue,mps),0.5,delfun) ! fcn-value (with expected)
-                        IF(metsol == 3 .OR. metsol == 4) THEN ! extend to 4, i.e. GMRES?
+                        IF(metsol == 4 .OR. metsol == 5) THEN ! extend to 6, i.e. GMRES?
                             CALL gmpxy(2,REAL(iterat,mps),REAL(iitera,mps)) ! MINRES iterations
                         END IF
                     ELSE
@@ -8228,10 +8374,12 @@ SUBROUTINE xloopn                !
             ELSE IF(metsol == 2) THEN
                 CALL mdiags                   ! diagonalization
             ELSE IF(metsol == 3) THEN
-                CALL mminrs                   ! MINRES
+                CALL mchdec                   ! decomposition
             ELSE IF(metsol == 4) THEN
-                CALL mminrsqlp                ! MINRES-QLP
+                CALL mminrs                   ! MINRES
             ELSE IF(metsol == 5) THEN
+                CALL mminrsqlp                ! MINRES-QLP
+            ELSE IF(metsol == 6) THEN
                 WRITE(*,*) '... reserved for GMRES (not yet!)'
                 CALL mminrs                   ! GMRES not yet
             END IF
@@ -8274,12 +8422,15 @@ SUBROUTINE xloopn                !
                     wolfc2=0.5            ! not acurate
                     minf=3
                 ELSE IF(metsol == 3) THEN
-                    wolfc2=0.1            ! accurate
-                    minf=4
+                    wolfc2=0.5            ! not acurate
+                    minf=3
                 ELSE IF(metsol == 4) THEN
                     wolfc2=0.1            ! accurate
                     minf=4
                 ELSE IF(metsol == 5) THEN
+                    wolfc2=0.1            ! accurate
+                    minf=4
+                ELSE IF(metsol == 6) THEN
                     wolfc2=0.1            ! accurate
                     minf=4
                 END IF
@@ -8389,7 +8540,7 @@ SUBROUTINE xloopn                !
     IF (imonit > 0 .AND. btest(imonit,1)) CALL monres
     IF (lunmon > 0) CLOSE(UNIT=lunmon)
     
-    IF(metsol <= 2) THEN ! inversion or diagonalization ?
+    IF(metsol <= 3) THEN ! inversion, diagonalization or decomposition ?
         !use elimination for constraints ?
         IF(nfgb < nvgb) THEN
             ! extend, transform matrix
@@ -8558,7 +8709,9 @@ SUBROUTINE xloopn                !
 
     ELSE IF(metsol == 2) THEN
         CALL zdiags
-    ELSE IF(metsol == 3 .OR. metsol == 4) THEN
+    ELSE IF(metsol == 3) THEN
+        ! decomposition - nothing foreseen yet
+    ELSE IF(metsol == 4 .OR. metsol == 5) THEN
         !        errors and correlations from MINRES
         DO  k=1,mnrsel
             labelg=lbmnrs(k)
@@ -8569,14 +8722,14 @@ SUBROUTINE xloopn                !
             IF(ivgbi < 0) ivgbi=0
             IF(ivgbi == 0) CYCLE
             !          determine error and global correlation for parameter IVGBI
-            IF (metsol == 3) THEN
+            IF (metsol == 4) THEN
                 CALL solglo(ivgbi)
             ELSE
                 CALL solgloqlp(ivgbi)
             ENDIF
         END DO
   
-    ELSE IF(metsol == 5) THEN
+    ELSE IF(metsol == 6) THEN
   
     END IF
 
@@ -9197,19 +9350,21 @@ SUBROUTINE filetx ! ---------------------------------------------------
         !            METSOL=1 ! default is matrix inversion
         !            MATSTO=1 ! default is symmetric matrix
         ELSE IF(matsto == 1) THEN ! if symmetric
-            metsol=3 ! MINRES
+            metsol=4 ! MINRES
         ELSE IF(matsto == 2) THEN ! if sparse
-            metsol=3 ! MINRES
+            metsol=4 ! MINRES
         END IF
     ELSE IF(metsol == 1) THEN   ! if inversion
-        matsto=1    !
+        matsto=1
     ELSE IF(metsol == 2) THEN   ! if diagonalization
         matsto=1
-    ELSE IF(metsol == 3) THEN   ! if MINRES
+    ELSE IF(metsol == 3) THEN   ! if decomposition
+        matsto=1
+    ELSE IF(metsol == 4) THEN   ! if MINRES
     !        MATSTO=2 or 1
-    ELSE IF(metsol == 4) THEN   ! if MINRES-QLP
+    ELSE IF(metsol == 5) THEN   ! if MINRES-QLP
     !        MATSTO=2 or 1
-    ELSE IF(metsol == 5) THEN   ! if GMRES
+    ELSE IF(metsol == 6) THEN   ! if GMRES
     !        MATSTO=2 or 1
     ELSE
         WRITE(*,*) 'MINRES forced with sparse matrix!'
@@ -9239,11 +9394,13 @@ SUBROUTINE filetx ! ---------------------------------------------------
     ELSE IF(metsol == 2) THEN
         WRITE(*,*) '     METSOL = 2:  diagonalization'
     ELSE IF(metsol == 3) THEN
-        WRITE(*,*) '     METSOL = 3:  MINRES'
+        WRITE(*,*) '     METSOL = 3:  decomposition'
     ELSE IF(metsol == 4) THEN
-        WRITE(*,*) '     METSOL = 4:  MINRES-QLP'
+        WRITE(*,*) '     METSOL = 4:  MINRES'
     ELSE IF(metsol == 5) THEN
-        WRITE(*,*) '     METSOL = 5:  GMRES (-> MINRES)'
+        WRITE(*,*) '     METSOL = 5:  MINRES-QLP'
+    ELSE IF(metsol == 6) THEN
+        WRITE(*,*) '     METSOL = 6:  GMRES (-> MINRES)'
   
     END IF
 
@@ -9391,7 +9548,7 @@ SUBROUTINE intext(text,nline)
     CHARACTER (LEN=*), INTENT(IN) :: text
     INTEGER(mpi), INTENT(IN) :: nline
 
-    PARAMETER (nkeys=5,nmeth=6)
+    PARAMETER (nkeys=5,nmeth=7)
     CHARACTER (LEN=16) :: methxt(nmeth)
     CHARACTER (LEN=16) :: keylst(nkeys)
     CHARACTER (LEN=32) :: keywrd
@@ -9414,7 +9571,7 @@ SUBROUTINE intext(text,nline)
 
     SAVE
     DATA methxt/'diagonalization','inversion','fullMINRES', 'sparseMINRES', &
-        'fullMINRES-QLP', 'sparseMINRES-QLP'/
+        'fullMINRES-QLP', 'sparseMINRES-QLP', 'decomposition'/
     DATA lkey/-1/                 ! last keyword
 
     !     ...
@@ -9973,17 +10130,20 @@ SUBROUTINE intext(text,nline)
                         metsol=1
                         matsto=1
                     ELSE IF(i == 3) THEN       ! fullMINRES
-                        metsol=3
+                        metsol=4
                         matsto=1
                     ELSE IF(i == 4) THEN       ! sparseMINRES
-                        metsol=3
+                        metsol=4
                         matsto=2
                     ELSE IF(i == 5) THEN       ! fullMINRES-QLP
-                        metsol=4
+                        metsol=5
                         matsto=1
                     ELSE IF(i == 6) THEN       ! sparseMINRES-QLP
-                        metsol=4
+                        metsol=5
                         matsto=2
+                    ELSE IF(i == 7) THEN       ! decomposition
+                        metsol=3
+                        matsto=1
                     END IF
                 END IF
             END DO
