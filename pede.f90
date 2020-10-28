@@ -8540,7 +8540,7 @@ SUBROUTINE xloopn                !
     IF (imonit > 0 .AND. btest(imonit,1)) CALL monres
     IF (lunmon > 0) CLOSE(UNIT=lunmon)
     
-    IF(metsol <= 3) THEN ! inversion, diagonalization or decomposition ?
+    IF(metsol <= 2) THEN ! inversion or diagonalization ?
         !use elimination for constraints ?
         IF(nfgb < nvgb) THEN
             ! extend, transform matrix
