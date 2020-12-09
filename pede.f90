@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-08-00 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-08-01 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -583,6 +583,7 @@
 !!    + **25**   Aborted, result vector contains NaNs
 !!    + **26**   Aborted, too many rejects
 !!    + **27**   Aborted, singular QL decomposition of constraints matrix
+!!    + **28**   Aborted, no local parameters
 !!    + **30**   Aborted, memory allocation failed
 !!    + **31**   Aborted, memory deallocation failed
 !!    + **32**   Aborted, iteration limit reached in diagonalization
@@ -3335,7 +3336,7 @@ END SUBROUTINE mupdat
 !! \param [in]  j2  smaller index last group
 !! \param [in]  il  subtrahends first row
 !! \param [in]  jl  subtrahends first col
-!! \param [in]  sub subtrahends matrix
+!! \param [in]  sub subtrahends matrix ('small', size fits in 'mpi')
 
 SUBROUTINE mgupdt(i,j1,j2,il,jl,sub) 
     USE mpmod
@@ -3412,7 +3413,8 @@ SUBROUTINE mgupdt(i,j1,j2,il,jl,sub)
         ib=ib-matParBlockOffsets(1,iblk)
         ja=ja-matParBlockOffsets(1,iblk)
         jb=jb-matParBlockOffsets(1,iblk)
-        ij=(ia*ia-ia)/2+vecParBlockOffsets(iblk) ! global ISYM offset
+        ij=ia
+        ij=(ij*ij-ij)/2+vecParBlockOffsets(iblk) ! global ISYM offset
         k=il
         ijl=(k*k-k)/2                   ! ISYM index offset (subtrahends matrix)
         DO ir=ia,ib
@@ -6109,6 +6111,11 @@ SUBROUTINE loop1
     ! 111  FORMAT(I5,I10,F10.5,E12.4)
     WRITE(*,101) 'NTGB',ntgb,'total number of parameters'
     WRITE(*,101) 'NVGB',nvgb,'number of variable parameters'
+    ! To avoid INT(mpi) overflows in diagonalization
+    IF (metsol == 2.AND.nvgb >= 46340) THEN
+        metsol=1
+        WRITE(*,101) 'Too many variable parameters for diagonalization, fallback is inversion'
+    END IF
 
     !     print overview over important numbers ----------------------------
 
@@ -6460,7 +6467,7 @@ SUBROUTINE loop2
         nprecond(1)=ncgb   ! number of constraints for preconditioner
         nprecond(2)=nvgb   ! matrix size for preconditioner
     ENDIF
-    noff8=int8(nagb)*int8(nagb-1)/2
+    noff8=INT(nagb,mpl)*INT(nagb-1,mpl)/2
     
     ! all (variable) parameter groups 
     length=napgrp+1
@@ -7134,6 +7141,11 @@ SUBROUTINE loop2
   
     END DO ! print loop
 
+    IF(nalcn == 0) THEN
+        CALL peend(28,'Aborted, no local parameters')
+        STOP 'LOOP2: stopping due to missing local parameters'
+    END IF
+
     !     Wolfe conditions
 
     IF(0.0 < wolfc1.AND.wolfc1 < wolfc2.AND.wolfc2 < 1.0) GO TO 32
@@ -7156,7 +7168,7 @@ SUBROUTINE loop2
 
     !     prepare matrix and gradient storage ------------------------------
     !32 CONTINUE
-32  matsiz(1)=int8(nagb)*int8(nagb+1)/2 ! number of words for double precision storage 'j'
+32  matsiz(1)=INT(nagb,mpl)*INT(nagb+1,mpl)/2 ! number of words for double precision storage 'j'
     matsiz(2)=0                         ! number of words for single precision storage '.'
     IF (matsto == 2) THEN     ! sparse matrix
         matsiz(1)=ndimsa(3)+nagb
@@ -7486,7 +7498,7 @@ SUBROUTINE minver
             CALL qlmlq(globalCorrections(ipoff+1:),1,.true.) ! Q^t*b
             ! correction from eliminated part
             DO i=1,nfit
-                ioff1=((nfit+1)*nfit)/2+i+imoff
+                ioff1=(INT(nfit+1,mpl)*INT(nfit,mpl))/2+i+imoff
                 DO j=1,ncon
                     globalCorrections(i+ipoff)=globalCorrections(i+ipoff)-globalMatD(ioff1)*vecConsSolution(j)
                     ioff1=ioff1+nfit+j
@@ -7601,7 +7613,7 @@ SUBROUTINE mchdec
             CALL qlmlq(globalCorrections(ipoff+1:),1,.true.) ! Q^t*b
             ! correction from eliminated part
             DO i=1,nfit
-                ioff1=((nfit+1)*nfit)/2+i+imoff
+                ioff1=(INT(nfit+1,mpl)*INT(nfit,mpl))/2+i+imoff
                 DO j=1,ncon
                     globalCorrections(i+ipoff)=globalCorrections(i+ipoff)-globalMatD(ioff1)*vecConsSolution(j)
                     ioff1=ioff1+nfit+j
@@ -7690,7 +7702,7 @@ SUBROUTINE mdiags
         CALL qlmlq(globalCorrections,1,.true.) ! Q^t*b
         ! correction from eliminated part
         DO i=1,nfgb
-            ioff1=((nfgb+1)*nfgb)/2+i
+            ioff1=(INT(nfgb+1,mpl)*INT(nfgb,mpl))/2+i
             DO j=1,ncgb
                 globalCorrections(i)=globalCorrections(i)-globalMatD(ioff1)*vecConsSolution(j)
                 ioff1=ioff1+nfgb+j
@@ -8553,7 +8565,7 @@ SUBROUTINE xloopn                !
                 npar=matParBlockOffsets(1,ib+1)-ipoff ! size of block (number of parameters)
                 ncon=matConsBlocks(1,icblst+1)-matConsBlocks(1,icboff+1) ! number of constraints in  (parameter) block
                 DO i=npar-ncon+1,npar
-                    ioff=((INT8(i)-1)*INT8(i))/2+imoff
+                    ioff=(INT(i-1,mpl)*INT(i,mpl))/2+imoff
                     globalMatD(ioff+1:ioff+i)=0.0_mpd
                 END DO    
             END DO

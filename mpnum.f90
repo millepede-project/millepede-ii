@@ -261,7 +261,7 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk)   !
     next0=1
     l=1
     DO i=1,n
-        i8=int8(i)
+        i8=INT(i,mpl)
         next(i)=i+1                ! set "next" pointer
         diag(i)=ABS(v((i8*i8+i8)/2))  ! save abs of diagonal elements
     END DO
@@ -274,7 +274,7 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk)   !
         j=next0
         last=0
 05      IF(j > 0) THEN
-            j8=int8(j)
+            j8=INT(j,mpl)
             jj=(j8*j8+j8)/2
             IF(ABS(v(jj)) > MAX(ABS(vkk),eps*diag(j))) THEN
                 vkk=v(jj)
@@ -287,7 +287,7 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk)   !
         END IF
   
         IF(k /= 0) THEN            ! pivot found
-            k8=int8(k)
+            k8=INT(k,mpl)
             kk=(k8*k8+k8)/2
             kkmk=kk-k8
             IF(l == 0) THEN
@@ -310,7 +310,7 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk)   !
                     IF(j < k) THEN
                         jk=jk+1
                     ELSE
-                        jk=jk+int8(j)-1
+                        jk=jk+INT(j,mpl)-1
                     END IF
                     v(jk)=v(jk)*vkk
                     vk(j)=v(jk)
@@ -323,7 +323,7 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk)   !
             !$OMP SCHEDULE(DYNAMIC,128)
             DO j=n,1,-1
                 IF(j == k) CYCLE
-                j8=int8(j)
+                j8=INT(j,mpl)
                 jl=j8*(j8-1)/2
                 vjk  =vk(j)/vkk
                 b(j) =b(j)-b(k)*vjk
@@ -332,19 +332,19 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk)   !
             !$OMP END PARALLEL DO
         ELSE
             DO k=1,n
-                k8=int8(k)
+                k8=INT(k,mpl)
                 kk=(k8*k8-k8)/2
                 IF(next(k) /= 0) THEN
                     b(k)=0.0_mpd       ! clear vector element
                     DO j=1,k
-                        IF(next(j) /= 0) v(kk+int8(j))=0.0_mpd  ! clear matrix row/col
+                        IF(next(j) /= 0) v(kk+INT(j,mpl))=0.0_mpd  ! clear matrix row/col
                     END DO
                 END IF
             END DO
             GO TO 10
         END IF
     END DO             ! end of loop
-    10   DO jj=1,(int8(n)*int8(n)+int8(n))/2
+    10   DO jj=1,(INT(n,mpl)*INT(n+1,mpl))/2
         v(jj)=-v(jj)      ! finally reverse sign of all matrix elements
     END DO
 END SUBROUTINE sqminl
@@ -900,7 +900,7 @@ SUBROUTINE chdec2(g,n,nrank,evmax,evmin)
     REAL(mpd), INTENT(OUT)            :: evmax
     
     nrank=0 
-    ii=(INT8(n)*INT8(n+1))/2
+    ii=(INT(n,mpl)*INT(n+1,mpl))/2
     DO i=n,1,-1
         IF (g(ii) > 0.0_mpd) THEN
             ! update rank, min, max eigenvalue
@@ -921,7 +921,7 @@ SUBROUTINE chdec2(g,n,nrank,evmax,evmin)
         !$OMP PRIVATE(RATIO,JJ) &
         !$OMP SCHEDULE(DYNAMIC,128)
         DO j=1,i-1
-            jj=(INT8(j-1)*INT8(j))/2
+            jj=(INT(j-1,mpl)*INT(j,mpl))/2
             ratio=g(ii+j)*g(ii+i)              ! (I,J) (I,I)
             g(jj+1:jj+j)=g(jj+1:jj+j)-g(ii+1:ii+j)*ratio   ! (K,J) (K,I)
         END DO ! J
@@ -954,7 +954,7 @@ SUBROUTINE chslv2(g,x,n)
     REAL(mpd), INTENT(IN OUT)        :: x(n)
     INTEGER(mpi), INTENT(IN)                     :: n
     
-    ii=(INT8(n)*INT8(n+1))/2
+    ii=(INT(n,mpl)*INT(n+1,mpl))/2
     DO i=n,1,-1
         dsum=x(i)
         kk=ii
@@ -1322,11 +1322,11 @@ SUBROUTINE dbsvxl(v,a,b,n)                  ! LARGE symm. matrix, vector
             IF(j < i) THEN
                 ij=ij+1
             ELSE
-                ij=ij+int8(j)
+                ij=ij+INT(j,mpl)
             END IF
         END DO
         b(i)=dsum
-        ijs=ijs+int8(i)
+        ijs=ijs+INT(i,mpl)
     END DO
 END SUBROUTINE dbsvxl
 
