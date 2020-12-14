@@ -224,8 +224,9 @@ END SUBROUTINE sqminv
 !! \param [out]    DIAG  double precision scratch array
 !! \param [out]    NEXT  integer aux array
 !! \param [out]    VK    double precision scratch array (pivot)
+!! \param [in]     MON   flag for progress monitoring
 
-SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk)   !
+SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk,mon)   !
     USE mpdef
 
     IMPLICIT NONE
@@ -243,6 +244,7 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk)   !
     REAL(mpd), INTENT(OUT)            :: diag(n)
     INTEGER(mpi), INTENT(OUT)         :: next(n)
     REAL(mpd), INTENT(OUT)            :: vk(n)
+    INTEGER(mpi), INTENT(IN)          :: mon
     
     INTEGER(mpl) :: i8
     INTEGER(mpl) :: j8
@@ -269,6 +271,8 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk)   !
 
     nrank=0
     DO i=1,n                    ! start of loop
+        ! monitoring ?
+        IF(mon>0) CALL monpgs(i)
         k  =0
         vkk=0.0_mpd
         j=next0
@@ -881,8 +885,9 @@ END SUBROUTINE cholin
 !! \param [out]    NRANK rank of matrix g
 !! \param [out]    EVMAX  largest element in D
 !! \param [out]    EVMIN  smallest element in D
+!! \param [in]     MON   flag for progress monitoring
 !!
-SUBROUTINE chdec2(g,n,nrank,evmax,evmin)
+SUBROUTINE chdec2(g,n,nrank,evmax,evmin,mon)
     USE mpdef
 
     IMPLICIT NONE
@@ -898,10 +903,13 @@ SUBROUTINE chdec2(g,n,nrank,evmax,evmin)
     INTEGER(mpi), INTENT(OUT)         :: nrank
     REAL(mpd), INTENT(OUT)            :: evmin
     REAL(mpd), INTENT(OUT)            :: evmax
+    INTEGER(mpi), INTENT(IN)          :: mon
     
     nrank=0 
     ii=(INT(n,mpl)*INT(n+1,mpl))/2
     DO i=n,1,-1
+        ! monitoring ?
+        IF(mon>0) CALL monpgs(n+1-i)
         IF (g(ii) > 0.0_mpd) THEN
             ! update rank, min, max eigenvalue
             nrank=nrank+1

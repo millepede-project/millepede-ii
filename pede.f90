@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-08-01 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-08-02 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -128,6 +128,8 @@
 !!   This is enabled with the new command \ref cmd-countrecords and makes the iteration
 !!   of the first data loop (by \ref cmd-iterateentries) obsolete.
 !! * 201027: New solution method \ref ch-mchdec "decomposition" implemented.
+!! * 201214: New command \ref cmd-monpgs to monitor progress in operations
+!!   on global and constraints matrices.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -478,6 +480,12 @@
 !! Set flag \ref mpmod::imonit "imonit" for monitoring of pulls to \a number1 [3]
 !! and increase number of bins (of size 0.1) for internal storage to \a number2 [100].
 !! Monitoring mode \ref mpmod::imonmd "imonmd" is 1.
+!! \subsection cmd-monpgs monitorprogress
+!! For progress monitoring set for repetition rate \c nrep the start value \ref mpmod::monpg1 "monpg1"
+!! to \a number1 [1] and maximum increase \ref mpmod::monpg2 "monpg2" to \a number2 [1024].
+!! Monitored are operations (inversion, decomposition, similarity) on the global and the constraints matrices.
+!! If the (outermost loop) index is greater equal \c nrep the index is printed and \c nrep updated
+!! (+ min(\c nrep, \c monpg2)).
 !! \subsection cmd-mresmode mresmode
 !! Set \ref minresqlpmodule::minresqlp "MINRES-QLP" factorization mode
 !!  \ref mpmod::mrmode "mrmode" to \a number1.
@@ -1585,9 +1593,15 @@ SUBROUTINE feasma
         print *
         print *, 'QL decomposition of constraints matrix'
         ! QL decomposition
-        CALL qlini(nvgb,ncgb,npblck)
+        CALL qlini(nvgb,ncgb,npblck,monpg1)
         ! loop over parameter blocks
+        ! monitor progress
+        IF(monpg1 > 0) THEN
+            WRITE(lunlog,*) 'QL decomposition of constraints matrix'
+            CALL monini(lunlog,monpg1,monpg2)
+        END IF
         CALL qldecb(matConstraintsT,matParBlockOffsets,matConsBlocks)
+        IF(monpg1 > 0) CALL monend()
         !CALL qldump()
         ! check eignevalues of L
         CALL qlgete(evmin,evmax)
@@ -3623,7 +3637,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
     !$OMP      localCorrections,localEquations, &
     !$OMP      NAGB,NVGB,NAGBN,ICALCM,ICHUNK,NLOOPN,NRECER,NPRDBG,IPRDBG, &
     !$OMP      NEWITE,CHICUT,LHUBER,CHUBER,ITERAT,NRECPR,MTHRD,NSPC,NAEQN, &
-    !$OMP      DWCUT,CHHUGE,NRECP2,CAUCHY,LFITNP,LFITBB,IMONIT,IMONMD) &
+    !$OMP      DWCUT,CHHUGE,NRECP2,CAUCHY,LFITNP,LFITBB,IMONIT,IMONMD,MONPG1,LUNLOG) &
     !$OMP   REDUCTION(+:NDFS,SNDF,DCHI2S,NREJ,NBNDR,NACCF,CHI2F,NDFF) &
     !$OMP   REDUCTION(MAX:NBNDX,NBDRX) &
     !$OMP   REDUCTION(MIN:NREC3) &
@@ -3648,6 +3662,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
         REC=nrc            ! floating point value
         IF(nloopn == 1.AND.MOD(nrc,100000) == 0) THEN
             WRITE(*,*) 'Record',nrc,' ... still reading'
+            IF(monpg1>0) WRITE(lunlog,*) 'Record',nrc,' ... still reading'
         END IF
   
         !      printout/debug only for one thread at a time
@@ -7450,7 +7465,6 @@ SUBROUTINE minver
     SAVE
     !     ...
     lun=lunlog                       ! log file
-    IF(lunlog == 0) lunlog=6
 
     IF(icalcm == 1) THEN
         ! save diagonal (for global correlation)
@@ -7463,8 +7477,16 @@ SUBROUTINE minver
                 workspaceDiag(i+ipoff)=globalMatD((ii*ii+ii)/2+imoff) ! save diagonal elements
             END DO
         END DO
-        ! use elimination for constraints ?
-        IF(nfgb < nvgb) CALL qlssq(avprd0,globalMatD,.true.) ! Q^t*A*Q
+        ! use elimination for constraints ?        
+        IF(nfgb < nvgb) THEN
+            ! monitor progress
+            IF(monpg1 > 0) THEN
+                WRITE(lunlog,*) 'Shrinkage of global matrix (A->Q^t*A*Q)'
+                CALL monini(lunlog,monpg1,monpg2)
+            END IF
+            CALL qlssq(avprd0,globalMatD,.true.) ! Q^t*A*Q
+            IF(monpg1 > 0) CALL monend()
+        END IF
     END IF
 
     ! loop over blocks 
@@ -7507,9 +7529,15 @@ SUBROUTINE minver
         END IF
 
         IF(icalcm == 1) THEN
+            ! monitor progress
+            IF(monpg1 > 0) THEN
+                WRITE(lunlog,*) 'Inversion of global matrix (A->A^-1)'
+                CALL monini(lunlog,monpg1,monpg2)
+            END IF
             ! invert and solve
             CALL sqminl(globalMatD(imoff+1:), globalCorrections(ipoff+1:),nfit,nrank,  &
-                workspaceD,workspaceI,workspaceRow)
+                workspaceD,workspaceI,workspaceRow,monpg1)
+            IF(monpg1 > 0) CALL monend()
             IF(nfit /= nrank) THEN
                 WRITE(*,*)   'Warning: the rank defect of the symmetric',nfit,  &
                     '-by-',nfit,' matrix is ',nfit-nrank,' (should be zero).'
@@ -7575,11 +7603,16 @@ SUBROUTINE mchdec
     SAVE
     !     ...
     lun=lunlog                       ! log file
-    IF(lunlog == 0) lunlog=6
 
     IF(icalcm == 1) THEN
         ! use elimination for constraints ?
+        ! monitor progress
+        IF(monpg1 > 0) THEN
+            WRITE(lunlog,*) 'Shrinkage of global matrix (A->Q^t*A*Q)'
+            CALL monini(lunlog,monpg1,monpg2)
+        END IF
         IF(nfgb < nvgb) CALL qlssq(avprd0,globalMatD,.true.) ! Q^t*A*Q
+        IF(monpg1 > 0) CALL monend()
     END IF
 
     ! loop over blocks 
@@ -7622,8 +7655,14 @@ SUBROUTINE mchdec
         END IF
 
         IF(icalcm == 1) THEN
+            ! monitor progress
+            IF(monpg1 > 0) THEN
+                WRITE(lunlog,*) 'Decomposition of global matrix (A->L*D*L^t)'
+                CALL monini(lunlog,monpg1,monpg2)
+            END IF
             ! decompose and solve
-            CALL chdec2(globalMatD(imoff+1:),nfit,nrank,evmax,evmin)
+            CALL chdec2(globalMatD(imoff+1:),nfit,nrank,evmax,evmin,monpg1)
+            IF(monpg1 > 0) CALL monend()
             IF(nfit /= nrank) THEN
                 WRITE(*,*)   'Warning: the rank defect of the symmetric',nfit,  &
                     '-by-',nfit,' matrix is ',nfit-nrank,' (should be zero).'
@@ -7683,7 +7722,6 @@ SUBROUTINE mdiags
     !     ...
 
     lun=lunlog                       ! log file
-    IF(lunlog == 0) lun=6
 
     ! save diagonal (for global correlation)
     IF(icalcm == 1) THEN
@@ -7864,7 +7902,6 @@ SUBROUTINE mminrs
     SAVE
     !     ...
     lun=lunlog                       ! log file
-    IF(lunlog == 0) lun=6
 
     nout=lun
     itnlim=2000    ! iteration limit
@@ -7953,7 +7990,6 @@ SUBROUTINE mminrsqlp
     SAVE
     !     ...
     lun=lunlog                       ! log file
-    IF(lunlog == 0) lun=6
     
     nout=lun
     itnlim=2000    ! iteration limit
@@ -8151,7 +8187,6 @@ SUBROUTINE xloopn                !
     !     Printout of algorithm for solution and important parameters ------
 
     lun=lunlog                       ! log file
-    IF(lunlog == 0) lunlog=6
 
     DO lunp=6,lunlog,lunlog-6
         WRITE(lunp,*) ' '
@@ -8303,6 +8338,11 @@ SUBROUTINE xloopn                !
     WRITE(*,*) ' '
     WRITE(*,*)'Reading files and accumulating vectors/matrices ...'
     WRITE(*,*) ' '
+    IF(monpg1>0) THEN
+        WRITE(lunlog,*)
+        WRITE(lunlog,*)'Reading files and accumulating vectors/matrices ...'
+        WRITE(lunlog,*)
+    END IF
 
     rstart=etime(ta)
     iterat=-1
@@ -8569,7 +8609,13 @@ SUBROUTINE xloopn                !
                     globalMatD(ioff+1:ioff+i)=0.0_mpd
                 END DO    
             END DO
-            CALL qlssq(avprd0,globalMatD,.false.) ! Q^t*A*Q
+            ! monitor progress
+            IF(monpg1 > 0) THEN
+                WRITE(lunlog,*) 'Expansion of global matrix (A->Q*A*Q^t)'
+                CALL monini(lunlog,monpg1,monpg2)
+            END IF
+            CALL qlssq(avprd0,globalMatD,.false.) ! Q*A*Q^t
+            IF(monpg1 > 0) CALL monend()
         END IF
     END IF
 
@@ -9893,6 +9939,16 @@ SUBROUTINE intext(text,nline)
             RETURN
         END IF
         
+        keystx='monitorprogress'
+        mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
+        IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
+            monpg1=1
+            monpg2=1024
+            IF (nums > 0) monpg1=max(1,NINT(dnum(1),mpi))
+            IF (nums > 1) monpg2=max(1,NINT(dnum(2),mpi))
+            RETURN
+        END IF
+
         keystx='scaleerrors'
         mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
         IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching

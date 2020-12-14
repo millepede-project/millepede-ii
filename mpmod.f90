@@ -109,7 +109,9 @@ MODULE mpmod
     REAL(mpd), DIMENSION(2) :: dscerr = (/ 1.0, 1.0 /) !< scaling factors for errors of 'global' and 'local' measurement
     INTEGER(mpi) :: keepOpen=1 !< flag for keeping binary files open
     INTEGER(mpi) :: ireeof=0 !< flag for treating (binary file) read errors as end-of-file
-    INTEGER(mpi) :: mcount=0 !< flag for grouping and counying global parameters on equlation (0) or record (1) level
+    INTEGER(mpi) :: mcount=0 !< flag for grouping and counting global parameters on equlation (0) or record (1) level
+    INTEGER(mpi) :: monpg1=0 !< progress monitoring, repetition rate start value
+    INTEGER(mpi) :: monpg2=0 !< progress monitoring, repetition rate max increase
 
     ! variables
     INTEGER(mpi) :: lunmon !< unit for monitoring output file

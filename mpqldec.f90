@@ -32,6 +32,7 @@ MODULE mpqldec
     INTEGER(mpi) :: ncon   !< number of constraints
     INTEGER(mpi) :: nblock !< number of blocks
     INTEGER(mpi) :: iblock !< active block
+    INTEGER(mpi) :: monpg  !< flag for progress monitoring
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: sparseV !< sparsity structure matV
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: matV !< unit normals (v_i) of Householder reflectors
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: matL !< lower diagonal matrix L
@@ -46,8 +47,9 @@ END MODULE mpqldec
 !! \param [in]     n  number of rows (parameters)
 !! \param [in]     m  number of columns (constraints)
 !! \param [in]     l  number of disjoint blocks
+!! \param [in]     k  flag for progress monitoring
 !!
-SUBROUTINE qlini(n,m,l)
+SUBROUTINE qlini(n,m,l,k)
     USE mpqldec
     USE mpdalc
 
@@ -57,11 +59,13 @@ SUBROUTINE qlini(n,m,l)
     INTEGER(mpi), INTENT(IN)          :: n
     INTEGER(mpi), INTENT(IN)          :: m
     INTEGER(mpi), INTENT(IN)          :: l
+    INTEGER(mpi), INTENT(IN)          :: k
 
     npar=n
     ncon=m
     nblock=l
     iblock=1
+    monpg=k
     ! allocate 
     length=5*ncon
     CALL mpalloc(sparseV,length,'QLDEC: sparsity structure of V')
@@ -127,6 +131,8 @@ SUBROUTINE qldec(a)
 
     ! Householder procedure
     DO k=ncon,1,-1
+        ! monitoring
+        IF(monpg>0) CALL monpgs(ncon+1-k)
         kn=npar+k-ncon
         ! column offset
         ioff1=(k-1)*npar
@@ -251,6 +257,8 @@ SUBROUTINE qldecb(a,bpar,bcon)
         k1=bcon(1,ibcon) ! first constraint in block
         ! Householder procedure
         DO k=iclast,icoff+1,-1
+            ! monitoring
+            IF(monpg>0) CALL monpgs(ncon+1-k)
             kn=iplast+k-iclast
             ! different constraint block?
             IF (k < k1) THEN
@@ -442,6 +450,8 @@ SUBROUTINE qlsmq(x,t)
     LOGICAL, INTENT(IN)               :: t
 
     DO j=1,ncon
+        ! monitoring
+        IF(monpg>0) CALL monpgs(j)
         k=j
         IF (t) k=ncon+1-j
         kn=npar+k-ncon
@@ -523,6 +533,8 @@ SUBROUTINE qlssq(aprod,A,t)
         nparb=nparBlock(ibpar) ! number of parameters in block
         DO j=1,nconb
             k=j
+            ! monitoring
+            IF(monpg>0) CALL monpgs(icoff+k)
             IF (t) k=nconb+1-j
             kn=nparb+k-nconb
             ! column offset
@@ -628,6 +640,8 @@ SUBROUTINE qlpssq(aprod,B,m,t)
 
     DO j=1,ncon
         k=j
+        ! monitoring
+        IF(monpg>0) CALL monpgs(k)
         IF (t) k=ncon+1-j
         kn=npar+k-ncon
         ! column offset
