@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-08-02 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-08-03 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -7710,6 +7710,7 @@ SUBROUTINE mdiags
     INTEGER(mpi) :: imin
     INTEGER(mpl) :: ioff1
     INTEGER(mpi) :: j
+    INTEGER(mpi) :: last
     INTEGER(mpi) :: lun
     INTEGER(mpi) :: nmax
     INTEGER(mpi) :: nmin
@@ -7758,7 +7759,7 @@ SUBROUTINE mdiags
   
         nmax=INT(1.0+LOG10(REAL(workspaceEigenValues(1),mps)),mpi) ! > log of largest eigenvalue
         imin=1
-        DO i=nagb,1,-1
+        DO i=nfgb,1,-1
             IF(workspaceEigenValues(i) > 0.0_mpd) THEN
                 imin=i ! index of smallest pos. eigenvalue
                 EXIT
@@ -7771,7 +7772,7 @@ SUBROUTINE mdiags
         END DO
   
         CALL hmpdef(7,REAL(nmin,mps),REAL(ntop,mps), 'log10 of positive eigenvalues')
-        DO idia=1,nagb
+        DO idia=1,nfgb
             IF(workspaceEigenValues(idia) > 0.0_mpd) THEN ! positive
                 evalue=LOG10(REAL(workspaceEigenValues(idia),mps))
                 CALL hmpent(7,evalue)
@@ -7782,7 +7783,7 @@ SUBROUTINE mdiags
   
         iast=MAX(1,imin-60)
         CALL gmpdef(3,2,'low-value end of eigenvalues')
-        DO i=iast,nagb
+        DO i=iast,nfgb
             evalue=REAL(workspaceEigenValues(i),mps)
             CALL gmpxy(3,REAL(i,mps),evalue)
         END DO
@@ -7796,28 +7797,29 @@ SUBROUTINE mdiags
                 IF(workspaceEigenValues(i) < 0.0_mpd) workspaceDiagonalization(i)=-workspaceDiagonalization(i)
             END IF
         END DO
+        last=min(nfgb,nvgb)
         WRITE(lun,*) ' '
         WRITE(lun,*) 'The first (largest) eigenvalues ...'
         WRITE(lun,102) (workspaceEigenValues(i),i=1,MIN(20,nagb))
         WRITE(lun,*) ' '
-        WRITE(lun,*) 'The last eigenvalues ... up to',nvgb
-        WRITE(lun,102) (workspaceEigenValues(i),i=MAX(1,nvgb-19),nvgb)
+        WRITE(lun,*) 'The last eigenvalues ... up to',last
+        WRITE(lun,102) (workspaceEigenValues(i),i=MAX(1,last-19),last)
         WRITE(lun,*) ' '
         IF(nagb > nvgb) THEN
             WRITE(lun,*) 'The eigenvalues from',nvgb+1,' to',nagb
             WRITE(lun,102) (workspaceEigenValues(i),i=nvgb+1,nagb)
             WRITE(lun,*) ' '
         ENDIF
-        WRITE(lun,*) 'Log10 + 3 of ',nagb,' eigenvalues in decreasing', ' order'
+        WRITE(lun,*) 'Log10 + 3 of ',nfgb,' eigenvalues in decreasing', ' order'
         WRITE(lun,*) '(for Eigenvalue < 0.001 the value 0.0 is shown)'
-        WRITE(lun,101) (workspaceDiagonalization(i),i=1,nagb)
+        WRITE(lun,101) (workspaceDiagonalization(i),i=1,nfgb)
         IF(workspaceDiagonalization(nfgb) < 0) WRITE(lun,*) 'Negative values are ',  &
             'printed for negative eigenvalues'
         CALL devsig(nfgb,workspaceEigenValues,workspaceEigenVectors,globalVector,workspaceDiagonalization)
         WRITE(lun,*) ' '
-        WRITE(lun,*) nvgb,' significances: insignificant if ',  &
+        WRITE(lun,*) last,' significances: insignificant if ',  &
             'compatible with  N(0,1)'
-        WRITE(lun,101) (workspaceDiagonalization(i),i=1,nvgb)
+        WRITE(lun,101) (workspaceDiagonalization(i),i=1,last)
   
   
 101     FORMAT(10F7.1)

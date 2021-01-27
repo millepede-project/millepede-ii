@@ -549,10 +549,9 @@ SUBROUTINE qlssq(aprod,A,t)
             ioff2=ioffb
             DO i=1,kn
                 ! correct with  2*(2v*vtAv*v^t - Av*v^t - (Av*v^t)^t)
-                DO l=1,i
-                    ioff2=ioff2+1
-                    A(ioff2)=A(ioff2)+2.0_mpd*((2.0_mpd*matV(ioff1+i)*vtAv-Av(i))*matV(ioff1+l)-Av(l)*matV(ioff1+i))
-                END DO
+                A(ioff2+1:ioff2+i)=A(ioff2+1:ioff2+i)+2.0_mpd* &
+                    ((2.0_mpd*matV(ioff1+i)*vtAv-Av(i))*matV(ioff1+1:ioff1+i)-Av(1:i)*matV(ioff1+i))
+                ioff2=ioff2+i
             END DO
             ! off diagonal block
             DO i=kn+1,nparb

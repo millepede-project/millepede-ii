@@ -321,7 +321,7 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk,mon)   !
                 END IF
             END DO
             ! parallelize row loop
-            ! slot of 128 'J' for next idle thread
+            ! slot of 128 'J' for next idle thread (optimized on Intel Xeon)
             !$OMP PARALLEL DO &
             !$OMP PRIVATE(JL,VJK,J8) &
             !$OMP SCHEDULE(DYNAMIC,128)
@@ -924,18 +924,19 @@ SUBROUTINE chdec2(g,n,nrank,evmax,evmin,mon)
         END IF    
         ii=ii-i
         ! parallelize row loop
-        ! slot of 128 'J' for next idle thread
+        ! slot of 32 'J' for next idle thread (optimized on Intel Xeon)
         !$OMP PARALLEL DO &
         !$OMP PRIVATE(RATIO,JJ) &
-        !$OMP SCHEDULE(DYNAMIC,128)
+        !$OMP SCHEDULE(DYNAMIC,32)
         DO j=1,i-1
-            jj=(INT(j-1,mpl)*INT(j,mpl))/2
             ratio=g(ii+j)*g(ii+i)              ! (I,J) (I,I)
+            IF (ratio == 0.0_mpd) CYCLE
+            jj=(INT(j-1,mpl)*INT(j,mpl))/2
             g(jj+1:jj+j)=g(jj+1:jj+j)-g(ii+1:ii+j)*ratio   ! (K,J) (K,I)
         END DO ! J
         !$OMP END PARALLEL DO
         g(ii+1:ii+i-1)=g(ii+1:ii+i-1)*g(ii+i)            ! (I,J)
-    END DO ! I   
+    END DO ! I  
         
 END SUBROUTINE chdec2
 
