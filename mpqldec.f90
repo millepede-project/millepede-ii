@@ -4,7 +4,7 @@
 !! \author Claus Kleinwort, DESY, 2015 (Claus.Kleinwort@desy.de)
 !!
 !! \copyright
-!! Copyright (c) 2015-2020 Deutsches Elektronen-Synchroton,
+!! Copyright (c) 2015-2021 Deutsches Elektronen-Synchroton,
 !! Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 !! This library is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU Library General Public License as
@@ -71,8 +71,10 @@ SUBROUTINE qlini(n,m,l,k)
     CALL mpalloc(sparseV,length,'QLDEC: sparsity structure of V')
     length=npar*ncon
     CALL mpalloc(matV,length,'QLDEC: V')
+    matV=0.
     length=ncon*ncon
     CALL mpalloc(matL,length,'QLDEC: L')
+    matL=0.
     length=npar
     CALL mpalloc(vecN,length,'QLDEC: v') 
     length=nblock   
@@ -223,6 +225,8 @@ SUBROUTINE qldecb(a,bpar,bcon)
     INTEGER(mpi), INTENT(IN)          :: bpar(2,*)
     INTEGER(mpi), INTENT(IN)          :: bcon(3,*)
 
+
+    !$POMP INST BEGIN(qldecb)
     ! prepare 
     length=npar*ncon
     matV=0.0_mpd
@@ -325,6 +329,8 @@ SUBROUTINE qldecb(a,bpar,bcon)
             sparseV(ioff3+5)=kn-ipoff        ! end 2
         END DO
     END DO
+    !$POMP INST END(qldecb)
+    
     
 END SUBROUTINE qldecb
 
@@ -479,12 +485,12 @@ END SUBROUTINE qlsmq
 !! Similarity transformation for symmetric matrix by Q from QL decomposition.
 !!
 !! \param [in]     aprod    external procedure to calculate A*v
-!! \param [in,out] A        symmetric Npar-by-Npar matrix A in symmetric storage mode
-!!                          (V(1) = V11, V(2) = V12, V(3) = V22, V(4) = V13, ...),
+!! \param [in,out] A        symmetric Npar-by-Npar matrix A in symmetric or unpacked storage mode
 !!                          overwritten with Q*A*Q^t (t=false) or Q^t*A*Q (t=true)
+!! \param [in]     roff     row offsets for A
 !! \param [in]     t        use transposed of Q
 !!
-SUBROUTINE qlssq(aprod,A,t)
+SUBROUTINE qlssq(aprod,A,roff,t)
     USE mpqldec
     USE mpdalc
 
@@ -497,11 +503,10 @@ SUBROUTINE qlssq(aprod,A,t)
     INTEGER(mpi) :: iclast
     INTEGER(mpl) :: ioff1
     INTEGER(mpl) :: ioff2
-    INTEGER(mpl) :: ioffb
+    INTEGER(mpl) :: ioffp
     INTEGER(mpi) :: j
     INTEGER(mpi) :: k
     INTEGER(mpi) :: kn
-    INTEGER(mpi) :: l
     INTEGER(mpl) :: length
     INTEGER(mpi) :: nconb
     INTEGER(mpi) :: nparb
@@ -509,6 +514,7 @@ SUBROUTINE qlssq(aprod,A,t)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: Av
 
     REAL(mpd), INTENT(IN OUT)         :: A(*)
+    INTEGER(mpl), INTENT(IN)          :: roff(*)
     LOGICAL, INTENT(IN)               :: t
 
     INTERFACE
@@ -525,7 +531,7 @@ SUBROUTINE qlssq(aprod,A,t)
     length=npar
     CALL mpalloc(Av,length,'qlssq: A*v')
 
-    ioffb=0 ! block offset
+    ioffp=0 ! parameter offset for block
     DO ibpar=1,nblock ! parameter block
         icoff=ioffBlock(ibpar) ! constraint offset in parameter block
         iclast=ioffBlock(ibpar+1) ! last constraint in parameter block
@@ -540,36 +546,39 @@ SUBROUTINE qlssq(aprod,A,t)
             ! column offset
             ioff1=(k-1+icoff)*npar
             ! A*v
-            CALL aprod(nparb,ioffb,matV(ioff1+1:ioff1+nparb),Av(1:nparb))
+            CALL aprod(nparb,ioffp,matV(ioff1+1:ioff1+nparb),Av(1:nparb))
             ! transformation
             ! diagonal block
             ! v^t*A*v
             vtAv=dot_product(matV(ioff1+1:ioff1+kn),Av(1:kn))
             ! update
-            ioff2=ioffb
+            ! parallelize row loop
+            ! slot of 8 'I' for next idle thread 
+            !$OMP PARALLEL DO &
+            !$OMP PRIVATE(IOFF2) &
+            !$OMP SCHEDULE(DYNAMIC,8)
             DO i=1,kn
+                ioff2=roff(i+ioffp)+ioffp
                 ! correct with  2*(2v*vtAv*v^t - Av*v^t - (Av*v^t)^t)
                 A(ioff2+1:ioff2+i)=A(ioff2+1:ioff2+i)+2.0_mpd* &
                     ((2.0_mpd*matV(ioff1+i)*vtAv-Av(i))*matV(ioff1+1:ioff1+i)-Av(1:i)*matV(ioff1+i))
-                ioff2=ioff2+i
             END DO
+            !$OMP END PARALLEL DO
             ! off diagonal block
             DO i=kn+1,nparb
+                ioff2=roff(i+ioffp)+ioffp
                 ! correct with -2Av*v^t
                 A(ioff2+1:ioff2+kn)=A(ioff2+1:ioff2+kn)-2.0_mpd*matV(ioff1+1:ioff1+kn)*Av(i)
-                ioff2=ioff2+i
             END DO
         END DO
-        ! update block offset
-        l=nparb
-        ioffb=ioffb+(l*l+l)/2
+        ! update parameter offset
+        ioffp=ioffp+nparb
     END DO
 
     CALL mpdealloc(Av)
     !$POMP INST END(qlssq)
 
 END SUBROUTINE qlssq
-
 
 !> Partial similarity transformation by Q(t).
 !!
@@ -614,10 +623,9 @@ SUBROUTINE qlpssq(aprod,B,m,t)
     LOGICAL, INTENT(IN)               :: t
 
     INTERFACE
-        SUBROUTINE aprod(n,l,x,y,is) ! y=A*x
+        SUBROUTINE aprod(n,x,y,is) ! y=A*x
             USE mpdef
             INTEGER(mpi), INTENT(in) :: n
-            INTEGER(mpl), INTENT(in) :: l
             REAL(mpd), INTENT(IN)    :: x(n)
             REAL(mpd), INTENT(OUT)   :: y(n)
             INTEGER(mpi), INTENT(in) :: is(*)
@@ -633,7 +641,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
     ! A*V
     ioff1=0
     DO i=1,ncon
-        CALL aprod(npar,0_mpl,matV(ioff1+1:ioff1+npar),Av(ioff1+1:ioff1+npar),sparseV(i*5-4))
+        CALL aprod(npar,matV(ioff1+1:ioff1+npar),Av(ioff1+1:ioff1+npar),sparseV(i*5-4))
         ioff1=ioff1+npar
     END DO
 
@@ -823,3 +831,5 @@ SUBROUTINE qldump()
 100 FORMAT(" qldump",7I8)   
     
 END SUBROUTINE qldump
+
+   

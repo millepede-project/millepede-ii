@@ -44,12 +44,21 @@ SUPPORT_ZLIB = yes
 # requires z library and header to be installed at places defined here:
 ZLIB_INCLUDES_DIR = =
 ZLIB_LIBS_DIR = =
+# LAPACK (64 bit) with Intel MKL
+SUPPORT_LAPACK64 = 
+#yes
+LAPACK64 = OPENBLAS
+LAPACK64_LIBS_DIR = /usr/lib64
+LAPACK64_LIB = openblasp64
+#LAPACK64 = MKL
+#LAPACK64_LIBS_DIR = <path to mkl_rt>
+#LAPACK64_LIB = mkl_rt
 #
 # If yes use multithreading with OpenMP (TM)
 SUPPORT_OPENMP = yes
 # ompP profiler (http://www.ompp-tool.com, needs Opari for source-to-source instrumentation)
-OMPP =
-# kinst-ompp
+OMPP = 
+#kinst-ompp
 #
 # make install copies the binary to $(PREFIX)/bin
 PREFIX = .
@@ -79,6 +88,33 @@ ifeq ($(SUPPORT_OPENMP),yes)
   F_FLAGS += -fopenmp
 endif
 #
+ifeq ($(SUPPORT_LAPACK64),yes)
+# Using LAPACK64, tested: Intel MKL, OPENBLAS
+  C_LIBS  += -L$(LAPACK64_LIBS_DIR) -l$(LAPACK64_LIB)
+  F_FLAGS += -DLAPACK64=\"$(LAPACK64)\"
+  ifeq ($(LAPACK64),MKL)
+    $(info Using MKL for LAPACK64)
+    $(info - Provide $(LAPACK64_LIB) in runtime environment)
+     ifeq ($(SUPPORT_OPENMP),yes)
+      $(info - Set number of MKL threads in OMP_NUM_THREADS)
+     else 
+      $(info - Set number of MKL threads in MKL_NUM_THREADS)
+    endif
+    $(info - Set MKL_THREADING_LAYER=GNU)
+    $(info )
+  endif
+  ifeq ($(LAPACK64),OPENBLAS)
+    $(info Using OPENBLAS for LAPACK64)
+    $(info - Provide $(LAPACK64_LIB) in runtime environment)
+     ifeq ($(SUPPORT_OPENMP),yes)
+      $(info - Set number of OPENBLAS threads in OMP_NUM_THREADS)
+     else 
+      $(info - Set number of OPENBLAS threads in OPENBLAS_NUM_THREADS)
+    endif
+    $(info )
+  endif  
+endif
+#
 LOADER = $(OMPP) $(GCC)
 L_FLAGS = -Wall -O3
 #
@@ -103,8 +139,8 @@ ifeq ($(SUPPORT_READ_C),yes)
     endif
   endif
 endif
-#  
-#
+#  -L$(MKL_DIR) -lmkl_rt
+#  -lopenblasp64
 # Make the executables
 EXECUTABLES = pede 
 #

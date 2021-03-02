@@ -4,7 +4,7 @@
 !! \author Claus Kleinwort, DESY, 2012 (Claus.Kleinwort@desy.de)
 !!
 !! \copyright
-!! Copyright (c) 2012 - 2020 Deutsches Elektronen-Synchroton,
+!! Copyright (c) 2012 - 2021 Deutsches Elektronen-Synchroton,
 !! Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 !! This library is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU Library General Public License as
@@ -31,8 +31,8 @@ MODULE mpmod
     SAVE
     ! steering parameters
     INTEGER(mpi) :: ictest=0  !< test mode '-t'
-    INTEGER(mpi) :: metsol=0  !< solution method (1: inversion, 2: diagonalization, 3: decomposition, 4: MINRES, 5: \ref minresqlpmodule::minresqlp "MINRES-QLP")
-    INTEGER(mpi) :: matsto=2  !< (global) matrix storage mode (1: full, 2: sparse, 3: block diagonal)
+    INTEGER(mpi) :: metsol=0  !< solution method (1: inversion, 2: diagonalization, 3: decomposition, 4: MINRES, 5: \ref minresqlpmodule::minresqlp "MINRES-QLP", 7: LAPACK)
+    INTEGER(mpi) :: matsto=2  !< (global) matrix storage mode (0: unpacked, 1: full = packed, 2: sparse)
     INTEGER(mpi) :: mprint=1  !< print flag (0: minimal, 1: normal, >1: more)
     INTEGER(mpi) :: mdebug=0  !< debug flag (number of records to print)
     INTEGER(mpi) :: mdebg2=10 !< number of measurements for record debug printout
@@ -112,6 +112,9 @@ MODULE mpmod
     INTEGER(mpi) :: mcount=0 !< flag for grouping and counting global parameters on equlation (0) or record (1) level
     INTEGER(mpi) :: monpg1=0 !< progress monitoring, repetition rate start value
     INTEGER(mpi) :: monpg2=0 !< progress monitoring, repetition rate max increase
+#ifdef LAPACK64
+    INTEGER(mpi) :: ilperr=0 !< flag to calculate parameter errors with LAPACK
+#endif
 
     ! variables
     INTEGER(mpi) :: lunmon !< unit for monitoring output file
@@ -126,7 +129,7 @@ MODULE mpmod
     INTEGER(mpi) :: ntpgrp !< number of parameter groups
     INTEGER(mpi) :: nvpgrp !< number of variable parameter groups
     INTEGER(mpi) :: napgrp !< number of all parameter groups (variable + Lagrange mult.)
-    INTEGER(mpi) :: npblck !< number of (disjoint) parameter blocks
+    INTEGER(mpi) :: npblck !< number of (disjoint) parameter blocks (>1: block diagonal storage)
     INTEGER(mpi) :: ncblck !< number of (disjoint) constraint blocks
     INTEGER(mpi) :: mszcon !< (integrated block) matrix size for constraint matrix
     INTEGER(mpi) :: mszprd !< (integrated block) matrix size for (constraint) product matrix
@@ -192,6 +195,7 @@ MODULE mpmod
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: globalMatD !< global matrix 'A' (double, full or sparse)
     REAL(mps), DIMENSION(:), ALLOCATABLE :: globalMatF !< global matrix 'A' (float part for compressed sparse)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: globalVector !< global vector 'x' (in A*x=b)
+    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: globalRowOffsets !< row offsets for full or unpacked matrix
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalCounter !< global counter (entries in 'x')
     ! AVPROD (A*x=b) by MINRES
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: vecXav !< vector x for AVPROD (A*x=b)
@@ -208,6 +212,14 @@ MODULE mpmod
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: workspaceEigenValues !< workspace eigen values
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: workspaceEigenVectors !< workspace eigen vectors
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: workspaceI !< (general) workspace (I)
+#ifdef LAPACK64
+    ! LAPACK
+    INTEGER(mpl):: lplwrk=1 !< length of LAPACK WORK array
+    REAL(mpd), DIMENSION(:), ALLOCATABLE :: lapackQL !< LAPACK QL (QL decomp.)
+    REAL(mpd), DIMENSION(:), ALLOCATABLE :: lapackTAU !< LAPACK TAU (QL decomp.)
+    REAL(mpd), DIMENSION(:), ALLOCATABLE :: lapackWORK !< LAPACK work array
+    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: lapackIPIV !< LAPACK IPIV (pivot)
+#endif
     ! constraint matrix, residuals
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: matConsProduct !< product matrix of constraints
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: vecConsResiduals !< residuals of constraints
@@ -256,7 +268,7 @@ MODULE mpmod
     ! global parameter usage from all records
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalIndexRanges   !< global par ranges
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: matParBlockOffsets   !< global par block offsets (parameter, constraint blocks)
-    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: vecParBlockOffsets   !< global par block offsets (global matrix)
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: vecParBlockConOffsets   !< global par block (constraint) offsets 
     ! local fit
     REAL(mpd), DIMENSION(:), ALLOCATABLE::blvec  !< local fit vector 'b' (in A*x=b), replaced by 'x'
     REAL(mpd), DIMENSION(:), ALLOCATABLE::clmat  !< local fit matrix 'A' (in A*x=b)
