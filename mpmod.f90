@@ -131,8 +131,8 @@ MODULE mpmod
     INTEGER(mpi) :: napgrp !< number of all parameter groups (variable + Lagrange mult.)
     INTEGER(mpi) :: npblck !< number of (disjoint) parameter blocks (>1: block diagonal storage)
     INTEGER(mpi) :: ncblck !< number of (disjoint) constraint blocks
-    INTEGER(mpi) :: mszcon !< (integrated block) matrix size for constraint matrix
-    INTEGER(mpi) :: mszprd !< (integrated block) matrix size for (constraint) product matrix
+    INTEGER(mpl) :: mszcon !< (integrated block) matrix size for constraint matrix
+    INTEGER(mpl) :: mszprd !< (integrated block) matrix size for (constraint) product matrix
     INTEGER(mpi), DIMENSION(2) :: nprecond !< number of constraints, matrix size for preconditioner
     INTEGER(mpi) :: nagbn !< max number of global paramters per record
     INTEGER(mpi) :: nalcn !< max number of local paramters per record

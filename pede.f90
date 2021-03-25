@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-09-00 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-09-01 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -256,7 +256,7 @@
 !!
 !! \subsection ch-lapack LAPACK
 !! For these optional methods the solution is obtained by matrix factorization from an external LAPACK library.
-!! There exist (open or properiatary) implementations heavily optimized for specific hardware
+!! There exist (open or proprietary) implementations heavily optimized for specific hardware
 !! (and partially multi-threaded)
 !! which could easily be an order of magnitude faster than e.g. the custom code used for
 !! \ref ch-mchdec "decomposition".
@@ -1492,8 +1492,8 @@ SUBROUTINE prpcon
             npar=ilast+1-ifrst
             nconmx=max(nconmx,ncon)
             nparmx=max(nparmx,npar)
-            mszcon=mszcon+ncon*npar          ! (sum of) block size for constraint matrix     
-            mszprd=mszprd+(ncon*ncon+ncon)/2 ! (sum of) block size for product matrix     
+            mszcon=mszcon+INT(ncon,mpl)*INT(npar,mpl)       ! (sum of) block size for constraint matrix     
+            mszprd=mszprd+INT(ncon,mpl)*INT(ncon+1,mpl)/2   ! (sum of) block size for product matrix     
             IF (icheck > 0) THEN
                 IF (ilast > ifrst) THEN 
                     labelf=globalParLabelIndex(1,globalParVarToTotal(ifrst))
@@ -1535,18 +1535,18 @@ SUBROUTINE feasma
     INTEGER(mpi) :: i
     INTEGER(mpi) :: iblck
     INTEGER(mpi) :: icgb
-    INTEGER(mpi) :: ij
+    INTEGER(mpl) :: ij
     INTEGER(mpi) :: ifirst
     INTEGER(mpi) :: ilast
-    INTEGER(mpi) :: ioffc
-    INTEGER(mpi) :: ioffp
+    INTEGER(mpl) :: ioffc
+    INTEGER(mpl) :: ioffp
     INTEGER(mpi) :: irank
     INTEGER(mpi) :: ipar0
     INTEGER(mpi) :: itgbi
     INTEGER(mpi) :: ivgb
     INTEGER(mpi) :: j
     INTEGER(mpi) :: jcgb
-    INTEGER(mpi) :: l
+    INTEGER(mpl) :: ll
     INTEGER(mpi) :: label
     INTEGER(mpi) :: ncon
     INTEGER(mpi) :: npar
@@ -1601,7 +1601,7 @@ SUBROUTINE feasma
                 factr=listConstraints(j)%value
                 itgbi=inone(label) ! -> ITGBI= index of parameter label
                 ivgb =globalParLabelIndex(2,itgbi) ! -> variable-parameter index
-                IF(ivgb > 0) matConstraintsT(ivgb-ipar0+ioffc+(jcgb-ifirst)*npar)=factr ! matrix element
+                IF(ivgb > 0) matConstraintsT(INT(jcgb-ifirst,mpl)*INT(npar,mpl)+ivgb-ipar0+ioffc)=factr ! matrix element
                 globalParCons(itgbi)=globalParCons(itgbi)+1
                 rhs=rhs-factr*globalParameter(itgbi)     ! reduce residuum
             END DO
@@ -1609,12 +1609,14 @@ SUBROUTINE feasma
         END DO
         
         ! get rank of blocks
-        DO l=ioffc+1,ioffc+npar
+        DO ll=ioffc+1,ioffc+npar
             ij=ioffp
             DO i=1,ncon
                 DO j=1,i
                     ij=ij+1
-                    matConsProduct(ij)=matConsProduct(ij)+matConstraintsT((i-1)*npar+l)*matConstraintsT((j-1)*npar+l)
+                    matConsProduct(ij)=matConsProduct(ij)+ &                     
+                                       matConstraintsT(INT(i-1,mpl)*INT(npar,mpl)+ll)* &
+                                       matConstraintsT(INT(j-1,mpl)*INT(npar,mpl)+ll)
                 END DO
             END DO
         END DO
@@ -1622,7 +1624,7 @@ SUBROUTINE feasma
         CALL sqminv(matConsProduct(ioffp+1:ij),vecConsResiduals(ifirst:ilast),ncon,irank, auxVectorD, auxVectorI)
         IF (icheck > 1) WRITE(*,*) ' Constraint block rank', iblck, ncon, irank
         nrank=nrank+irank
-        ioffc=ioffc+npar*ncon
+        ioffc=ioffc+INT(npar,mpl)*INT(ncon,mpl)
         ioffp=ij   
     END DO          
 
@@ -7064,7 +7066,7 @@ SUBROUTINE loop2
         WRITE(lu,101) 'NFGB',nfgb,'number of fit parameters'
         IF(metsol >= 4.AND. metsol <7) THEN ! band matrix as MINRES preconditioner 
             WRITE(lu,101) 'MBANDW',mbandw,'band width of preconditioner matrix'
-            WRITE(lu,102) '(if =0, no preconditioner matrix)'
+            WRITE(lu,102) '(if <0, no preconditioner matrix)'
         END IF
         IF (nagb >= 65536) THEN
             WRITE(lu,101) 'NOFF/K',noff,'max number of off-diagonal elements'
@@ -7213,7 +7215,7 @@ SUBROUTINE loop2
 
     CALL feasma    ! prepare constraint matrices
 
-    CALL vmprep(matsiz)    ! prepare matrix and gradient storage
+    IF (icheck <= 0) CALL vmprep(matsiz)    ! prepare matrix and gradient storage
     WRITE(*,*) ' '
     IF (matwords < 250000) THEN
         WRITE(*,*) 'Size of global matrix: < 1 MB'

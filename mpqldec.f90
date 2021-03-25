@@ -69,10 +69,10 @@ SUBROUTINE qlini(n,m,l,k)
     ! allocate 
     length=5*ncon
     CALL mpalloc(sparseV,length,'QLDEC: sparsity structure of V')
-    length=npar*ncon
+    length=INT(npar,mpl)*INT(ncon,mpl)
     CALL mpalloc(matV,length,'QLDEC: V')
     matV=0.
-    length=ncon*ncon
+    length=INT(ncon,mpl)*INT(ncon,mpl)
     CALL mpalloc(matL,length,'QLDEC: L')
     matL=0.
     length=npar
@@ -123,7 +123,7 @@ SUBROUTINE qldec(a)
     REAL(mpd), INTENT(IN)             :: a(*)
 
     ! prepare 
-    length=npar*ncon
+    length=INT(npar,mpl)*INT(ncon,mpl)
     matV=a(1:length)
     matL=0.0_mpd
     ! implemented as single block
@@ -137,7 +137,7 @@ SUBROUTINE qldec(a)
         IF(monpg>0) CALL monpgs(ncon+1-k)
         kn=npar+k-ncon
         ! column offset
-        ioff1=(k-1)*npar
+        ioff1=INT(k-1,mpl)*INT(npar,mpl)
         ! get column
         vecN(1:kn)=matV(ioff1+1:ioff1+kn)
         nrm = SQRT(dot_product(vecN(1:kn),vecN(1:kn)))
@@ -159,7 +159,7 @@ SUBROUTINE qldec(a)
             ioff2=ioff2+npar
         END DO
         ! store column of L
-        ioff3=(k-1)*ncon
+        ioff3=INT(k-1,mpl)*INT(ncon,mpl)
         matL(ioff3+k:ioff3+ncon)=matV(ioff1+kn:ioff1+npar)
         ! store normal vector
         matV(ioff1+1:ioff1+kn)=vecN(1:kn)
@@ -217,7 +217,6 @@ SUBROUTINE qldecb(a,bpar,bcon)
     INTEGER(mpi) :: kn
     INTEGER(mpi) :: ncb
     INTEGER(mpi) :: npb
-    INTEGER(mpl) :: length
     REAL(mpd) :: nrm
     REAL(mpd) :: sp
 
@@ -228,7 +227,6 @@ SUBROUTINE qldecb(a,bpar,bcon)
 
     !$POMP INST BEGIN(qldecb)
     ! prepare 
-    length=npar*ncon
     matV=0.0_mpd
     matL=0.0_mpd
 
@@ -275,8 +273,8 @@ SUBROUTINE qldecb(a,bpar,bcon)
             ! index of last element
             ilast=min(bcon(3,ibcon),kn)
             ! column offsets
-            ioff1=(k-1)*npar
-            ioff2=(k1-1)*npar
+            ioff1=INT(k-1,mpl)*INT(npar,mpl)
+            ioff2=INT(k1-1,mpl)*INT(npar,mpl)
             ! get column
             vecN(kn)=0.0_mpd
             vecN(ifirst:ilast)=matV(ioff1+ifirst:ioff1+ilast)
@@ -314,7 +312,7 @@ SUBROUTINE qldecb(a,bpar,bcon)
             END IF
             
             ! store column of L
-            ioff3=(k-1)*ncon
+            ioff3=INT(k-1,mpl)*INT(ncon,mpl)
             matL(ioff3+k-icoff:ioff3+iclast-icoff)=matV(ioff1+kn:ioff1+iplast)
             ! store normal vector
             matV(ioff1+1:ioff1+npar)=0.0_mpd
@@ -374,7 +372,7 @@ SUBROUTINE qlmlq(x,m,t)
         IF (t) k=nconb+1-j
         kn=nparb+k-nconb
         ! column offset
-        ioff1=(k-1+icoff)*npar
+        ioff1=INT(k-1+icoff,mpl)*INT(npar,mpl)
         ! transformation
         ioff2=0
         DO i=1,m
@@ -418,7 +416,7 @@ SUBROUTINE qlmrq(x,m,t)
         IF (.not.t) k=ncon+1-j
         kn=npar+k-ncon
         ! column offset
-        ioff1=(k-1)*npar
+        ioff1=INT(k-1,mpl)*INT(npar,mpl)
         ! transformation
         iend=m*kn
         DO i=1,npar
@@ -462,9 +460,9 @@ SUBROUTINE qlsmq(x,t)
         IF (t) k=ncon+1-j
         kn=npar+k-ncon
         ! column offset
-        ioff1=(k-1)*npar
+        ioff1=INT(k-1,mpl)*INT(npar,mpl)
         ! transformation
-        iend=npar*kn
+        iend=INT(npar,mpl)*INT(kn,mpl)
         DO i=1,npar
             sp=dot_product(matV(ioff1+1:ioff1+kn),x(i:iend:npar))
             x(i:iend:npar)=x(i:iend:npar)-2.0_mpd*matV(ioff1+1:ioff1+kn)*sp
@@ -544,7 +542,7 @@ SUBROUTINE qlssq(aprod,A,roff,t)
             IF (t) k=nconb+1-j
             kn=nparb+k-nconb
             ! column offset
-            ioff1=(k-1+icoff)*npar
+            ioff1=INT(k-1+icoff,mpl)*INT(npar,mpl)
             ! A*v
             CALL aprod(nparb,ioffp,matV(ioff1+1:ioff1+nparb),Av(1:nparb))
             ! transformation
@@ -633,8 +631,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
     END INTERFACE
     !$POMP INST BEGIN(qlpssq)
 
-    length=npar
-    length=npar*ncon
+    length=INT(npar,mpl)*INT(ncon,mpl)
     CALL mpalloc(Av,length,'qlpssq: Av')
 
     mbnd=max(0,m-1) ! band width without diagonal
@@ -652,7 +649,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
         IF (t) k=ncon+1-j
         kn=npar+k-ncon
         ! column offset
-        ioff1=(k-1)*npar
+        ioff1=INT(k-1,mpl)*INT(npar,mpl)
         ! redion offset
         ioffr=(k-1)*5
         ! transformation (diagonal block)
@@ -680,7 +677,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
         DO j2=j+1,ncon
             k2=j2
             IF (t) k2=ncon+1-j2
-            ioff2=(k2-1)*npar
+            ioff2=INT(k2-1,mpl)*INT(npar,mpl)
             ! loop over non-zero regions
             vtvp=0._mpd
             vtAvp=0._mpd
@@ -737,7 +734,7 @@ SUBROUTINE qlgete(emin,emax)
     DO ibpar=1,nblock ! parameter block
         icoff=ioffBlock(ibpar) ! constraint offset in parameter block
         iclast=ioffBlock(ibpar+1) ! last constraint in parameter block
-        idiag=ncon*icoff+1
+        idiag=INT(ncon,mpl)*INT(icoff,mpl)+1
         DO i=icoff+1,iclast
             IF (ABS(emax) < ABS(matL(idiag))) emax=matL(idiag)
             IF (ABS(emin) > ABS(matL(idiag))) emin=matL(idiag)
@@ -772,7 +769,7 @@ SUBROUTINE qlbsub(d,y)
     icoff=ioffBlock(iblock) ! constraint offset in parameter block
     iclast=ioffBlock(iblock+1) ! last constraint in parameter block
     nconb=iclast-icoff ! number of constraints in block
-    idiag=ncon*(iclast-1)+nconb
+    idiag=INT(ncon,mpl)*INT(iclast-1,mpl)+nconb
     DO k=nconb,1,-1
         y(k)=(d(k)-dot_product(matL(idiag+1:idiag+nconb-k),y(k+1:nconb)))/matL(idiag)
         idiag=idiag-ncon-1
