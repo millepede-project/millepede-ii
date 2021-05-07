@@ -156,6 +156,7 @@ MODULE mpmod
     INTEGER(mpi) :: ndefec=0 !< rank deficit for global matrix (from inversion)
     INTEGER(mpi) :: nmiss1=0 !< rank deficit for constraints
     INTEGER(mpi) :: nalow=0 !< (sum of) global parameters with too few accepted entries
+    INTEGER(mpi) :: nxlow=0 !< (max of) global parameters with too few accepted entries for icalcm=1
     INTEGER(mpi) :: lcalcm !< last calclation mode
     INTEGER(mpi) :: nspc=1 !< number of precision for sparse global matrix (1=D, 2=D+F)
     INTEGER(mpi) :: nencdb !< encoding info (number bits for column counter)

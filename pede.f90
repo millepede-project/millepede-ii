@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-09-01 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-09-02 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -1615,8 +1615,8 @@ SUBROUTINE feasma
                 DO j=1,i
                     ij=ij+1
                     matConsProduct(ij)=matConsProduct(ij)+ &                     
-                                       matConstraintsT(INT(i-1,mpl)*INT(npar,mpl)+ll)* &
-                                       matConstraintsT(INT(j-1,mpl)*INT(npar,mpl)+ll)
+                        matConstraintsT(INT(i-1,mpl)*INT(npar,mpl)+ll)* &
+                        matConstraintsT(INT(j-1,mpl)*INT(npar,mpl)+ll)
                 END DO
             END DO
         END DO
@@ -2880,6 +2880,7 @@ SUBROUTINE loopn
     END DO
     IF(nlow > 0) THEN
         nalow=nalow+nlow
+        IF(icalcm == 1) nxlow=max(nxlow,nlow) ! for matrix construction ?
         itgbi=globalParVarToTotal(ilow)
         print *
         print *, " ... warning ..." 
@@ -4558,6 +4559,7 @@ SUBROUTINE prtglo
     INTEGER(mpi) :: label
     INTEGER(mpi) :: lup
     REAL(mps):: par
+    LOGICAL :: lowstat
 
     REAL(mpd):: diag
     REAL(mpd)::gmati
@@ -4587,8 +4589,10 @@ SUBROUTINE prtglo
         ivgbi=globalParLabelIndex(2,itgbi)
         par=REAL(globalParameter(itgbi),mps)      ! initial value
         icount=0 ! counts
+        lowstat = .False.
         IF(ivgbi > 0) THEN
             icount=globalCounter(ivgbi) ! used in last iteration
+            lowstat = (icount < mreqena) ! to few accepted entries
             dpa=REAL(globalParameter(itgbi)-globalParStart(itgbi),mps)       ! difference
             IF(ALLOCATED(workspaceDiag)) THEN ! provide parameter errors?
                 gmati=globalMatD(globalRowOffsets(ivgbi)+ivgbi)
@@ -4603,6 +4607,7 @@ SUBROUTINE prtglo
             END IF
         END IF
         IF(ipcntr > 1) icount=globalParCounts(itgbi) ! from binary files 
+        IF(lowstat) icount=-(icount+1) ! flag 'lowstat' with icount < 0
         IF(itgbi <= iprlim) THEN
             IF(ivgbi <= 0) THEN
                 WRITE(*  ,102) itgbl,par,REAL(globalParPreSigma(itgbi),mps)
@@ -7176,8 +7181,7 @@ SUBROUTINE loop2
 105 FORMAT(' Constants C1, C2 for Wolfe conditions:',g12.4,', ',g12.4)
 
     !     prepare matrix and gradient storage ------------------------------
-32 CONTINUE
-    matsiz=0                  ! number of words for double, single precision storage
+32  matsiz=0                  ! number of words for double, single precision storage
     IF (matsto == 2) THEN     ! sparse matrix
         matsiz(1)=ndimsa(3)+nagb
         matsiz(2)=ndimsa(4)
@@ -7883,7 +7887,7 @@ SUBROUTINE mdutrf
         IF(ilperr == 1) THEN
             ! save diagonal (for global correlation)
             DO i=1,nagb
-               workspaceDiag(i)=matij(i,i)
+                workspaceDiag(i)=matij(i,i)
             END DO
         END IF
         ! use elimination for constraints ?
@@ -7916,7 +7920,7 @@ SUBROUTINE mdutrf
             IF(infolp /= 0) PRINT *, ' DTRTRS failed: ', infolp
             ! transform, reduce rhs, Q^t*b
             CALL dormql('L','T',INT(npar,mpl),1_mpl,INT(ncon,mpl),lapackQL(iloff+1:),INT(npar,mpl),&
-                       lapackTAU(icoff+1:),globalCorrections(ipoff+1:),INT(npar,mpl),lapackWORK,lplwrk,infolp)
+                lapackTAU(icoff+1:),globalCorrections(ipoff+1:),INT(npar,mpl),lapackWORK,lplwrk,infolp)
             IF(infolp /= 0) PRINT *, ' DORMQL failed: ', infolp
             ! correction from eliminated part
             DO i=1,nfit
@@ -7937,7 +7941,7 @@ SUBROUTINE mdutrf
                 END IF
                 !$POMP INST BEGIN(dsytrf)
                 CALL dsytrf('U',INT(nfit,mpl),globalMatD(imoff+1:),INT(nfit,mpl),&
-                           lapackIPIV(ipoff+1:),lapackWORK,lplwrk,infolp)
+                    lapackIPIV(ipoff+1:),lapackWORK,lplwrk,infolp)
                 !$POMP INST END(dsytrf)
                 IF(monpg1 > 0) CALL monend()
             ELSE
@@ -7986,7 +7990,7 @@ SUBROUTINE mdutrf
             globalCorrections(nfit+1+ipoff:npar+ipoff)=vecConsSolution(1:ncon)
             ! extend, transform back solution, Q*x
             CALL dormql('L','N',INT(npar,mpl),1_mpl,INT(ncon,mpl),lapackQL(iloff+1:),INT(npar,mpl),&
-                       lapackTAU(icoff+1:),globalCorrections(ipoff+1:),INT(npar,mpl),lapackWORK,lplwrk,infolp)
+                lapackTAU(icoff+1:),globalCorrections(ipoff+1:),INT(npar,mpl),lapackWORK,lplwrk,infolp)
             IF(infolp /= 0) PRINT *, ' DORMQL failed: ', infolp
         END IF
         iloff=iloff+INT(npar,mpl)*INT(ncon,mpl)
@@ -8091,7 +8095,7 @@ SUBROUTINE lpqldec(a,emin,emax)
         CALL mpalloc(lapackWORK, lplwrk,'LAPACK WORK array (d)')
         !$POMP INST BEGIN(dgeqlf)
         CALL dgeqlf(INT(npar,mpl),INT(ncon,mpl),lapackQL(iloff+1:),INT(npar,mpl),&
-                   lapackTAU(icoff+1:),lapackWORK,lplwrk,infolp)
+            lapackTAU(icoff+1:),lapackWORK,lplwrk,infolp)
         IF(infolp /= 0) PRINT *, ' DGEQLF failed: ', infolp
         !$POMP INST END(dgeqlf)
         CALL mpdealloc(lapackwork)
@@ -8171,13 +8175,13 @@ SUBROUTINE lpavat(t)
         ENDDO
         ! A*Q
         CALL dormql('R',transr,int(npar,mpl),int(npar,mpl),int(ncon,mpl),lapackQL(iloff+1:),&
-                   INT(npar,mpl),lapackTAU(icoff+1:),globalMatD(imoff+1:),int(npar,mpl),&
-                   lapackWORK,lplwrk,infolp)
+            INT(npar,mpl),lapackTAU(icoff+1:),globalMatD(imoff+1:),int(npar,mpl),&
+            lapackWORK,lplwrk,infolp)
         IF(infolp /= 0) PRINT *, ' DORMQL failed: ', infolp
         ! Q^t*(A*Q)
         CALL dormql('L',transl,int(npar,mpl),int(npar,mpl),int(ncon,mpl),lapackQL(iloff+1:),&
-                   INT(npar,mpl),lapackTAU(icoff+1:),globalMatD(imoff+1:),int(npar,mpl),&
-                   lapackWORK,lplwrk,infolp)
+            INT(npar,mpl),lapackTAU(icoff+1:),globalMatD(imoff+1:),int(npar,mpl),&
+            lapackWORK,lplwrk,infolp)
         IF(infolp /= 0) PRINT *, ' DORMQL failed: ', infolp
         !$POMP INST END(dormql)
 
@@ -9133,7 +9137,7 @@ SUBROUTINE xloopn                !
                     ELSE
                         !$POMP INST BEGIN(dsytri)
                         CALL dsytri('U',INT(nfit,mpl),globalMatD(imoff+1:),INT(nfit,mpl),&
-                                   lapackIPIV(ipoff+1:),WorkSpaceD,infolp)
+                            lapackIPIV(ipoff+1:),WorkSpaceD,infolp)
                         IF(infolp /= 0) PRINT *, ' DSYTRI failed: ', infolp
                         !$POMP INST END(dsytri)
                         IF(monpg1 > 0) CALL monend()
@@ -9304,13 +9308,21 @@ SUBROUTINE xloopn                !
             WRITE(*,*) '        => please check constraint definition, mille data'
         END IF
 
-        IF(nalow /= 0) THEN
+        IF(nxlow /= 0) THEN
             WRITE(*,199) ' '
-            WRITE(*,*) '        Possible rank defects =',nalow,  &
-                '  for global vector (too few entries)'
+            WRITE(*,*) '        Possible rank defects =',nxlow, ' for global matrix'
+            WRITE(*,*) '        (to few accepted entries)'
             WRITE(*,*) '        => please check mille data and ENTRIES cut'
         END IF
-
+            
+        IF(nalow /= 0) THEN
+            WRITE(*,199) ' '
+            WRITE(*,*) '        Possible bad elements =',nalow, ' in global vector'
+            WRITE(*,*) '        (to few accepted entries)'
+            IF(ipcntr > 0) WRITE(*,*) '        (indicated in millepede.res by counts<0)'
+            WRITE(*,*) '        => please check mille data and ENTRIES cut'
+        END IF
+        
         IF(nrderr /= 0) THEN
             WRITE(*,199) ' '
             WRITE(*,*) '        Binary file(s) with read errors =',nrderr, ' (treated as EOF)'
@@ -9999,9 +10011,9 @@ SUBROUTINE filetx ! ---------------------------------------------------
     !        MATSTO=2 or 1
 #ifdef LAPACK64
     ELSE IF(metsol == 7) THEN   ! if LAPACK
-           matsto=1
+        matsto=1
     ELSE IF(metsol == 8) THEN   ! if LAPACK
-           matsto=0
+        matsto=0
 #endif    
     ELSE
         WRITE(*,*) 'MINRES forced with sparse matrix!'
