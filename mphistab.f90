@@ -9,7 +9,7 @@
 !! \author Claus Kleinwort, DESY (maintenance and developement)
 !!
 !! \copyright
-!! Copyright (c) 2009 - 2015 Deutsches Elektronen-Synchroton,
+!! Copyright (c) 2009 - 2021 Deutsches Elektronen-Synchroton,
 !! Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 !! This library is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU Library General Public License as
@@ -71,7 +71,7 @@
 !!
 !!     Storage manager for GMP...
 !!
-!!      CALL STMARS                 !! init/reset  storage manager
+!!      CALL STMARS(NDIM)           !! init/reset  storage manager, partially dynamic
 !!
 !!      CALL STMAPR(JFLC,X,Y)       !! store pair (X,Y)
 !!
@@ -612,7 +612,7 @@ SUBROUTINE gmpdef(ig,ityp,text)            ! book, reset XY storage
     REAL(mps) ::four(4)
     EQUIVALENCE (array(1,1),array4(1,1),array1(1))
     INTEGER(mpi), PARAMETER :: numgxy=10
-    INTEGER(mpi), PARAMETER :: nlimit=500
+    INTEGER(mpi) :: nlimit=500
     INTEGER(mpi) :: nstr(numgxy)
     INTEGER(mpi) ::igtp(numgxy)
     INTEGER(mpi) ::lvers(numgxy)
@@ -634,7 +634,9 @@ SUBROUTINE gmpdef(ig,ityp,text)            ! book, reset XY storage
     !     ...
     IF(start) THEN
         start=.FALSE.
-        CALL stmars    ! initialize storage
+        ! dummy call to increase nlimit ?
+        if(ig == 0) nlimit = max(nlimit, ityp)
+        CALL stmars(nlimit*numgxy)    ! initialize storage
         DO i=1,numgxy
             DO j=1,5
                 jflc(j,i)=0
@@ -907,7 +909,7 @@ SUBROUTINE gmpdef(ig,ityp,text)            ! book, reset XY storage
 END SUBROUTINE gmpdef
 
 
-SUBROUTINE stmars                          ! init/reset  storage
+SUBROUTINE stmars(ndim)                          ! init/reset  storage
     USE mpdef
 
     IMPLICIT NONE
@@ -920,9 +922,9 @@ SUBROUTINE stmars                          ! init/reset  storage
     INTEGER(mpi) :: n
     REAL(mps) :: x
     REAL(mps) :: y
-    INTEGER(mpi), PARAMETER :: ndim=5000   ! storage dimension, should be NUMGXY*NLIMIT
-    REAL(mps) :: tk(2,ndim)    ! pair storage for data pairs
-    INTEGER(mpi) :: next(ndim)    ! pointer
+    INTEGER(mpi) :: ndim   ! storage dimension, should be NUMGXY*NLIMIT
+    REAL(mps), DIMENSION(:,:), ALLOCATABLE :: tk    ! pair storage for data pairs
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: next    ! pointer
     INTEGER(mpi) :: iflc1     ! first and last index of free pairs
     INTEGER(mpi) ::iflc2     ! first and last index of free pairs
     SAVE
@@ -936,6 +938,10 @@ SUBROUTINE stmars                          ! init/reset  storage
     !     JFLC(4) = counter of ignored
     !     JFLC(5) = limit for JFLC(3)
     !     ...
+    !print *, ' stmars ndim ', ndim
+    ALLOCATE (tk(2,ndim))
+    ALLOCATE (next(ndim))
+    
     DO i=1,ndim
         next(i)=i+1   ! pointer to next free location
         tk(1,i)=0.0   ! reset

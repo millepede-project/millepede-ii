@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-09-02 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-09-03 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -724,6 +724,8 @@ PROGRAM mptwo
 
     CALL filetc   ! command line and steering file analysis
     CALL filetx   ! read text files
+    ! dummy call for dynamic memory allocation
+    CALL gmpdef(0,nfilb,'dummy call')
 
     IF (icheck > 0) THEN
         WRITE(*,*) '!!!   Checking input only, no calculation of a solution   !!!'
