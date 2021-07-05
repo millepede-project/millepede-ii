@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-09-03 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-09-04 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -133,6 +133,8 @@
 !! * 210301: New solution methods \ref ch-lapack "fullLAPACK" and \ref ch-lapack "unpackedLAPACK"
 !!   (matrix factorization) based on [LAPACK](http://www.netlib.org/lapack/) can be included optionally
 !!   (at compile time, <tt>-DLAPACK64=..</tt>).
+!! * 210704: Exploit decomposition of constraints matrix into disjoint blocks for MINRES preconitioner
+!!   (with Lagrange multipliers) too.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -1410,9 +1412,13 @@ SUBROUTINE prpcon
     IF (nvar == 0 .AND. iskpec > 0) newlen=lastlen
     lenConstraints=newlen
 
-    IF (ncgbe > 0 .AND. iskpec > 0) THEN
-        WRITE(*,*) 'PRPCON:',ncgbe,' empty constraints skipped'
-        ncgb=ncgb-ncgbe
+    IF (ncgbe > 0) THEN
+        IF (iskpec > 0) THEN
+            WRITE(*,*) 'PRPCON:',ncgbe,' empty constraints skipped'
+            ncgb=ncgb-ncgbe
+        ELSE
+            WRITE(*,*) 'PRPCON:',ncgbe,' empty constraints detected, to be fixed !!!'
+        END IF     
     END IF
     IF (ncgbw == 0) THEN
         WRITE(*,*) 'PRPCON:',ncgb,' constraints accepted'
@@ -2775,7 +2781,7 @@ SUBROUTINE loopn
     IF(icalcm == 1) THEN
         globalMatD=0.0_mpd
         globalMatF=0.
-        IF (metsol >= 4.AND.metsol < 7) matPreCond=0.0_mpd
+        IF (metsol >= 4.AND.metsol < 7.AND.mbandw >= 0) matPreCond=0.0_mpd
     END IF
 
     IF(nloopn == 2) CALL hmpdef(6,0.0,0.0,'Down-weight fraction')
@@ -2865,8 +2871,6 @@ SUBROUTINE loopn
                 END DO
             END IF
         END IF   
-        ! fill second half (j>i) of global matric for extended storage
-        IF (mextnd > 0) CALL mhalf2()
     END IF
 
     ! check entries/counters
@@ -3373,28 +3377,26 @@ SUBROUTINE mupdat(i,j,add)       !
         ij=globalRowOffsets(ia)+ja
         globalMatD(ij)=globalMatD(ij)+add
     END IF
-    IF(metsol >= 4.AND.metsol < 7) THEN
-        IF(mbandw > 0) THEN     ! for Cholesky decomposition
-            IF(ia <= nvgb) THEN   ! variable global parameter
+    ! MINRES preconditioner
+    IF(metsol >= 4.AND.metsol < 7.AND.mbandw >= 0) THEN
+        ij=0 ! no update
+        IF(ia <= nvgb) THEN     ! variable global parameter
+            IF(mbandw > 0) THEN ! band matrix for Cholesky decomposition
                 ij=indPreCond(ia)-ia+ja
                 IF(ia > 1.AND.ij <= indPreCond(ia-1)) ij=0
-                IF(ij /= 0) matPreCond(ij)=matPreCond(ij)+add
-                IF(ij < 0.OR.ij > size(matPreCond)) THEN
-                    CALL peend(23,'Aborted, bad matrix index')
-                    STOP 'mupdat: bad index'
-                END IF
-            ELSE                  ! Lagrange multiplier
-                ij=indPreCond(nvgb)+(ia-nvgb-1)*nvgb+ja
-                IF(ij /= 0) matPreCond(ij)=matPreCond(ij)+add
-            END IF
-        ELSE IF(mbandw == 0) THEN      ! default preconditioner
-            IF(ia <= nvgb) THEN   ! variable global parameter
-                IF(ja == ia) matPreCond(ia)=matPreCond(ia)+add ! diag
-            ELSE                  ! Lagrange multiplier
-                ij=nvgb+(ia-nvgb-1)*nvgb+ja
-                IF(ij /= 0) matPreCond(ij)=matPreCond(ij)+add
-            END IF
+            ELSE                ! default preconditioner (diagonal)
+                IF(ja == ia) ij=ia
+            END IF    
+        ELSE                    ! Lagrange multiplier
+            ij=offPreCond(ia-nvgb)+ja
         END IF
+        ! bad index?
+        IF(ij < 0.OR.ij > size(matPreCond)) THEN
+             CALL peend(23,'Aborted, bad matrix index')
+             STOP 'mupdat: bad index'
+        END IF
+        ! update?
+        IF(ij /= 0) matPreCond(ij)=matPreCond(ij)+add
     END IF
 END SUBROUTINE mupdat
 
@@ -6466,12 +6468,14 @@ SUBROUTINE loop2
         nfgb=nvgb-ncgb     ! number of fit parameters
         nprecond(1)=0      ! number of constraints for preconditioner
         nprecond(2)=nfgb   ! matrix size for preconditioner
+        nprecond(3)=0      ! number of constraint blocks for preconditioner
     ELSE                 ! Lagrange multipliers
         nagb=nvgb+ncgb     ! total number of parameters
         napgrp=nvpgrp+ncgb ! total number of parameter groups
         nfgb=nagb          ! number of fit parameters
         nprecond(1)=ncgb   ! number of constraints for preconditioner
         nprecond(2)=nvgb   ! matrix size for preconditioner
+        nprecond(3)=ncblck ! number of constraint blocks for preconditioner
     ENDIF
     noff8=INT(nagb,mpl)*INT(nagb-1,mpl)/2
     
@@ -7370,15 +7374,20 @@ SUBROUTINE vmprep(msize)
 
     IMPLICIT NONE
     INTEGER(mpi) :: i
+    INTEGER(mpi) :: ib
+    INTEGER(mpi) :: ioff
+    INTEGER(mpi) :: ipar0
     INTEGER(mpi) :: ncon
-#ifdef LAPACK64
     INTEGER(mpi) :: npar
+    INTEGER(mpi) :: nextra
+#ifdef LAPACK64
     INTEGER :: nbopt, nboptx, ILAENV
 #endif    
                          !
     INTEGER(mpl), INTENT(IN) :: msize(2)
 
     INTEGER(mpl) :: length
+    INTEGER(mpl) :: nwrdpc
     INTEGER(mpl), PARAMETER :: three = 3
     
     SAVE
@@ -7408,15 +7417,25 @@ SUBROUTINE vmprep(msize)
     CALL mpalloc(globalMatD,msize(1),'global matrix (D)' )
     CALL mpalloc(globalMatF,msize(2),'global matrix (F)')
 
-    IF(metsol >= 4.AND.metsol < 7) THEN                  ! GMRES/MINRES algorithms
+    IF(metsol >= 4.AND.metsol < 7.AND. mbandw >= 0) THEN                  ! GMRES/MINRES algorithms
         !        array space is:
         !           variable-width band matrix or diagonal matrix for parameters
-        !           followed by rectangular matrix for constraints
         !           followed by symmetric matrix for constraints
-        ncon=nagb-nvgb
-        IF(mbandw > 0) THEN               ! variable-width band matrix
+        !           followed by rectangular matrix for constraints
+        nwrdpc=0
+        ncon=nagb-nvgb ! number of Lagrange multipliers
+        ! constraint block info        
+        IF(ncon > 0) THEN
+            length=4*ncblck
+            CALL mpalloc(blockPreCond,length,'preconditioner: constraint blocks')
+            length=ncon
+            CALL mpalloc(offPreCond,length,'preconditioner: constraint offsets')                       
+        END IF
+        ! variable-width band matrix ?
+        IF(mbandw > 0) THEN               
             length=nagb
             CALL mpalloc(indPreCond,length,'pointer-array variable-band matrix')
+            nwrdpc=nwrdpc+length
             DO i=1,MIN(mbandw,nvgb)
                 indPreCond(i)=(i*i+i)/2           ! increasing number
             END DO
@@ -7426,12 +7445,48 @@ SUBROUTINE vmprep(msize)
             DO i=nvgb+1,nagb                ! reset
                 indPreCond(i)=0
             END DO
-            length=indPreCond(nvgb)+ncon*nvgb+(ncon*ncon+ncon)/2
-            CALL mpalloc(matPreCond,length,'variable-band matrix')
-        ELSE                               ! default preconditioner
-            length=nvgb+ncon*nvgb+(ncon*ncon+ncon)/2
+        END IF
+        ! symmetric part
+        length=(ncon*ncon+ncon)/2
+        ! add 'band' part
+        IF(mbandw > 0) THEN               ! variable-width band matrix
+            length=length+indPreCond(nvgb)
+        ELSE                              ! default preconditioner (diagonal)
+            length=length+nvgb
+        END IF
+        ! add rectangular part (compressed, constraint blocks)
+        IF(ncon > 0) THEN
+            ioff=0
+            ! extra space (for forward solution in EQUDEC)
+            nextra=max(0,mbandw-1)
+            DO ib=1,ncblck
+                ! first constraint in block
+                blockPreCond(ioff+1)=matConsBlocks(1,ib)
+                ! last constraint in block     
+                blockPreCond(ioff+2)=matConsBlocks(1,ib+1)-1 
+                ! parameter offset
+                ipar0=matConsBlocks(2,ib)-1
+                blockPreCond(ioff+3)=ipar0
+                ! number of parameters (-> columns)  
+                npar=matConsBlocks(3,ib)-ipar0
+                blockPreCond(ioff+4)=npar+nextra
+                DO i=blockPreCond(ioff+1),blockPreCond(ioff+2)
+                    offPreCond(i)=length-ipar0
+                    length=length+npar+nextra 
+                END DO
+                ioff=ioff+4
+            END DO
+        END IF
+        ! allocate
+        IF(mbandw > 0) THEN
+            CALL mpalloc(matPreCond,length,'variable-band preconditioner matrix')
+        ELSE
             CALL mpalloc(matPreCond,length,'default preconditioner matrix')
         END IF
+        nwrdpc=nwrdpc+2*length
+        IF (nwrdpc > 250000) &
+            WRITE(*,*) 'Size of preconditioner matrix:',INT(REAL(nwrdpc,mps)*4.0E-6,mpi),' MB'
+
     END IF
 
 
@@ -7449,6 +7504,10 @@ SUBROUTINE vmprep(msize)
     END IF
 
     IF(metsol == 2) THEN
+        IF(nagb>46300) THEN
+            CALL peend(23,'Aborted, bad matrix index (will exceed 32bit)')
+            STOP 'vmprep: bad index (matrix to large for diagonalization)'
+        END IF
         CALL mpalloc(workspaceDiag,length,'diagonal of global matrix')  ! double aux 1
         CALL mpalloc(workspaceDiagonalization,length,'auxiliary array (D3)')  ! double aux 3
         CALL mpalloc(workspaceEigenValues,length,'auxiliary array (D6)')  ! double aux 6
@@ -8424,17 +8483,23 @@ SUBROUTINE mminrs
     IF(mbandw == 0) THEN           ! default preconditioner
         IF(icalcm == 1) THEN
             IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,1,.true.) ! transform preconditioner matrix
-            CALL precon(nprecond(1),nprecond(2),matPreCond,matPreCond, matPreCond(1+nvgb),  &
-                matPreCond(1+nvgb+ncgb*nvgb),nrkd)
+            IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
+            WRITE(lun,*) 'MMINRS: PRECONS started', nprecond(2), nprecond(1)
+            CALL precons(nprecond(1),nprecond(2),nprecond(3),matPreCond,matPreCond, &
+                matPreCond(1+nvgb+(nprecond(1)*(nprecond(1)+1))/2),blockPreCond,matPreCond(1+nvgb),nrkd)
+            WRITE(lun,*) 'MMINRS: PRECONS ended  ', nrkd
+            IF(monpg1 > 0) CALL monend()                
         END IF
         CALL minres(nfgb,  avprod, mcsolv, workspaceD, shift, checka ,.TRUE. , &
             globalCorrections, itnlim, nout, rtol, istop, itn, anorm, acond, rnorm, arnorm, ynorm)
     ELSE IF(mbandw > 0) THEN                          ! band matrix preconditioner
         IF(icalcm == 1) THEN
             IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,mbandw,.true.) ! transform preconditioner matrix
-            WRITE(lun,*) 'MMINRS: EQUDEC started', nprecond(2), nprecond(1)
-            CALL equdec(nprecond(2),nprecond(1),lprecm,matPreCond,indPreCond,nrkd,nrkd2)
-            WRITE(lun,*) 'MMINRS: EQUDEC ended  ', nrkd, nrkd2
+            IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
+            WRITE(lun,*) 'MMINRS: EQUDECS started', nprecond(2), nprecond(1)
+            CALL equdecs(nprecond(2),nprecond(1),nprecond(3),lprecm,matPreCond,indPreCond,blockPreCond,nrkd,nrkd2)
+            WRITE(lun,*) 'MMINRS: EQUDECS ended  ', nrkd, nrkd2
+            IF(monpg1 > 0) CALL monend()            
         END IF
         CALL minres(nfgb,  avprod, mvsolv, workspaceD, shift, checka ,.TRUE. , &
             globalCorrections, itnlim, nout, rtol, istop, itn, anorm, acond, rnorm, arnorm, ynorm)
@@ -8518,8 +8583,12 @@ SUBROUTINE mminrsqlp
     IF(mbandw == 0) THEN           ! default preconditioner
         IF(icalcm == 1) THEN
             IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,1,.true.) ! transform preconditioner matrix
-            CALL precon(nprecond(1),nprecond(2),matPreCond,matPreCond, matPreCond(1+nvgb),  &
-                matPreCond(1+nvgb+ncgb*nvgb),nrkd)
+            IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
+            WRITE(lun,*) 'MMINRS: PRECONS started', nprecond(2), nprecond(1)
+            CALL precons(nprecond(1),nprecond(2),nprecond(3),matPreCond,matPreCond, &
+                matPreCond(1+nvgb+(nprecond(1)*(nprecond(1)+1))/2),blockPreCond,matPreCond(1+nvgb),nrkd)
+            WRITE(lun,*) 'MMINRS: PRECONS ended  ', nrkd
+            IF(monpg1 > 0) CALL monend()
         END IF
         CALL minresqlp( n=nfgb, Aprod=avprod, b=workspaceD,  Msolve=mcsolv, nout=nout, &
             itnlim=itnlim, rtol=rtol, maxxnorm=mxxnrm, trancond=trcond, &
@@ -8527,9 +8596,11 @@ SUBROUTINE mminrsqlp
     ELSE IF(mbandw > 0) THEN                          ! band matrix preconditioner
         IF(icalcm == 1) THEN
             IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,mbandw,.true.) ! transform preconditioner matrix
-            WRITE(lun,*) 'MMINRS: EQUDEC started', nprecond(2), nprecond(1)
-            CALL equdec(nprecond(2),nprecond(1),lprecm,matPreCond,indPreCond,nrkd,nrkd2)
-            WRITE(lun,*) 'MMINRS: EQUDEC ended  ', nrkd, nrkd2
+            IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
+            WRITE(lun,*) 'MMINRS: EQUDECS started', nprecond(2), nprecond(1)
+            CALL equdecs(nprecond(2),nprecond(1),nprecond(3),lprecm,matPreCond,indPreCond,blockPreCond,nrkd,nrkd2)
+            WRITE(lun,*) 'MMINRS: EQUDECS ended  ', nrkd, nrkd2
+            IF(monpg1 > 0) CALL monend()
         END IF
 
         CALL minresqlp( n=nfgb, Aprod=avprod, b=workspaceD,  Msolve=mvsolv, nout=nout, &
@@ -8573,7 +8644,8 @@ SUBROUTINE mcsolv(n,x,y)         !  solve M*y = x
     REAL(mpd), INTENT(OUT) :: y(n)
     SAVE
     !     ...
-    CALL presol(nprecond(1),nprecond(2),matPreCond,matPreCond(1+nvgb),matPreCond(1+nvgb+ncgb*nvgb),y,x)
+    CALL presols(nprecond(1),nprecond(2),nprecond(3),matPreCond, &
+        matPreCond(1+nvgb+(nprecond(1)*(nprecond(1)+1))/2),blockPreCond,matPreCond(1+nvgb),y,x)   
 END SUBROUTINE mcsolv
 
 !> Solution for finite band width preconditioner.
@@ -8597,7 +8669,7 @@ SUBROUTINE mvsolv(n,x,y)         !  solve M*y = x
     !     ...
     y=x                    ! copy to output vector
 
-    CALL equslv(nprecond(2),nprecond(1),matPreCond,indPreCond,y)
+    CALL equslvs(nprecond(2),nprecond(1),nprecond(3),matPreCond,indPreCond,blockPreCond,y)
 END SUBROUTINE mvsolv
 
 
@@ -8924,6 +8996,8 @@ SUBROUTINE xloopn                !
                 CALL peend(26,'Aborted, too many rejects')
                 STOP
             END IF
+            ! fill second half (j>i) of global matrix for extended storage, experimental
+            IF (icalcm == 1.AND.mextnd > 0)  CALL mhalf2()
         END IF
           !     Block 2: new iteration with calculation of solution --------------
         IF(ABS(icalcm) == 1) THEN    ! ICALCM = +1 & -1
@@ -8934,6 +9008,7 @@ SUBROUTINE xloopn                !
                 itgbi=globalParVarToTotal(i)
                 workspaceLinesearch(i)=globalParameter(itgbi)  ! copy X for line search
             END DO
+
             iterat=iterat+1                  ! increase iteration count
             IF(metsol == 1) THEN
                 CALL minver                   ! inversion

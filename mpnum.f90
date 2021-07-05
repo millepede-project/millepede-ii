@@ -2250,6 +2250,49 @@ SUBROUTINE lltfwd(n,c,india,x)
     RETURN
 END SUBROUTINE lltfwd
 
+!> Forward solution (sparse).
+!! CHK, June 2021
+!!
+!! The matrix equation  A X = B  is solved by forward + backward
+!! solution. The matrix is assumed to
+!! decomposed before using LLTDEC. The array X(N) contains on entry
+!! the right-hand-side B(N); at return it contains the solution.
+!!
+!! \param [in]      n      size of matrix
+!! \param [in,out]  c      decomposed variable-band matrix
+!! \param [in]      india  pointer array
+!! \param [in,out]  x      r.h.s vector B, replaced by solution vector X
+!! \param [in]      i0     offset of non zero region in x
+!! \param [in]      ns     size of non zero region in x
+
+SUBROUTINE lltfwds(n,c,india,x,i0,ns)
+    USE mpdef
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: j
+    INTEGER(mpi) :: k
+    INTEGER(mpi) :: l
+
+    INTEGER(mpi), INTENT(IN)              :: n
+    REAL(mpd), INTENT(IN)     :: c(*)
+    INTEGER(mpi), INTENT(IN)              :: india(n)
+    REAL(mpd), INTENT(IN OUT) :: x(n)
+    INTEGER(mpi), INTENT(IN)              :: i0
+    INTEGER(mpi), INTENT(IN)              :: ns
+
+    DO k=1,ns                       ! forward loop
+        l=k+i0
+        IF (l>1) THEN
+            DO j=max(1,k-india(l)+india(l-1)+1),k-1
+                x(k)=x(k)-c(india(l)-k+j)*x(j)  ! X_k := X_k - L_kj * B_j
+            END DO ! J
+        END IF
+        x(k)=x(k)*c(india(l))
+    END DO ! K
+    
+    RETURN
+END SUBROUTINE lltfwds
+
 !> Backward solution.
 !!
 !! The matrix equation  A X = B  is solved by forward + backward
@@ -2308,8 +2351,9 @@ SUBROUTINE equdec(n,m,ls,c,india,nrkd,nrkd2)
     IMPLICIT NONE
     INTEGER(mpi) :: i
     INTEGER(mpi) :: j
-    INTEGER(mpi) :: jk
+    INTEGER(mpl) :: jk
     INTEGER(mpi) :: k
+    INTEGER(mpl) :: nn
 
     INTEGER(mpi), INTENT(IN)              :: n
     INTEGER(mpi), INTENT(IN)              :: m
@@ -2323,21 +2367,22 @@ SUBROUTINE equdec(n,m,ls,c,india,nrkd,nrkd2)
 
     nrkd=0
     nrkd2=0
+    nn=n
     
     CALL lltdec(n,c,india,nrkd,ls)             ! decomposition G G^T
     
     IF (m>0) THEN
         DO i=1,m
-            CALL lltfwd(n,c,india,c(india(n)+(i-1)*n+1)) ! forward solution K
+            CALL lltfwd(n,c,india,c(india(n)+INT(i-1,mpl)*nn+1)) ! forward solution K
         END DO
 
-        jk=india(n)+n*m
+        jk=india(n)+nn*INT(m,mpl)
         DO j=1,m
             DO k=1,j
                 jk=jk+1
                 c(jk)=0.0_mpd                                 ! product K K^T
                 DO i=1,n
-                    c(jk)=c(jk)+c(india(n)+(j-1)*n+i)*c(india(n)+(k-1)*n+i)
+                    c(jk)=c(jk)+c(india(n)+INT(j-1,mpl)*nn+i)*c(india(n)+INT(k-1,mpl)*nn+i)
                 END DO
             END DO
         END DO
@@ -2346,8 +2391,7 @@ SUBROUTINE equdec(n,m,ls,c,india,nrkd,nrkd2)
         DO i=2,m
             india(n+i)=india(n+i-1)+MIN(i,m)              ! pointer for K K^T
         END DO
-
-        CALL lltdec(m,c(india(n)+n*m+1),india(n+1),nrkd2,0)  ! decomp. H H^T
+        CALL lltdec(m,c(india(n)+nn*INT(m,mpl)+1),india(n+1),nrkd2,0)  ! decomp. H H^T
     ENDIF
 
     RETURN
@@ -2374,6 +2418,7 @@ SUBROUTINE equslv(n,m,c,india,x)                   ! solution vector
     IMPLICIT NONE
     INTEGER(mpi) :: i
     INTEGER(mpi) :: j
+    INTEGER(mpl) :: nn
 
     INTEGER(mpi), INTENT(IN)              :: n
     INTEGER(mpi), INTENT(IN)              :: m
@@ -2384,22 +2429,23 @@ SUBROUTINE equslv(n,m,c,india,x)                   ! solution vector
     CALL lltfwd(n,c,india,x)                           ! result is u
         
     IF (m>0) THEN
+        nn=n
         DO i=1,m
             DO j=1,n
-                x(n+i)=x(n+i)-x(j)*c(india(n)+(i-1)*n+j)         ! g - K u
+                x(n+i)=x(n+i)-x(j)*c(india(n)+INT(i-1,mpl)*nn+j)         ! g - K u
             END DO
         END DO
-        CALL lltfwd(m,c(india(n)+n*m+1),india(n+1),x(n+1)) ! result is v
+        CALL lltfwd(m,c(india(n)+nn*INT(m,mpl)+1),india(n+1),x(n+1)) ! result is v
 
 
-        CALL lltbwd(m,c(india(n)+n*m+1),india(n+1),x(n+1)) ! result is -y
+        CALL lltbwd(m,c(india(n)+nn*INT(m,mpl)+1),india(n+1),x(n+1)) ! result is -y
         DO i=1,m
             x(n+i)=-x(n+i)                                    ! result is +y
         END DO
 
         DO i=1,n
             DO j=1,m
-                x(i)=x(i)-x(n+j)*c(india(n)+(j-1)*n+i)           ! u - K^T y
+                x(i)=x(i)-x(n+j)*c(india(n)+INT(j-1,mpl)*nn+i)           ! u - K^T y
             END DO
         END DO
     ENDIF
@@ -2408,6 +2454,217 @@ SUBROUTINE equslv(n,m,c,india,x)                   ! solution vector
     
     RETURN
 END SUBROUTINE equslv
+
+!> Decomposition of (sparse) equilibrium systems.
+!! CHK, June 2021
+!!
+!!     N x N matrix C:     starting with sym.pos.def. matrix (N)
+!!     length  of array C: INDIA(N) + N*M + (M*M+M)/2
+!!     Content of array C: band matrix, as described by INDIA(1)...INDIA(N)
+!!            followed by: (M*M+M)/2 unused elements
+!!            followed by: blocks of constraint matrix A
+!!                         INDIA(N+1)...INDIA(N+M) defined internally
+!!
+!! \param [in]      n      size of symmetric matrix
+!! \param [in]      m      number of constrains
+!! \param [in]      b      number of constraint blocks
+!! \param [in]      ls     flag for skyline decomposition
+!! \param [in,out]  c      combined variable-band + constraints matrix, replaced by decomposition
+!! \param [in,out]  india  pointer array
+!! \param [in]      l      constraint (block matrix row) offsets
+!! \param [out]     nrkd   removed components
+!! \param [out]     nrkd2  removed components
+!!
+SUBROUTINE equdecs(n,m,b,ls,c,india,l,nrkd,nrkd2)
+    USE mpdef
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: i
+    INTEGER(mpi) :: i0
+    INTEGER(mpi) :: ib
+    INTEGER(mpi) :: in
+    INTEGER(mpi) :: j
+    INTEGER(mpi) :: j0
+    INTEGER(mpi) :: jb
+    INTEGER(mpi) :: jk
+    INTEGER(mpi) :: jn
+    INTEGER(mpi) :: k
+    INTEGER(mpi) :: nc
+    INTEGER(mpi) :: p1
+    INTEGER(mpi) :: p2
+    INTEGER(mpi) :: q1
+    INTEGER(mpi) :: q2
+    
+    INTEGER(mpl) :: ij
+    INTEGER(mpl) :: jj
+    INTEGER(mpl) :: kk
+    
+    INTEGER(mpi), INTENT(IN)              :: n
+    INTEGER(mpi), INTENT(IN)              :: m
+    INTEGER(mpi), INTENT(IN)              :: b
+    INTEGER(mpi), INTENT(IN)              :: ls    
+    REAL(mpd), INTENT(IN OUT) :: c(*)
+    INTEGER(mpi), INTENT(IN OUT)          :: india(n+m)
+    INTEGER(mpi), INTENT(IN)              :: l(m)
+    INTEGER(mpi), INTENT(OUT)             :: nrkd
+    INTEGER(mpi), INTENT(OUT)             :: nrkd2
+
+    !     ...
+
+    nrkd=0
+    nrkd2=0
+    
+    CALL lltdec(n,c,india,nrkd,ls)             ! decomposition G G^T
+    
+    IF (m>0) THEN
+        ij=india(n)+(m*m+m)/2 ! offset of block part
+        DO ib=1,b ! loop over blocks
+            p1=l(ib*4-3) ! first constraint in block 
+            p2=l(ib*4-2) ! last constraint in block
+            i0=l(ib*4-1) ! parameter offset in block 
+            in=l(ib*4)   ! number of columns in block
+            DO j=p1,p2
+                CALL lltfwds(n,c,india,c(ij+1),i0,in) ! forward solution K
+                ij=ij+in
+            END DO
+        END DO     
+        
+        ij=india(n)+(m*m+m)/2 ! offset of block part
+        DO ib=1,b ! loop over blocks
+            p1=l(ib*4-3) ! first constraint in block 
+            p2=l(ib*4-2) ! last constraint in block 
+            i0=l(ib*4-1) ! parameter offset in block 
+            in=l(ib*4)   ! number of columns in block
+            DO i=1,in ! loop over columns in block
+                ij=ij+1 
+                DO j=p1,p2
+                    jk=india(n)+(j*j-j)/2+p1
+                    DO k=p1,j
+                        c(jk)=c(jk)+c(ij+(j-p1)*in)*c(ij+(k-p1)*in)     ! product K K^T
+                        jk=jk+1
+                    END DO
+                END DO
+            END DO
+            jj=ij+(p2-p1)*in ! offset of next block
+            ! loop over potentially overlapping blocks
+            DO jb=ib+1,b 
+                q1=l(jb*4-3) ! first constraint in block
+                q2=l(jb*4-2) ! last constraint in block
+                j0=l(jb*4-1) ! parameter offset in block
+                jn=l(jb*4)   ! number of columns in block
+                nc=min(in+i0-j0,jn) ! overlapping columns
+                IF (nc < 1) EXIT
+                !print *, ' EQUDECS overlap ', ib,jb,nc,i0,in,j0,jn
+                kk=ij+j0-i0-in              
+                DO i=1,nc ! loop over parameters in block
+                    kk=kk+1 
+                    DO j=q1,q2
+                        jk=india(n)+(j*j-j)/2+p1
+                        DO k=p1,p2
+                            c(jk)=c(jk)+c(jj+(j-q1)*jn+i)*c(kk+(k-p1)*in)     ! product K K^T
+                            jk=jk+1
+                        END DO
+                    END DO
+                END DO
+                jj=jj+(q2+1-q1)*jn
+            END DO    
+            ij=ij+(p2-p1)*in
+        END DO
+
+        india(n+1)=1
+        DO i=2,m
+            india(n+i)=india(n+i-1)+MIN(i,m)              ! pointer for K K^T
+        END DO
+        
+        CALL lltdec(m,c(india(n)+1),india(n+1),nrkd2,0)  ! decomp. H H^T
+    ENDIF
+
+    RETURN
+END SUBROUTINE equdecs
+
+!> Solution of (sparse) equilibrium systems (after decomposition).
+!! CHK, June 2021
+!!
+!!     N x N matrix C:     starting with sym.pos.def. matrix (N)
+!!     length  of array C: INDIA(N) + N*M + (M*M+M)/2
+!!     Content of array C: band matrix, as described by INDIA(1)...INDIA(N)
+!!            followed by: NxM elements of constraint matrix A
+!!            followed by: (M*M+M)/2 unused elements
+!!                         INDIA(N+1)...INDIA(N+M) defined internally
+!!
+!! \param [in]      n      size of symmetric matrix
+!! \param [in]      m      number of constrains
+!! \param [in]      b      number of constraint blocks
+!! \param [in]      c      decomposed combined variable-band + constraints matrix
+!! \param [in]      india  pointer array
+!! \param [in]      l      constraint (block matrix row) offsets
+!! \param [in,out]  x      r.h.s vector B, replaced by solution vector X
+!!
+SUBROUTINE equslvs(n,m,b,c,india,l,x)                   ! solution vector
+    USE mpdef
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: i
+    INTEGER(mpi) :: i0
+    INTEGER(mpi) :: ib
+    INTEGER(mpi) :: in
+    INTEGER(mpi) :: j
+    INTEGER(mpi) :: p1
+    INTEGER(mpi) :: p2
+ 
+    INTEGER(mpl) :: ij
+   
+    INTEGER(mpi), INTENT(IN)              :: n
+    INTEGER(mpi), INTENT(IN)              :: m
+    INTEGER(mpi), INTENT(IN)              :: b
+    REAL(mpd), INTENT(IN)     :: c(*)
+    INTEGER(mpi), INTENT(IN)              :: india(n+m)
+    INTEGER(mpi), INTENT(IN)              :: l(m)
+    REAL(mpd), INTENT(IN OUT) :: x(n+m)
+        
+    CALL lltfwd(n,c,india,x)                           ! result is u
+        
+    IF (m>0) THEN
+        ij=india(n)+(m*m+m)/2 ! offset of block part
+        DO ib=1,b ! loop over blocks
+            p1=l(ib*4-3) ! first constraint in block 
+            p2=l(ib*4-2) ! last constraint in block 
+            i0=l(ib*4-1) ! parameter offset in block 
+            in=l(ib*4)   ! number of columns in block
+            DO j=p1,p2 ! loop over constraints in block
+                DO i=1,in ! loop over parameters in block
+                    ij=ij+1
+                    x(n+j)=x(n+j)-c(ij)*x(i+i0)        ! g - K u
+                END DO     
+            END DO
+        END DO       
+
+        CALL lltfwd(m,c(india(n)+1),india(n+1),x(n+1)) ! result is v
+
+        CALL lltbwd(m,c(india(n)+1),india(n+1),x(n+1)) ! result is -y
+        DO i=1,m
+            x(n+i)=-x(n+i)                                    ! result is +y
+        END DO
+
+        ij=india(n)+(m*m+m)/2 ! offset of block part
+        DO ib=1,b ! loop over blocks
+            p1=l(ib*4-3) ! first constraint in block 
+            p2=l(ib*4-2) ! last constraint in block 
+            i0=l(ib*4-1) ! parameter offset in block 
+            in=l(ib*4)   ! number of columns in block
+            DO j=p1,p2 ! loop over constraints in block
+                DO i=1,in ! loop over parameters in block
+                    ij=ij+1
+                    x(i+i0)=x(i+i0)-c(ij)*x(n+j)          ! u - K^T y
+                END DO     
+            END DO
+        END DO        
+    ENDIF
+    
+    CALL lltbwd(n,c,india,x)                           ! result is x
+    
+    RETURN
+END SUBROUTINE equslvs
 
 !> Constrained preconditioner, decomposition.
 !!
@@ -2576,6 +2833,225 @@ SUBROUTINE presol(p,n,cu,a,s,x,y) ! solution
 
 END SUBROUTINE presol
 
+!> Constrained (sparse) preconditioner, decomposition.
+!! CHK, June 2021
+!!
+!!     Constrained preconditioner, e.g for GMRES solution:
+!!
+!!                                                intermediate
+!!        (            )  (   )      (   )           (   )
+!!        (   C    A^T )  ( x )   =  ( y )           ( u )
+!!        (            )  (   )      (   )           (   )
+!!        (   A     0  )  ( l )      ( d )           ( v )
+!!
+!!     input:
+!!        C(N) is diagonal matrix and remains unchanged
+!!             may be identical to CU(N), then it is changed
+!!        A(N,P) is represented by nonzero blocks (one per row), modified
+!!        Y(N+P) is rhs vector, unchanged
+!!             may be identical to X(N), then it is changed
+!!
+!!     result:
+!!        CU(N) is 1/sqrt of diagonal matrix C(N)
+!!        X(N+P) is result vector
+!!        S((P*P+P)/2) is Cholesky decomposed symmetric (P,P) matrix
+!!
+!! \param [in]     p     number of constraints
+!! \param [in]     n     size of diagonal matrix
+!! \param [in]     b     number of constraint blocks
+!! \param [in]     c     diagonal matrix (changed if c=cu as actual parameters)
+!! \param [out]    cu    1/sqrt(c)
+!! \param [in,out] a     modified constraint (block) matrix, modified 
+!! \param [in]     l     constraint (block matrix row) offsets
+!! \param [out]    s     Cholesky decomposed symmetric (P,P) matrix
+!! \param [out]    nrkd  removed components
+
+SUBROUTINE precons(p,n,b,c,cu,a,l,s,nrkd)
+    USE mpdef
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: i
+    INTEGER(mpi) :: i0
+    INTEGER(mpi) :: ib
+    INTEGER(mpi) :: ii
+    INTEGER(mpi) :: j
+    INTEGER(mpi) :: jj
+    INTEGER(mpi) :: jk
+    INTEGER(mpi) :: k
+    INTEGER(mpi) :: kk
+    INTEGER(mpl) :: ij
+    INTEGER(mpi) :: np
+    INTEGER(mpi) :: p1
+    INTEGER(mpi) :: p2
+
+    INTEGER(mpi), INTENT(IN)              :: p
+    INTEGER(mpi), INTENT(IN)              :: n
+    INTEGER(mpi), INTENT(IN)              :: b
+    REAL(mpd), INTENT(IN)     :: c(n)
+    REAL(mpd), INTENT(OUT)    :: cu(n)
+    REAL(mpd), INTENT(IN OUT) :: a(*)
+    INTEGER(mpi), INTENT(IN)     :: l(p)
+    REAL(mpd), INTENT(OUT)    :: s((p*p+p)/2)
+    INTEGER(mpi), INTENT(OUT) :: nrkd
+
+    REAL(mpd) :: div
+    REAL(mpd) :: ratio
+    
+    nrkd=0
+    DO i=1,(p*p+p)/2
+        s(i)=0.0_mpd
+    END DO
+    DO i=1,n
+        div=c(i)                          ! copy
+        IF (div > 0.0_mpd) THEN
+            cu(i)=1.0_mpd/SQRT(div)
+        ELSE
+            cu(i)=0.0_mpd
+            nrkd=nrkd+1
+        END IF
+    END DO
+    
+    ij=0
+    DO ib=1,b ! loop over blocks
+        p1=l(ib*4-3) ! first constraint in block 
+        p2=l(ib*4-2) ! last constraint in block 
+        i0=l(ib*4-1) ! parameter offset in block 
+        np=l(ib*4)   ! number of parameters in block  
+        DO i=1,np ! loop over parameters in block
+            ij=ij+1 
+            DO j=p1,p2
+                jk=(j*j-j)/2+p1
+                a(ij+(j-p1)*np)=a(ij+(j-p1)*np)*cu(i+i0)              ! K = A C^{-1/2}
+                DO k=p1,j
+                    s(jk)=s(jk)+a(ij+(j-p1)*np)*a(ij+(k-p1)*np)       ! S = symmetric matrix K K^T
+                    jk=jk+1
+                END DO
+            END DO
+        END DO
+        ij=ij+(p2-p1)*np
+    END DO
+
+    ii=0
+    DO i=1,p                           ! S -> H D H^T (Cholesky)
+        ii=ii+i
+        IF(s(ii) /= 0.0_mpd) s(ii)=1.0_mpd/s(ii)
+        jj=ii
+        DO j=i+1,p
+            ratio=s(i+jj)*s(ii)
+            kk=jj
+            DO k=j,p
+                s(kk+j)=s(kk+j)-s(kk+i)*ratio
+                kk=kk+k
+            END DO ! K
+            s(i+jj)=ratio
+            jj=jj+j
+        END DO ! J
+    END DO ! I
+    RETURN
+END SUBROUTINE precons
+
+!> Constrained (sparse)  preconditioner, solution.
+!! CHK, June 2021
+!!
+!! \param [in]     p     number of constraints
+!! \param [in]     n     size of diagonal matrix
+!! \param [in]     b     number of constraint blocks
+!! \param [in]     cu    1/sqrt(c)
+!! \param [in]     a     modified constraint (block) matrix 
+!! \param [in]     l     constraint (block matrix row) offsets
+!! \param [in]     s     Cholesky decomposed symmetric (P,P) matrix
+!! \param [out]    x     result vector
+!! \param [in]     y     rhs vector (changed if x=y as actual parameters)
+
+SUBROUTINE presols(p,n,b,cu,a,l,s,x,y) ! solution
+    USE mpdef
+
+    IMPLICIT NONE
+    INTEGER(mpi) :: i
+    INTEGER(mpi) :: i0
+    INTEGER(mpi) :: ib
+    INTEGER(mpi) :: j
+    INTEGER(mpi) :: jj
+    INTEGER(mpi) :: k
+    INTEGER(mpi) :: kk
+    INTEGER(mpl) :: ij
+    INTEGER(mpi) :: np
+    INTEGER(mpi) :: p1
+    INTEGER(mpi) :: p2
+
+    INTEGER(mpi), INTENT(IN)              :: p
+    INTEGER(mpi), INTENT(IN)              :: n
+    INTEGER(mpi), INTENT(IN)              :: b
+    
+    REAL(mpd), INTENT(IN)     :: cu(n)
+    REAL(mpd), INTENT(IN)     :: a(*)
+    INTEGER(mpi), INTENT(IN)     :: l(p)
+    REAL(mpd), INTENT(IN)     :: s((p*p+p)/2)
+    REAL(mpd), INTENT(OUT)    :: x(n+p)
+    REAL(mpd), INTENT(IN)     :: y(n+p)
+
+    REAL(mpd) :: dsum
+
+    DO i=1,n+p
+        x(i)=y(i)
+    END DO
+    DO i=1,n
+        x(i)=x(i)*cu(i)                   ! u =C^{-1/2} y
+    END DO
+    ij=0
+    DO ib=1,b ! loop over blocks
+        p1=l(ib*4-3) ! first constraint in block 
+        p2=l(ib*4-2) ! last constraint in block 
+        i0=l(ib*4-1) ! parameter offset in block 
+        np=l(ib*4)   ! number of parameters in block    
+        DO j=p1,p2 ! loop over constraints in block
+            DO i=1,np ! loop over parameters in block
+                ij=ij+1
+                x(n+j)=x(n+j)-a(ij)*x(i+i0)        ! d - K u
+            END DO     
+        END DO
+    END DO          
+
+    jj=0
+    DO j=1,p                           ! Cholesky solution for v
+        dsum=x(n+j)
+        DO k=1,j-1
+            dsum=dsum-s(k+jj)*x(n+k)           ! H v = d - K u
+        END DO
+        x(n+j)=dsum                        ! -> v
+        jj=jj+j
+    END DO
+
+    DO j=p,1,-1                        ! solution for lambda
+        dsum=x(n+j)*s(jj)
+        kk=jj
+        DO k=j+1,p
+            dsum=dsum+s(kk+j)*x(n+k)           ! D H^T lambda = -v
+            kk=kk+k
+        END DO
+        x(n+j)=-dsum                       ! -> lambda
+        jj=jj-j
+    END DO
+
+    ij=0
+    DO ib=1,b ! loop over blocks
+        p1=l(ib*4-3) ! first constraint in block 
+        p2=l(ib*4-2) ! last constraint in block 
+        i0=l(ib*4-1) ! parameter offset in block 
+        np=l(ib*4)   ! number of parameters in block    
+        DO j=p1,p2 ! loop over constraints in block
+            DO i=1,np ! loop over parameters in block
+                ij=ij+1
+                x(i+i0)=x(i+i0)-a(ij)*x(n+j)          ! u - K^T lambda
+            END DO     
+        END DO
+    END DO         
+
+    DO i=1,n
+        x(i)=x(i)*cu(i)                   ! x = C^{-1/2} u
+    END DO
+
+END SUBROUTINE presols
 
 !                                                 090817 C. Kleinwort, DESY-FH1
 !> Bordered band matrix.

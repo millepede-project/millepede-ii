@@ -133,7 +133,7 @@ MODULE mpmod
     INTEGER(mpi) :: ncblck !< number of (disjoint) constraint blocks
     INTEGER(mpl) :: mszcon !< (integrated block) matrix size for constraint matrix
     INTEGER(mpl) :: mszprd !< (integrated block) matrix size for (constraint) product matrix
-    INTEGER(mpi), DIMENSION(2) :: nprecond !< number of constraints, matrix size for preconditioner
+    INTEGER(mpi), DIMENSION(3) :: nprecond !< number of constraints (blocks), matrix size for preconditioner
     INTEGER(mpi) :: nagbn !< max number of global paramters per record
     INTEGER(mpi) :: nalcn !< max number of local paramters per record
     INTEGER(mpi) :: naeqn !< max number of equations (measurements) per record
@@ -202,8 +202,10 @@ MODULE mpmod
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: vecXav !< vector x for AVPROD (A*x=b)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: vecBav !< vector b for AVPROD (A*x=b)
     ! preconditioning
-    REAL(mpd), DIMENSION(:), ALLOCATABLE :: matPreCond !< preconditioner (band) matrix
+    REAL(mpd), DIMENSION(:), ALLOCATABLE :: matPreCond !< preconditioner matrix (band and other parts)
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: indPreCond !< preconditioner pointer array
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: blockPreCond !< preconditioner (constraint) blocks
+    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: offPreCond !< preconditioner (block matrix) offsets
     ! auxiliary vectors
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: workspaceD !< (general) workspace (D)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: workspaceDiag !< diagonal of global matrix (for global corr.)
