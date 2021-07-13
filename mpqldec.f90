@@ -205,6 +205,7 @@ SUBROUTINE qldecb(a,bpar,bcon)
     INTEGER(mpi) :: ibpar
     INTEGER(mpi) :: ifirst
     INTEGER(mpi) :: ilast
+    INTEGER(mpi) :: in
     INTEGER(mpl) :: ioff1
     INTEGER(mpl) :: ioff2
     INTEGER(mpl) :: ioff3
@@ -295,8 +296,9 @@ SUBROUTINE qldecb(a,bpar,bcon)
                 ! transformation
                 DO i=k1,k
                     sp=dot_product(vecN(ifirst:ilast),matV(ioff2+ifirst:ioff2+ilast))
+                    in=max(iplast+i-iclast,ilast+1)
                     matV(ioff2+ifirst:ioff2+ilast)=matV(ioff2+ifirst:ioff2+ilast)-2.0_mpd*vecN(ifirst:ilast)*sp
-                    matV(ioff2+kn)=-2.0_mpd*vecN(kn)*sp
+                    matV(ioff2+in:ioff2+kn)=matV(ioff2+in:ioff2+kn)-2.0_mpd*vecN(in:kn)*sp
                     ioff2=ioff2+npar
                 END DO
             ELSE
@@ -320,11 +322,17 @@ SUBROUTINE qldecb(a,bpar,bcon)
             matV(ioff1+kn-ipoff)=vecN(kn)
             ! sparsity structure
             ioff3=(k-1)*5
-            sparseV(ioff3+1)=2               ! number of non-zero regions
-            sparseV(ioff3+2)=ifirst-ipoff    ! start 1 
-            sparseV(ioff3+3)=ilast-ipoff     ! end 1
-            sparseV(ioff3+4)=kn-ipoff        ! start 2
-            sparseV(ioff3+5)=kn-ipoff        ! end 2
+            IF (ilast < kn) THEN
+                sparseV(ioff3+1)=2               ! number of non-zero regions
+                sparseV(ioff3+2)=ifirst-ipoff    ! start 1 
+                sparseV(ioff3+3)=ilast-ipoff     ! end 1
+                sparseV(ioff3+4)=kn-ipoff        ! start 2
+                sparseV(ioff3+5)=kn-ipoff        ! end 2
+            ELSE
+                sparseV(ioff3+1)=1               ! number of non-zero regions
+                sparseV(ioff3+2)=ifirst-ipoff    ! start 1 
+                sparseV(ioff3+3)=ilast-ipoff     ! end 1
+            END IF
         END DO
     END DO
     !$POMP INST END(qldecb)
