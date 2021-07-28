@@ -133,8 +133,8 @@
 !! * 210301: New solution methods \ref ch-lapack "fullLAPACK" and \ref ch-lapack "unpackedLAPACK"
 !!   (matrix factorization) based on [LAPACK](http://www.netlib.org/lapack/) can be included optionally
 !!   (at compile time, <tt>-DLAPACK64=..</tt>).
-!! * 210704: Exploit decomposition of constraints matrix into disjoint blocks for MINRES preconitioner
-!!   (with Lagrange multipliers) too.
+!! * 210728: Exploit decomposition of constraints matrix into disjoint blocks for all
+!!   solution methods (e.g. QL decomposition, MINRES preconditioner).
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -1664,9 +1664,9 @@ SUBROUTINE feasma
         END IF
         IF(matsto > 0) THEN ! True unless LAPACK
             ! QL decomposition
-            CALL qlini(nvgb,ncgb,npblck,monpg1)
+            CALL qlini(nvgb,ncgb,npblck,mszcon,monpg1)
             ! loop over parameter blocks
-            CALL qldecb(matConstraintsT,matParBlockOffsets,matConsBlocks)
+            CALL qldecb(matConstraintsT,matParBlockOffsets,matConsBlocks,matConsSort)
             ! check eignevalues of L
             CALL qlgete(evmin,evmax)
 #ifdef LAPACK64
@@ -4784,37 +4784,45 @@ END SUBROUTINE prtstat    ! print input statistics
 
 !> Product symmetric (sub block) matrix times sparse vector.
 !!
-!! A(sym) * X => B. Used by \ref minresmodule::minres "MINRES" method (Is most CPU intensive part).
+!! A(sym) * X => B. (Cumultative). Used by \ref minresmodule::minres "MINRES" method (Is most CPU intensive part).
 !! The matrix A is the global matrix in full symmetric or (compressed) sparse storage.
+!! In full symmetric storage it could be block diagonal (MATSTO=3) and only a
+!! single block is used in the product.
 !!
 !! \param [in]   n   size of matrix
+!! \param [in]   l   offset of (sub block) parameter range
 !! \param [in]   x   vector X
+!! \param [in]   is  start of range x(is:ie)
+!! \param [in]   ie  end of range x(is:ie)
 !! \param [out]  b   result vector B
-!! \param [in]   is  sparsity structure of x (number of non-zero regions, {region start, end})
 
-SUBROUTINE avprds(n,x,b,is)
+SUBROUTINE avprds(n,l,x,is,ie,b)
     USE mpmod
 
     IMPLICIT NONE
     INTEGER(mpi) :: i
     INTEGER(mpi) :: ia
+    INTEGER(mpi) :: ia2
     INTEGER(mpi) :: ib
+    INTEGER(mpi) :: ib2
     INTEGER(mpi) :: in
     INTEGER(mpi) :: ipg
     INTEGER(mpi) :: iproc
     INTEGER(mpi) :: ir
-    INTEGER(mpi) :: irgn
     INTEGER(mpi) :: j
     INTEGER(mpi) :: ja
+    INTEGER(mpi) :: ja2
     INTEGER(mpi) :: jb
+    INTEGER(mpi) :: jb2
     INTEGER(mpi) :: jn
-    INTEGER(mpi) :: jrgn
     INTEGER(mpi) :: lj
 
     INTEGER(mpi), INTENT(IN)          :: n
+    INTEGER(mpl), INTENT(IN)          :: l
     REAL(mpd), INTENT(IN)             :: x(n)
+    INTEGER(mpi), INTENT(IN)          :: is
+    INTEGER(mpi), INTENT(IN)          :: ie
     REAL(mpd), INTENT(OUT)            :: b(n)
-    INTEGER(mpi), INTENT(IN)          :: is(*)
     INTEGER(mpl) :: k
     INTEGER(mpl) :: kk
     INTEGER(mpl) :: ku
@@ -4826,25 +4834,32 @@ SUBROUTINE avprds(n,x,b,is)
     !$    INTEGER(mpi) OMP_GET_THREAD_NUM
     SAVE
     !     ...
-    !$ DO i=1,n
-    !$    b(i)=0.0_mpd             ! reset 'global' B()
-    !$ END DO
-    ichunk=MIN((n+mthrd-1)/mthrd/8+1,1024)
+
+    ichunk=MIN((n+mthrd-1)/mthrd/8+1,128)
     IF(matsto /= 2) THEN
-        ! full symmetric matrix
+        ! full or unpacked (block diagonal) symmetric matrix
         ! parallelize row loop
         ! private copy of B(N) for each thread, combined at end, init with 0.
-        ! slot of 1024 'I' for next idle thread
+        ! slot of 128 'I' for next idle thread
+        !$OMP  PARALLEL DO &
+        !$OMP  PRIVATE(J,IJ) &
+        !$OMP  SCHEDULE(DYNAMIC,ichunk)
+        DO i=1,n
+            ij=globalRowOffsets(i+l)+l
+            DO j=is,min(i,ie)
+                b(i)=b(i)+globalMatD(ij+j)*x(j)
+            END DO
+        END DO
+        !$OMP END PARALLEL DO
+
         !$OMP  PARALLEL DO &
         !$OMP  PRIVATE(J,IJ) &
         !$OMP  REDUCTION(+:B) &
         !$OMP  SCHEDULE(DYNAMIC,ichunk)
-        DO i=1,n
-            ij=globalRowOffsets(i)
-            b(i)=globalMatD(ij+i)*x(i)
+        DO i=is,ie
+            ij=globalRowOffsets(i+l)+l
             DO j=1,i-1
                 b(j)=b(j)+globalMatD(ij+j)*x(i)
-                b(i)=b(i)+globalMatD(ij+j)*x(j)
             END DO
         END DO
         !$OMP END PARALLEL DO
@@ -4858,7 +4873,7 @@ SUBROUTINE avprds(n,x,b,is)
         ! slot of 1024 'I' for next idle thread
         !$OMP PARALLEL DO &
         !$OMP  PRIVATE(I,IR,K,KK,LL,KU,INDID,INDIJ,J,JN,LJ) &
-        !$OMP  PRIVATE(IA,IB,IN,JA,JB,IRGN,JRGN) &
+        !$OMP  PRIVATE(IA,IB,IN,JA,JB,IA2,IB2,JA2,JB2) &
         !$OMP  REDUCTION(+:B) &
         !$OMP  SCHEDULE(DYNAMIC,ichunk)
         DO ipg=1,napgrp
@@ -4868,18 +4883,11 @@ SUBROUTINE avprds(n,x,b,is)
             ia=globalAllIndexGroups(ipg)     ! first (global) row
             ib=globalAllIndexGroups(ipg+1)-1 ! last (global) row
             in=ib-ia+1                       ! number of rows
-            ! check x region
-            irgn=1 ! non-zero region in x
-            DO WHILE (ia > is(2*irgn+1).AND.irgn < is(1))
-                irgn=irgn+1 
-            END DO  
-            !
+            ! overlap
+            ia2=max(ia,is)
+            ib2=min(ib,ie)
             ! diagonal elements            
-            IF (ia <= is(2*irgn+1).AND.ib >= is(2*irgn)) THEN
-                b(ia:ib)=globalMatD(ia:ib)*x(ia:ib)
-            ELSE
-                b(ia:ib)=0.0_mpd   
-            END IF       
+            IF (ia2 <= ib2) b(ia2:ib2)=b(ia2:ib2)+globalMatD(ia2:ib2)*x(ia2:ib2)    
             ! off-diagonals double precision
             ir=ipg
             kk=sparseMatrixOffsets(1,ir) ! offset in 'd' (column lists)
@@ -4889,26 +4897,21 @@ SUBROUTINE avprds(n,x,b,is)
             indij=ll
             IF (sparseMatrixColumns(indid+1) /= 0) THEN  ! no compression
                 DO i=ia,ib
-                    IF (i <= is(2*irgn+1).AND.i >= is(2*irgn)) THEN
+                    IF (i <= ie.AND.i >= is) THEN
                         DO k=1,ku
                             j=sparseMatrixColumns(indid+k)
                             b(j)=b(j)+globalMatD(indij+k)*x(i)
                         END DO
                     END IF
-                    jrgn=1 ! non-zero region in x
                     DO k=1,ku
                         j=sparseMatrixColumns(indid+k)
-                        DO WHILE (j > is(2*jrgn+1).AND.jrgn < is(1))
-                            jrgn=jrgn+1 
-                        END DO
-                        IF (j <= is(2*jrgn+1).AND.j >= is(2*jrgn)) THEN
+                        IF (j <= ie.AND.j >= is) THEN
                             b(i)=b(i)+globalMatD(indij+k)*x(j)
                         END IF    
                     END DO
                     indij=indij+ku
                 END DO    
             ELSE
-                jrgn=1 ! non-zero region in x
                 ! regions of continous column groups
                 DO k=2,ku-2,2
                     j=sparseMatrixColumns(indid+k)         ! first group 
@@ -4916,21 +4919,19 @@ SUBROUTINE avprds(n,x,b,is)
                     lj=sparseMatrixColumns(indid+k-1)      ! region offset 
                     jn=sparseMatrixColumns(indid+k+1)-lj   ! number of columns
                     jb=ja+jn-1                             ! last (global) column
-                    ! check x region
-                    DO WHILE (ja > is(2*jrgn+1).AND.jrgn < is(1))
-                        jrgn=jrgn+1 
-                    END DO
-                    IF (ja <= is(2*jrgn+1).AND.jb >= is(2*jrgn)) THEN
+                    ja2=max(ja,is)
+                    jb2=min(jb,ie) 
+                    IF (ja2 <= jb2) THEN
                         lj=1                               ! index (in group region)
                         DO i=ia,ib
-                            b(i)=b(i)+dot_product(globalMatD(indij+lj:indij+lj+jn-1),x(ja:jb))
+                            b(i)=b(i)+dot_product(globalMatD(indij+lj+ja2-ja:indij+lj+jb2-ja),x(ja2:jb2))
                             lj=lj+jn
                         END DO
                     END IF
-                    IF (mextnd == 0.AND.ia <= is(2*irgn+1).AND.ib >= is(2*irgn)) THEN
+                    IF (mextnd == 0.AND.ia2 <= ib2) THEN
                         lj=1
                         DO j=ja,jb
-                            b(j)=b(j)+dot_product(globalMatD(indij+lj:indij+jn*in:jn),x(ia:ib))
+                            b(j)=b(j)+dot_product(globalMatD(indij+lj+jn*(ia2-ia):indij+jn*(ib2-ia):jn),x(ia2:ib2))
                             lj=lj+1
                         END DO
                     END IF
@@ -4947,15 +4948,21 @@ SUBROUTINE avprds(n,x,b,is)
                 indij=ll
                 IF (sparseMatrixColumns(indid+1) /= 0) THEN  ! no compression
                     DO i=ia,ib
+                        IF (i <= ie.AND.i >= is) THEN
+                            DO k=1,ku
+                                j=sparseMatrixColumns(indid+k)
+                                b(j)=b(j)+globalMatF(indij+k)*x(i)
+                            END DO
+                        END IF
                         DO k=1,ku
                             j=sparseMatrixColumns(indid+k)
-                            b(j)=b(j)+REAL(globalMatF(indij+k),mpd)*x(i)
-                            b(i)=b(i)+REAL(globalMatF(indij+k),mpd)*x(j)
+                            IF (j <= ie.AND.j >= is) THEN
+                                b(i)=b(i)+globalMatF(indij+k)*x(j)
+                            END IF    
                         END DO
                         indij=indij+ku
                     END DO    
                 ELSE
-                    jrgn=1 ! non-zero region in x
                     ! regions of continous column groups
                     DO k=2,ku-2,2
                         j=sparseMatrixColumns(indid+k)         ! first group 
@@ -4963,21 +4970,19 @@ SUBROUTINE avprds(n,x,b,is)
                         lj=sparseMatrixColumns(indid+k-1)      ! region offset 
                         jn=sparseMatrixColumns(indid+k+1)-lj   ! number of columns
                         jb=ja+jn-1                             ! last (global) column
-                        ! check x region
-                        DO WHILE (ja > is(2*jrgn+1).AND.jrgn < is(1))
-                            jrgn=jrgn+1 
-                        END DO
-                        IF (ja <= is(2*jrgn+1).AND.jb >= is(2*jrgn)) THEN
+                        ja2=max(ja,is)
+                        jb2=min(jb,ie) 
+                        IF (ja2 <= jb2) THEN
                             lj=1                               ! index (in group region)
                             DO i=ia,ib
-                                b(i)=b(i)+dot_product(REAL(globalMatF(indij+lj:indij+lj+jn-1),mpd),x(ja:jb))
-                                lj=lj+jn
+                                b(i)=b(i)+dot_product(REAL(globalMatF(indij+lj+ja2-ja:indij+lj+jb2-ja),mpd),x(ja:jb))
+                               lj=lj+jn
                             END DO
                         END IF
-                        IF (mextnd == 0.AND.ia <= is(2*irgn+1).AND.ib >= is(2*irgn)) THEN
+                        IF (mextnd == 0.AND.ia2 <= ib2) THEN
                             lj=1
                             DO j=ja,jb
-                                b(j)=b(j)+dot_product(REAL(globalMatF(indij+lj:indij+jn*in:jn),mpd),x(ia:ib))
+                                b(j)=b(j)+dot_product(REAL(globalMatF(indij+lj+jn*(ia2-ia):indij+jn*(ib2-ia):jn),mpd),x(ia:ib))
                                 lj=lj+1
                             END DO
                         END IF  
@@ -5163,6 +5168,7 @@ SUBROUTINE avprd0(n,l,x,b)
     ENDIF
 
 END SUBROUTINE avprd0
+
 
 !> Analyse sparsity structure.
 !!
@@ -7484,8 +7490,10 @@ SUBROUTINE vmprep(msize)
             CALL mpalloc(matPreCond,length,'default preconditioner matrix')
         END IF
         nwrdpc=nwrdpc+2*length
-        IF (nwrdpc > 250000) &
+        IF (nwrdpc > 250000) THEN
+            WRITE(*,*)
             WRITE(*,*) 'Size of preconditioner matrix:',INT(REAL(nwrdpc,mps)*4.0E-6,mpi),' MB'
+        END IF    
 
     END IF
 
@@ -7576,7 +7584,7 @@ SUBROUTINE minver
     INTEGER(mpl) :: ioff1
     REAL(mpd) :: matij
         
-    EXTERNAL avprd0
+    EXTERNAL avprds
 
     SAVE
     !     ...
@@ -7594,7 +7602,7 @@ SUBROUTINE minver
                 WRITE(lunlog,*) 'Shrinkage of global matrix (A->Q^t*A*Q)'
                 CALL monini(lunlog,monpg1,monpg2)
             END IF
-            CALL qlssq(avprd0,globalMatD,globalRowOffsets,.true.) ! Q^t*A*Q
+            CALL qlssq(avprds,globalMatD,globalRowOffsets,.true.) ! Q^t*A*Q
             IF(monpg1 > 0) CALL monend()
         END IF
     END IF
@@ -7691,7 +7699,7 @@ SUBROUTINE mchdec
     REAL(mpd) :: evmax
     REAL(mpd) :: evmin
         
-    EXTERNAL avprd0
+    EXTERNAL avprds
 
     SAVE
     !     ...
@@ -7704,7 +7712,7 @@ SUBROUTINE mchdec
             WRITE(lunlog,*) 'Shrinkage of global matrix (A->Q^t*A*Q)'
             CALL monini(lunlog,monpg1,monpg2)
         END IF
-        IF(nfgb < nvgb) CALL qlssq(avprd0,globalMatD,globalRowOffsets,.true.) ! Q^t*A*Q
+        IF(nfgb < nvgb) CALL qlssq(avprds,globalMatD,globalRowOffsets,.true.) ! Q^t*A*Q
         IF(monpg1 > 0) CALL monend()
     END IF
 
@@ -7801,7 +7809,7 @@ SUBROUTINE mdptrf
     INTEGER(mpi) :: infolp
     REAL(mpd) :: matij
         
-    EXTERNAL avprd0
+    EXTERNAL avprds
 
     SAVE
     !     ...
@@ -7821,7 +7829,7 @@ SUBROUTINE mdptrf
                 WRITE(lunlog,*) 'Shrinkage of global matrix (A->Q^t*A*Q)'
                 CALL monini(lunlog,monpg1,monpg2)
             END IF
-            CALL qlssq(avprd0,globalMatD,globalRowOffsets,.true.) ! Q^t*A*Q
+            CALL qlssq(avprds,globalMatD,globalRowOffsets,.true.) ! Q^t*A*Q
             IF(monpg1 > 0) CALL monend()
         END IF
     END IF
@@ -8271,7 +8279,7 @@ SUBROUTINE mdiags
     INTEGER(mpi) :: ntop
     REAL(mpd) :: matij
                                        !
-    EXTERNAL avprd0
+    EXTERNAL avprds
 
     SAVE
     !     ...
@@ -8287,7 +8295,7 @@ SUBROUTINE mdiags
 
     !use elimination for constraints ?
     IF(nfgb < nvgb) THEN
-        IF(icalcm == 1) CALL qlssq(avprd0,globalMatD,globalRowOffsets,.true.) ! Q^t*A*Q
+        IF(icalcm == 1) CALL qlssq(avprds,globalMatD,globalRowOffsets,.true.) ! Q^t*A*Q
         ! solve L^t*y=d by backward substitution
         CALL qlbsub(vecConsResiduals,vecConsSolution)
         ! transform, reduce rhs
@@ -8582,7 +8590,10 @@ SUBROUTINE mminrsqlp
 
     IF(mbandw == 0) THEN           ! default preconditioner
         IF(icalcm == 1) THEN
+            IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
+            WRITE(lun,*) 'MMINRS: QLPSSQ started'
             IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,1,.true.) ! transform preconditioner matrix
+            IF(monpg1 > 0) CALL monend()
             IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
             WRITE(lun,*) 'MMINRS: PRECONS started', nprecond(2), nprecond(1)
             CALL precons(nprecond(1),nprecond(2),nprecond(3),matPreCond,matPreCond, &
@@ -8595,7 +8606,10 @@ SUBROUTINE mminrsqlp
             x=globalCorrections, istop=istop, itn=itn)
     ELSE IF(mbandw > 0) THEN                          ! band matrix preconditioner
         IF(icalcm == 1) THEN
+            IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
+            WRITE(lun,*) 'MMINRS: QLPSSQ started'
             IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,mbandw,.true.) ! transform preconditioner matrix
+            IF(monpg1 > 0) CALL monend()
             IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
             WRITE(lun,*) 'MMINRS: EQUDECS started', nprecond(2), nprecond(1)
             CALL equdecs(nprecond(2),nprecond(1),nprecond(3),lprecm,matPreCond,indPreCond,blockPreCond,nrkd,nrkd2)
@@ -8750,7 +8764,7 @@ SUBROUTINE xloopn                !
     CHARACTER (LEN=7) :: cratio
     CHARACTER (LEN=7) :: cfacin
     CHARACTER (LEN=7) :: crjrat
-    EXTERNAL avprd0
+    EXTERNAL avprds
     SAVE
     !     ...
 
@@ -9260,7 +9274,7 @@ SUBROUTINE xloopn                !
                 CALL monini(lunlog,monpg1,monpg2)
             END IF
             IF(matsto > 0) THEN
-                CALL qlssq(avprd0,globalMatD,globalRowOffsets,.false.) ! Q*A*Q^t
+                CALL qlssq(avprds,globalMatD,globalRowOffsets,.false.) ! Q*A*Q^t
 #ifdef LAPACK64                    
             ELSE ! unpack storage, use LAPACK
                 CALL lpavat(.false.)
