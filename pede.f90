@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-09-04 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-09-05 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -1662,7 +1662,7 @@ SUBROUTINE feasma
             WRITE(lunlog,*) 'QL decomposition of constraints matrix'
             CALL monini(lunlog,monpg1,monpg2)
         END IF
-        IF(matsto > 0) THEN ! True unless LAPACK
+        IF(matsto > 0) THEN ! True unless unpacked LAPACK
             ! QL decomposition
             CALL qlini(nvgb,ncgb,npblck,mszcon,monpg1)
             ! loop over parameter blocks
@@ -3392,8 +3392,8 @@ SUBROUTINE mupdat(i,j,add)       !
         END IF
         ! bad index?
         IF(ij < 0.OR.ij > size(matPreCond)) THEN
-             CALL peend(23,'Aborted, bad matrix index')
-             STOP 'mupdat: bad index'
+            CALL peend(23,'Aborted, bad matrix index')
+            STOP 'mupdat: bad index'
         END IF
         ! update?
         IF(ij /= 0) matPreCond(ij)=matPreCond(ij)+add
@@ -4976,7 +4976,7 @@ SUBROUTINE avprds(n,l,x,is,ie,b)
                             lj=1                               ! index (in group region)
                             DO i=ia,ib
                                 b(i)=b(i)+dot_product(REAL(globalMatF(indij+lj+ja2-ja:indij+lj+jb2-ja),mpd),x(ja:jb))
-                               lj=lj+jn
+                                lj=lj+jn
                             END DO
                         END IF
                         IF (mextnd == 0.AND.ia2 <= ib2) THEN

@@ -322,7 +322,8 @@ SUBROUTINE qldecb(a,bpar,bcon,cons)
             ! number of used columns
             ncol=ilast-ipoff
             ! get column
-            vecN(kn)=0.0_mpd
+            in=iblast+k1-iclast
+            vecN(in:kn)=0.0_mpd
             vecN(ifirst:ilast)=matV(ioff1+1:ioff1+ncol)
             nrm = SQRT(dot_product(vecN(ifirst:ilast),vecN(ifirst:ilast)))
             IF (nrm == 0.0_mpd) CYCLE
