@@ -5,7 +5,7 @@
 !! \author Claus Kleinwort, DESY (maintenance and developement)
 !!
 !! \copyright
-!! Copyright (c) 2009 - 2020 Deutsches Elektronen-Synchroton,
+!! Copyright (c) 2009 - 2021 Deutsches Elektronen-Synchroton,
 !! Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 !! This library is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU Library General Public License as
@@ -335,10 +335,12 @@ SUBROUTINE ndbits(npgrp,ndims,nsparr,ihst)
     !$OMP  SCHEDULE(DYNAMIC,ICHUNK)
     DO i=1,n
         ! restore row statistics
-        irgn(1)=INT(nsparr(1,i+1),mpi)
-        irgn(2)=INT(nsparr(1,i+n+2),mpi)
-        inr(1)=INT(nsparr(2,i+1),mpi)
-        inr(2)=INT(nsparr(2,i+n+2),mpi)
+        ir=i+1
+        DO jp=1,nspc
+            irgn(jp)=INT(nsparr(1,ir),mpi)    ! number of regions per row and precision
+            inr(jp)=INT(nsparr(2,ir),mpi)     ! number of columns per row and precision (groups)
+            ir=ir+n+1
+        END DO
 
         ! analyze precision type bit fields for extended storage ('2nd half' (j>i) too) ?
         IF (iextnd > 0) THEN

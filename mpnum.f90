@@ -2279,8 +2279,8 @@ SUBROUTINE lltfwds(n,c,india,x,i0,ns)
     REAL(mpd), INTENT(IN OUT) :: x(n)
     INTEGER(mpi), INTENT(IN)              :: i0
     INTEGER(mpi), INTENT(IN)              :: ns
-
-    DO k=1,ns                       ! forward loop
+    
+    DO k=1,min(ns,n-i0)            ! forward loop
         l=k+i0
         IF (l>1) THEN
             DO j=max(1,k-india(l)+india(l-1)+1),k-1

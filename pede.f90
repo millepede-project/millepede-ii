@@ -51,7 +51,7 @@
 !! 1. Download the software package from the DESY \c svn server to
 !!    \a target directory, e.g.:
 !!
-!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-09-05 target
+!!         svn checkout http://svnsrv.desy.de/public/MillepedeII/tags/V04-10-00 target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
 !!
@@ -135,6 +135,8 @@
 !!   (at compile time, <tt>-DLAPACK64=..</tt>).
 !! * 210728: Exploit decomposition of constraints matrix into disjoint blocks for all
 !!   solution methods (e.g. QL decomposition, MINRES preconditioner).
+!! * 211008: Fortran code modernized (EQUIVALENCE and ENTRY statements replaced) and checked
+!!   (compiling with '-fcheck=all').
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -626,6 +628,7 @@
 !!    + **32**   Aborted, iteration limit reached in diagonalization
 !!    + **33**   Aborted, stack overflow in quicksort
 !!    + **34**   Aborted, pattern string too long - obsolete
+!!    + **35**   Aborted, mismatch of number of global parameters
 
 !> Millepede II main program \ref sssec-stalone "Pede".
 PROGRAM mptwo
@@ -3442,6 +3445,7 @@ SUBROUTINE mgupdt(i,j1,j2,il,jl,sub)
     ja=globalAllIndexGroups(j1)     ! first (global) column
     jb=globalAllIndexGroups(j2+1)-1 ! last (global) column
         
+    ij=0 
     IF(matsto == 2) THEN           ! sparse symmetric matrix
         CALL ijpgrp(i,j1,ij,lr,iprc)         ! index of first element of group 'j1' 
         !print *, ' mgupdt ', i,j1,j2,il,jl,ij,lr,iprc
@@ -3859,6 +3863,7 @@ SUBROUTINE loopbf(nrej,ndfs,sndf,dchi2s, numfil,naccf,chi2f,ndff)
                     IF (globalAllParToGroup(globalIndexUsage(ioffc+j)) /= ivpgrp) &
                         print *, ' bad group ', k, j, ivpgrp, globalIndexUsage(ioffc+j)
                 END DO
+                CALL peend(35,'Aborted, mismatch of number of global parameters')
                 STOP ' mismatch of number of global parameters '
             ENDIF
             writeBufferIndices(ioffi-1)=nrc       ! index header:
@@ -4931,7 +4936,7 @@ SUBROUTINE avprds(n,l,x,is,ie,b)
                     IF (mextnd == 0.AND.ia2 <= ib2) THEN
                         lj=1
                         DO j=ja,jb
-                            b(j)=b(j)+dot_product(globalMatD(indij+lj+jn*(ia2-ia):indij+jn*(ib2-ia):jn),x(ia2:ib2))
+                            b(j)=b(j)+dot_product(globalMatD(indij+lj+jn*(ia2-ia):indij+lj+jn*(ib2-ia):jn),x(ia2:ib2))
                             lj=lj+1
                         END DO
                     END IF
@@ -6998,7 +7003,7 @@ SUBROUTINE loop2
             ihis=15
             CALL hmpdef(ihis,0.0,REAL(mhispe,mps), 'NDBITS: #off-diagonal elements')
         END IF
-        length=(nagb+1)*nspc
+        length=(napgrp+1)*nspc
         CALL mpalloc(sparseMatrixOffsets,two,length, 'sparse matrix row offsets')
         CALL ndbits(globalAllIndexGroups,ndimsa,sparseMatrixOffsets,ihis)
         ndgn=ndimsa(3)+ndimsa(4) ! actual number of off-diagonal elements
@@ -7431,12 +7436,11 @@ SUBROUTINE vmprep(msize)
         nwrdpc=0
         ncon=nagb-nvgb ! number of Lagrange multipliers
         ! constraint block info        
-        IF(ncon > 0) THEN
-            length=4*ncblck
-            CALL mpalloc(blockPreCond,length,'preconditioner: constraint blocks')
-            length=ncon
-            CALL mpalloc(offPreCond,length,'preconditioner: constraint offsets')                       
-        END IF
+        length=4*ncblck; IF(ncon == 0) length=0
+        CALL mpalloc(blockPreCond,length,'preconditioner: constraint blocks')
+        length=ncon
+        CALL mpalloc(offPreCond,length,'preconditioner: constraint offsets')                       
+        !END IF
         ! variable-width band matrix ?
         IF(mbandw > 0) THEN               
             length=nagb
@@ -7482,6 +7486,8 @@ SUBROUTINE vmprep(msize)
                 END DO
                 ioff=ioff+4
             END DO
+        ELSE
+            IF(mbandw == 0) length=length+1 ! for valid precons argument matPreCond((ncon*ncon+ncon)/2+nvgb+1)    
         END IF
         ! allocate
         IF(mbandw > 0) THEN
@@ -8590,10 +8596,7 @@ SUBROUTINE mminrsqlp
 
     IF(mbandw == 0) THEN           ! default preconditioner
         IF(icalcm == 1) THEN
-            IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
-            WRITE(lun,*) 'MMINRS: QLPSSQ started'
             IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,1,.true.) ! transform preconditioner matrix
-            IF(monpg1 > 0) CALL monend()
             IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
             WRITE(lun,*) 'MMINRS: PRECONS started', nprecond(2), nprecond(1)
             CALL precons(nprecond(1),nprecond(2),nprecond(3),matPreCond,matPreCond, &
@@ -8606,10 +8609,7 @@ SUBROUTINE mminrsqlp
             x=globalCorrections, istop=istop, itn=itn)
     ELSE IF(mbandw > 0) THEN                          ! band matrix preconditioner
         IF(icalcm == 1) THEN
-            IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
-            WRITE(lun,*) 'MMINRS: QLPSSQ started'
             IF(nfgb < nvgb) CALL qlpssq(avprds,matPreCond,mbandw,.true.) ! transform preconditioner matrix
-            IF(monpg1 > 0) CALL monend()
             IF(monpg1 > 0) CALL monini(lunlog,monpg1,monpg2)
             WRITE(lun,*) 'MMINRS: EQUDECS started', nprecond(2), nprecond(1)
             CALL equdecs(nprecond(2),nprecond(1),nprecond(3),lprecm,matPreCond,indPreCond,blockPreCond,nrkd,nrkd2)
@@ -9679,6 +9679,7 @@ SUBROUTINE filetc
             WRITE(*,101) nline,text(1:nab)
             IF(nline == 50)  WRITE(*,*) '     ...'
         END IF
+        IF(ia == 0) CYCLE      ! skip empty lines
 
         CALL rltext(text,ia,ib,nab)        ! test content   'end'
         IF(ib == ia+2) THEN
@@ -9690,7 +9691,7 @@ SUBROUTINE filetc
                 EXIT
             END IF
         END IF
-
+        
         keystx='fortranfiles'
         mat=matint(text(ia:ib),keystx,npat,ntext)
         IF(mat == max(npat,ntext)) THEN ! exact matching
@@ -10045,10 +10046,12 @@ SUBROUTINE filetx ! ---------------------------------------------------
             END IF
   
             IF(i == 0) THEN ! first text file - exclude lines with file names
-                IF(nfiln <= nfiles.AND.nline == nfd(nfiln)) THEN
-                    nfiln=nfiln+1
-                    text=' '
-                !             WRITE(*,*) 'line is excluded ',TEXT(1:10)
+                IF(nfiln <= nfiles) THEN
+                    IF(nline == nfd(nfiln)) THEN
+                        nfiln=nfiln+1
+                        text=' '
+                    !             WRITE(*,*) 'line is excluded ',TEXT(1:10)
+                    END IF
                 END IF
             END IF
             !       WRITE(*,*) TEXT(1:40),'  < interprete text'
@@ -10228,9 +10231,12 @@ INTEGER(mpi) FUNCTION nufile(fname)
     SAVE
     !     ...
     nufile=0
-    IF(fname(1:5) == 'rfio:') nuprae=1
-    IF(fname(1:5) == 'dcap:') nuprae=2
-    IF(fname(1:5) == 'root:') nuprae=3
+    nuprae=0
+    IF(LEN(fname) > 5) THEN
+        IF(fname(1:5) == 'rfio:') nuprae=1
+        IF(fname(1:5) == 'dcap:') nuprae=2
+        IF(fname(1:5) == 'root:') nuprae=3
+    END IF
     IF(nuprae == 0) THEN
         INQUIRE(FILE=fname,IOSTAT=ios,EXIST=ex)
         IF(ios /= 0) nufile=-ABS(ios)

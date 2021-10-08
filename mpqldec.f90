@@ -294,6 +294,7 @@ SUBROUTINE qldecb(a,bpar,bcon,cons)
         iblast=bpar(1,ibpar+1) ! last parameter in parameter block
         icoff=ioffBlock(ibpar) ! constraint offset in parameter block
         iclast=ioffBlock(ibpar+1) ! last constraint in parameter block
+        IF(iclast <= icoff) CYCLE ! no constraints
         ibcon=bpar(2,ibpar+1) ! start with last constraint block
         k1=bcon(1,ibcon) ! first constraint in block
         ! Householder procedure
