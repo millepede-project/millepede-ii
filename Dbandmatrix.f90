@@ -254,7 +254,7 @@ SUBROUTINE dchdec(w,n, aux)
     INTEGER(mpi) :: kk
     REAL(mpd) :: ratio
 
-    REAL(mpd), INTENT(IN OUT)           :: w(*)
+    REAL(mpd), INTENT(IN OUT)           :: w((n*n+n)/2)
     INTEGER(mpi), INTENT(IN)            :: n
     REAL(mpd), INTENT(OUT)              :: aux(n)
 
@@ -302,7 +302,7 @@ SUBROUTINE dchslv(w,n,b, x)
     INTEGER(mpi) :: kk
     REAL(mpd) :: suma
 
-    REAL(mpd), INTENT(IN)               :: w(*)
+    REAL(mpd), INTENT(IN)               :: w((n*n+n)/2)
     INTEGER(mpi), INTENT(IN)            :: n
     REAL(mpd), INTENT(IN)               :: b(n)
     REAL(mpd), INTENT(OUT)              :: x(n)
@@ -354,9 +354,9 @@ SUBROUTINE dchinv(w,n,v)
     INTEGER(mpi) :: m
     REAL(mpd) :: suma
 
-    REAL(mpd), INTENT(IN)               :: w(*)
+    REAL(mpd), INTENT(IN)               :: w((n*n+n)/2)
     INTEGER(mpi), INTENT(IN)            :: n
-    REAL(mpd), INTENT(OUT)              :: v(*)
+    REAL(mpd), INTENT(OUT)              :: v((n*n+n)/2)
     
     ii=(n*n-n)/2
     DO i=n,1,-1
@@ -395,7 +395,7 @@ REAL(mps) FUNCTION condes(w,n,aux)
     REAL(mps) :: xlan
 
 
-    REAL(mpd), INTENT(IN)             :: w(*)
+    REAL(mpd), INTENT(IN)             :: w((n*n+n)/2)
     INTEGER(mpi), INTENT(IN)                      :: n
     REAL(mpd), INTENT(IN OUT)         :: aux(n)
 
@@ -585,7 +585,7 @@ SUBROUTINE dbcinb(w,mp1,n, vs)
     REAL(mpd), INTENT(IN)               :: w(mp1,n)
     INTEGER(mpi), INTENT(IN)            :: mp1
     INTEGER(mpi), INTENT(IN)            :: n
-    REAL(mpd), INTENT(OUT)              :: vs(*)
+    REAL(mpd), INTENT(OUT)              :: vs((n*n+n)/2)
     !                                             N*M*(M-1) dot operations
     DO i=n,1,-1
         rxw=w(1,i)
@@ -622,7 +622,7 @@ SUBROUTINE dbcinv(w,mp1,n, vs)
     REAL(mpd), INTENT(IN)               :: w(mp1,n)
     INTEGER(mpi), INTENT(IN)            :: mp1
     INTEGER(mpi), INTENT(IN)            :: n
-    REAL(mpd), INTENT(OUT)              :: vs(*)
+    REAL(mpd), INTENT(OUT)              :: vs((n*n+n)/2)
     !                                             N*N/2*(M-1) dot operations
     DO i=n,1,-1
         rxw=w(1,i)
@@ -1034,14 +1034,14 @@ END SUBROUTINE db3iel
 !!    Philip E.Gill, Walter Murray and Margarete H.Wright:
 !!      Practical Optimization, Academic Press, 1981
 !!
-!! \param [in,out] W    symmetirc matrix
+!! \param [in,out] W    symmetric matrix
 !! \param [in]     N    size
 
 SUBROUTINE dcfdec(w,n)
     USE mpdef
 
     IMPLICIT NONE
-    REAL(mpd), INTENT(OUT)            :: w(*)
+    REAL(mpd), INTENT(OUT)            :: w((n*n+n)/2)
     INTEGER(mpi), INTENT(IN)                      :: n
     INTEGER(mpi) :: i,j,k
     REAL(mpd) :: epsm,gamm,xchi,beta,delta,theta

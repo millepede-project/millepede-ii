@@ -110,7 +110,7 @@ SUBROUTINE sqminv(v,b,n,nrank,diag,next)   ! matrix inversion
     INTEGER(mpi) :: lk
     INTEGER(mpi) :: next0
 
-    REAL(mpd), INTENT(IN OUT)         :: v(*)
+    REAL(mpd), INTENT(IN OUT)         :: v((n*n+n)/2)
     REAL(mpd), INTENT(OUT)            :: b(n)
     INTEGER(mpi), INTENT(IN)                      :: n
     INTEGER(mpi), INTENT(OUT)                     :: nrank
@@ -237,9 +237,9 @@ SUBROUTINE sqminl(v,b,n,nrank,diag,next,vk,mon)   !
     INTEGER(mpi) :: last
     INTEGER(mpi) :: next0
 
-    REAL(mpd), INTENT(IN OUT)         :: v(*)
-    REAL(mpd), INTENT(OUT)            :: b(n)
     INTEGER(mpi), INTENT(IN)          :: n
+    REAL(mpd), INTENT(IN OUT)         :: v((INT(n,mpl)*INT(n,mpl)+INT(n,mpl))/2)
+    REAL(mpd), INTENT(OUT)            :: b(n)
     INTEGER(mpi), INTENT(OUT)         :: nrank
     REAL(mpd), INTENT(OUT)            :: diag(n)
     INTEGER(mpi), INTENT(OUT)         :: next(n)
@@ -373,7 +373,7 @@ SUBROUTINE devrot(n,diag,u,v,work,iwork)   ! diagonalization
     INTEGER(mpi), INTENT(IN)                      :: n
     REAL(mpd), INTENT(OUT)            :: diag(n)
     REAL(mpd), INTENT(OUT)            :: u(n,n)
-    REAL(mpd), INTENT(IN)             :: v(*)
+    REAL(mpd), INTENT(IN)             :: v((n*n+n)/2)
     REAL(mpd), INTENT(OUT)            :: work(n)
     INTEGER(mpi), INTENT(OUT)                     :: iwork(n)
 
@@ -690,7 +690,7 @@ END SUBROUTINE devsol
 !! \param [in]  N     size of matrix
 !! \param [in]  DIAG  diagonal elements
 !! \param [in]  U     transformation matrix
-!! \param [out] V     smmmetric matrix
+!! \param [out] V     symmmetric matrix
 
 SUBROUTINE devinv(n,diag,u,v)
     USE mpdef
@@ -704,7 +704,7 @@ SUBROUTINE devinv(n,diag,u,v)
     INTEGER(mpi), INTENT(IN)                      :: n
     REAL(mpd), INTENT(IN)             :: diag(n)
     REAL(mpd), INTENT(IN)             :: u(n,n)
-    REAL(mpd), INTENT(OUT)            :: v(*)
+    REAL(mpd), INTENT(OUT)            :: v((n*n+n)/2)
     REAL(mpd) :: dsum
     !     ...
     ij=0
@@ -752,7 +752,7 @@ SUBROUTINE choldc(g,n)
     INTEGER(mpi) :: k
     INTEGER(mpi) :: kk
     
-    REAL(mpd), INTENT(IN OUT)         :: g(*)
+    REAL(mpd), INTENT(IN OUT)         :: g((n*n+n)/2)
     INTEGER(mpi), INTENT(IN)                      :: n
 
     REAL(mpd) :: ratio
@@ -797,7 +797,7 @@ SUBROUTINE cholsl(g,x,n)
     INTEGER(mpi) :: k
     INTEGER(mpi) :: kk
     
-    REAL(mpd), INTENT(IN)            :: g(*)
+    REAL(mpd), INTENT(IN)            :: g((n*n+n)/2)
     REAL(mpd), INTENT(IN OUT)        :: x(n)
     INTEGER(mpi), INTENT(IN)                     :: n
 
@@ -845,8 +845,8 @@ SUBROUTINE cholin(g,v,n)
     INTEGER(mpi) :: l
     INTEGER(mpi) :: m
 
-    REAL(mpd), INTENT(IN)            :: g(*)
-    REAL(mpd), INTENT( OUT)          :: v(*)
+    REAL(mpd), INTENT(IN)            :: g((n*n+n)/2)
+    REAL(mpd), INTENT( OUT)          :: v((n*n+n)/2)
     INTEGER(mpi), INTENT(IN)                     :: n
 
     ii=(n*n-n)/2
@@ -898,7 +898,7 @@ SUBROUTINE chdec2(g,n,nrank,evmax,evmin,mon)
     INTEGER(mpl) :: jj
     REAL(mpd) :: ratio
         
-    REAL(mpd), INTENT(IN OUT)         :: g(*)
+    REAL(mpd), INTENT(IN OUT)         :: g((n*n+n)/2)
     INTEGER(mpi), INTENT(IN)          :: n
     INTEGER(mpi), INTENT(OUT)         :: nrank
     REAL(mpd), INTENT(OUT)            :: evmin
@@ -959,7 +959,7 @@ SUBROUTINE chslv2(g,x,n)
     INTEGER(mpl) :: kk
     REAL(mpd) :: dsum
 
-    REAL(mpd), INTENT(IN)            :: g(*)
+    REAL(mpd), INTENT(IN)            :: g((n*n+n)/2)
     REAL(mpd), INTENT(IN OUT)        :: x(n)
     INTEGER(mpi), INTENT(IN)                     :: n
     
@@ -1206,8 +1206,8 @@ REAL(mpd) FUNCTION dbdot(n,dx,dy)
     REAL(mpd) :: dtemp
 
     INTEGER(mpi), INTENT(IN)          :: n
-    REAL(mpd), INTENT(IN) :: dx(*)
-    REAL(mpd), INTENT(IN) :: dy(*)
+    REAL(mpd), INTENT(IN) :: dx(n)
+    REAL(mpd), INTENT(IN) :: dy(n)
     !     ...
     dtemp=0.0_mpd
     DO i = 1,MOD(n,5)
@@ -1236,8 +1236,8 @@ SUBROUTINE dbaxpy(n,da,dx,dy)
     INTEGER(mpi) :: i
 
     INTEGER(mpi), INTENT(IN)              :: n
-    REAL(mpd), INTENT(IN)     :: dx(*)
-    REAL(mpd), INTENT(IN OUT) :: dy(*)
+    REAL(mpd), INTENT(IN)     :: dx(n)
+    REAL(mpd), INTENT(IN OUT) :: dy(n)
     REAL(mpd), INTENT(IN)     :: da
     !     ...
     DO i=1,MOD(n,4)
@@ -1273,9 +1273,9 @@ SUBROUTINE dbsvx(v,a,b,n)                  !
     !         N        N*N       N
 
     INTEGER(mpi), INTENT(IN)           :: n
-    REAL(mpd), INTENT(IN)  :: v(*)
-    REAL(mpd), INTENT(IN)  :: a(*)
-    REAL(mpd), INTENT(OUT) :: b(*)
+    REAL(mpd), INTENT(IN)  :: v((n*n+n)/2)
+    REAL(mpd), INTENT(IN)  :: a(n)
+    REAL(mpd), INTENT(OUT) :: b(n)
 
     REAL(mpd) :: dsum
     ijs=1
@@ -1315,9 +1315,9 @@ SUBROUTINE dbsvxl(v,a,b,n)                  ! LARGE symm. matrix, vector
     !         N        N*N       N
 
     INTEGER(mpi), INTENT(IN)           :: n
-    REAL(mpd), INTENT(IN)  :: v(*)
-    REAL(mpd), INTENT(IN)  :: a(*)
-    REAL(mpd), INTENT(OUT) :: b(*)
+    REAL(mpd), INTENT(IN)  :: v((INT(n,mpl)*INT(n,mpl)+INT(n,mpl))/2)
+    REAL(mpd), INTENT(IN)  :: a(n)
+    REAL(mpd), INTENT(OUT) :: b(n)
 
     REAL(mpd) :: dsum
     INTEGER(mpl) :: ij
@@ -1355,9 +1355,9 @@ SUBROUTINE dbgax(a,x,y,m,n)
     INTEGER(mpi) :: ij
     INTEGER(mpi) :: j
 
-    REAL(mpd), INTENT(IN)             :: a(*)
-    REAL(mpd), INTENT(IN)             :: x(*)
-    REAL(mpd), INTENT(OUT)            :: y(*)
+    REAL(mpd), INTENT(IN)             :: a(n*m)
+    REAL(mpd), INTENT(IN)             :: x(n)
+    REAL(mpd), INTENT(OUT)            :: y(m)
     INTEGER(mpi), INTENT(IN)                      :: m
     INTEGER(mpi), INTENT(IN)                      :: n
 
@@ -1381,10 +1381,11 @@ END SUBROUTINE dbgax
 !! \param [in]     V  symmetric N-by-N matrix
 !! \param [in]     A  general M-by-N matrix
 !! \param [in,out] W  symmetric M-by-M matrix
-!! \param [in]     MS rows of A (-rows: don't reset W)
 !! \param [in]     N  columns of A
+!! \param [in]     M rows of A
+!! \param [in]     iopt (<>0: don't reset W)
 !!
-SUBROUTINE dbavat(v,a,w,n,ms)
+SUBROUTINE dbavat(v,a,w,n,m,iopt)
     USE mpdef
 
     IMPLICIT NONE
@@ -1398,23 +1399,20 @@ SUBROUTINE dbavat(v,a,w,n,ms)
     INTEGER(mpi) :: l
     INTEGER(mpi) :: lk
     INTEGER(mpi) :: lkl
-    INTEGER(mpi) :: m
 
-    REAL(mpd), INTENT(IN)             :: v(*)
-    REAL(mpd), INTENT(IN)             :: a(*)
-    REAL(mpd), INTENT(INOUT)          :: w(*)
+    REAL(mpd), INTENT(IN)             :: v((n*n+n)/2)
+    REAL(mpd), INTENT(IN)             :: a(n*m)
+    REAL(mpd), INTENT(INOUT)          :: w((m*m+m)/2)
     INTEGER(mpi), INTENT(IN)                      :: n
-    INTEGER(mpi), INTENT(IN)                      :: ms
+    INTEGER(mpi), INTENT(IN)                      :: m
+    INTEGER(mpi), INTENT(IN)                      :: iopt
 
     REAL(mpd) :: cik
     !     ...
-    m=ms
-    IF (m > 0) THEN
+    IF (iopt == 0) THEN
         DO i=1,(m*m+m)/2
             w(i)=0.0_mpd             ! reset output matrix
         END DO
-    ELSE
-        m=-m
     END IF
 
     il=-n
@@ -1456,8 +1454,9 @@ END SUBROUTINE dbavat
 !! \param [in]     A  sparse M-by-N matrix, content 
 !! \param [in]     IS sparse M-by-N matrix, structure
 !! \param [in,out] W  symmetric M-by-M matrix
-!! \param [in]     MS rows of A (-rows: don't reset W)
 !! \param [in]     N  columns of A
+!! \param [in]     M  rows of A 
+!! \param [in]     iopt (<>0: don't reset W)
 !! \param [in]     SC scratch array
 !!
 !! Sparsity structure:
@@ -1466,7 +1465,7 @@ END SUBROUTINE dbavat
 !!  - IS(IS(1)+1..IS(M+1)): non-zero columns (column number, index for A)
 !!  - IS(IS(M+1)+1..IS(M+N+1)): non-zero rows (row number, index for A)
 !!
-SUBROUTINE dbavats(v,a,is,w,n,ms,sc)
+SUBROUTINE dbavats(v,a,is,w,n,m,iopt,sc)
     USE mpdef
 
     IMPLICIT NONE
@@ -1480,25 +1479,22 @@ SUBROUTINE dbavats(v,a,is,w,n,ms,sc)
     INTEGER(mpi) :: k
     INTEGER(mpi) :: l
     INTEGER(mpi) :: lk
-    INTEGER(mpi) :: m
 
-    REAL(mpd), INTENT(IN)             :: v(*)
-    REAL(mpd), INTENT(IN)             :: a(*)
-    INTEGER(mpi), INTENT(IN)          :: is(*)
-    REAL(mpd), INTENT(INOUT)          :: w(*)
+    REAL(mpd), INTENT(IN)             :: v((n*n+n)/2)
+    REAL(mpd), INTENT(IN)             :: a(n*m)
+    REAL(mpd), INTENT(INOUT)          :: w((m*m+m)/2)
+    INTEGER(mpi), INTENT(IN)          :: is(2*n*m+n+m+1)
     INTEGER(mpi), INTENT(IN)          :: n
-    INTEGER(mpi), INTENT(IN)          :: ms
-    INTEGER(mpi), INTENT(OUT)          :: sc(*)
+    INTEGER(mpi), INTENT(IN)          :: m
+    INTEGER(mpi), INTENT(IN)          :: iopt
+    INTEGER(mpi), INTENT(OUT)          :: sc(n)
 
     REAL(mpd) :: cik
     !     ...
-    m=ms
-    IF (m > 0) THEN
+    IF (iopt == 0) THEN
         DO i=1,(m*m+m)/2
             w(i)=0.0_mpd             ! reset output matrix
         END DO
-    ELSE
-        m=-m
     END IF
 
     ! offsets in V
@@ -1556,8 +1552,8 @@ SUBROUTINE dbmprv(lun,x,v,n)
     REAL(mps) :: err
 
     INTEGER(mpi), INTENT(IN)          :: lun
-    REAL(mpd), INTENT(IN) :: x(*)
-    REAL(mpd), INTENT(IN) :: v(*)
+    REAL(mpd), INTENT(IN) :: x(n)
+    REAL(mpd), INTENT(IN) :: v((n*n+n)/2)
     INTEGER(mpi), INTENT(IN)          :: n
 
     WRITE(lun,103)
@@ -1627,7 +1623,7 @@ SUBROUTINE dbprv(lun,v,n)
     INTEGER(mpi) :: k
 
     INTEGER(mpi), INTENT(IN)          :: lun
-    REAL(mpd), INTENT(IN) :: v(*)
+    REAL(mpd), INTENT(IN) :: v((n*n+n)/2)
     INTEGER(mpi), INTENT(IN)          :: n
 
     WRITE(lun,101)
@@ -1653,7 +1649,7 @@ END SUBROUTINE dbprv
 
 !> Heap sort direct (real).
 !!
-!! Real keys A(*), sorted at return.
+!! Real keys A(1..N), sorted at return.
 !!
 !! \param[in,out] a array of keys
 !! \param[in]     n number of keys
@@ -1669,7 +1665,7 @@ SUBROUTINE heapf(a,n)
     INTEGER(mpi) :: r
     REAL(mps) :: at    ! pivot key value
 
-    REAL(mps), INTENT(IN OUT) :: a(*)
+    REAL(mps), INTENT(IN OUT) :: a(n)
     INTEGER(mpi), INTENT(IN)  :: n
     !     ...
     IF(n <= 1) RETURN
@@ -1730,7 +1726,7 @@ SUBROUTINE sort1k(a,n)
     INTEGER(mpi) :: a1    ! pivot key
     INTEGER(mpi) :: at    ! pivot key
 
-    INTEGER(mpi), INTENT(IN OUT) :: a(*)
+    INTEGER(mpi), INTENT(IN OUT) :: a(n)
     INTEGER(mpi), INTENT(IN)     :: n
     !     ...
     IF (n <= 0) RETURN
@@ -2158,10 +2154,10 @@ SUBROUTINE lltdec(n,c,india,nrkd,iopt)
     REAL(mpd) ::diag
 
     INTEGER(mpi), INTENT(IN)              :: n
-    REAL(mpd), INTENT(IN OUT) :: c(*)
     INTEGER(mpi), INTENT(IN)              :: india(n)
     INTEGER(mpi), INTENT(OUT)             :: nrkd
     INTEGER(mpi), INTENT(IN)              :: iopt
+    REAL(mpd), INTENT(IN OUT) :: c(india(n))
     REAL(mpd) eps
     !     ...
     eps = 16.0_mpd * epsilon(eps) ! 16 * precision(mpd) 
@@ -2235,8 +2231,8 @@ SUBROUTINE lltfwd(n,c,india,x)
     INTEGER(mpi) :: k
 
     INTEGER(mpi), INTENT(IN)              :: n
-    REAL(mpd), INTENT(IN)     :: c(*)
     INTEGER(mpi), INTENT(IN)              :: india(n)
+    REAL(mpd), INTENT(IN OUT) :: c(india(n))
     REAL(mpd), INTENT(IN OUT) :: x(n)
 
     x(1)=x(1)*c(india(1))
@@ -2274,8 +2270,8 @@ SUBROUTINE lltfwds(n,c,india,x,i0,ns)
     INTEGER(mpi) :: l
 
     INTEGER(mpi), INTENT(IN)              :: n
-    REAL(mpd), INTENT(IN)     :: c(*)
     INTEGER(mpi), INTENT(IN)              :: india(n)
+    REAL(mpd), INTENT(IN OUT) :: c(india(n))
     REAL(mpd), INTENT(IN OUT) :: x(n)
     INTEGER(mpi), INTENT(IN)              :: i0
     INTEGER(mpi), INTENT(IN)              :: ns
@@ -2313,8 +2309,8 @@ SUBROUTINE lltbwd(n,c,india,x)
     INTEGER(mpi) :: k   
 
     INTEGER(mpi), INTENT(IN)              :: n
-    REAL(mpd), INTENT(IN)     :: c(*)
     INTEGER(mpi), INTENT(IN)              :: india(n)
+    REAL(mpd), INTENT(IN OUT) :: c(india(n))
     REAL(mpd), INTENT(IN OUT) :: x(n)
     
     DO k=n,2,-1                    ! backward loop
@@ -2358,10 +2354,10 @@ SUBROUTINE equdec(n,m,ls,c,india,nrkd,nrkd2)
     INTEGER(mpi), INTENT(IN)              :: n
     INTEGER(mpi), INTENT(IN)              :: m
     INTEGER(mpi), INTENT(IN)              :: ls    
-    REAL(mpd), INTENT(IN OUT) :: c(*)
     INTEGER(mpi), INTENT(IN OUT)          :: india(n+m)
     INTEGER(mpi), INTENT(OUT)             :: nrkd
     INTEGER(mpi), INTENT(OUT)             :: nrkd2
+    REAL(mpd), INTENT(IN OUT) :: c(india(n)+n*m+(m*m+m)/2)
 
     !     ...
 
@@ -2422,8 +2418,8 @@ SUBROUTINE equslv(n,m,c,india,x)                   ! solution vector
 
     INTEGER(mpi), INTENT(IN)              :: n
     INTEGER(mpi), INTENT(IN)              :: m
-    REAL(mpd), INTENT(IN)     :: c(*)
     INTEGER(mpi), INTENT(IN)              :: india(n+m)
+    REAL(mpd), INTENT(IN OUT) :: c(india(n)+n*m+(m*m+m)/2)
     REAL(mpd), INTENT(IN OUT) :: x(n+m)
     
     CALL lltfwd(n,c,india,x)                           ! result is u
@@ -2459,7 +2455,7 @@ END SUBROUTINE equslv
 !! CHK, June 2021
 !!
 !!     N x N matrix C:     starting with sym.pos.def. matrix (N)
-!!     length  of array C: INDIA(N) + N*M + (M*M+M)/2
+!!     length  of array C: INDIA(N) + (M*M+M)/2 + NM
 !!     Content of array C: band matrix, as described by INDIA(1)...INDIA(N)
 !!            followed by: (M*M+M)/2 unused elements
 !!            followed by: blocks of constraint matrix A
@@ -2468,6 +2464,7 @@ END SUBROUTINE equslv
 !! \param [in]      n      size of symmetric matrix
 !! \param [in]      m      number of constrains
 !! \param [in]      b      number of constraint blocks
+!! \param [in]      nm     (integrated) size of constraint blocks (<=N*M)
 !! \param [in]      ls     flag for skyline decomposition
 !! \param [in,out]  c      combined variable-band + constraints matrix, replaced by decomposition
 !! \param [in,out]  india  pointer array
@@ -2475,7 +2472,7 @@ END SUBROUTINE equslv
 !! \param [out]     nrkd   removed components
 !! \param [out]     nrkd2  removed components
 !!
-SUBROUTINE equdecs(n,m,b,ls,c,india,l,nrkd,nrkd2)
+SUBROUTINE equdecs(n,m,b,nm,ls,c,india,l,nrkd,nrkd2)
     USE mpdef
 
     IMPLICIT NONE
@@ -2502,12 +2499,13 @@ SUBROUTINE equdecs(n,m,b,ls,c,india,l,nrkd,nrkd2)
     INTEGER(mpi), INTENT(IN)              :: n
     INTEGER(mpi), INTENT(IN)              :: m
     INTEGER(mpi), INTENT(IN)              :: b
+    INTEGER(mpl), INTENT(IN)              :: nm
     INTEGER(mpi), INTENT(IN)              :: ls    
-    REAL(mpd), INTENT(IN OUT) :: c(*)
     INTEGER(mpi), INTENT(IN OUT)          :: india(n+m)
-    INTEGER(mpi), INTENT(IN)              :: l(m)
+    INTEGER(mpi), INTENT(IN)              :: l(4*b)
     INTEGER(mpi), INTENT(OUT)             :: nrkd
     INTEGER(mpi), INTENT(OUT)             :: nrkd2
+    REAL(mpd), INTENT(IN OUT) :: c(nm+india(n)+(m*m+m)/2)
 
     !     ...
 
@@ -2586,7 +2584,7 @@ END SUBROUTINE equdecs
 !! CHK, June 2021
 !!
 !!     N x N matrix C:     starting with sym.pos.def. matrix (N)
-!!     length  of array C: INDIA(N) + N*M + (M*M+M)/2
+!!     length  of array C: INDIA(N) + (M*M+M)/2 + NM
 !!     Content of array C: band matrix, as described by INDIA(1)...INDIA(N)
 !!            followed by: NxM elements of constraint matrix A
 !!            followed by: (M*M+M)/2 unused elements
@@ -2595,12 +2593,13 @@ END SUBROUTINE equdecs
 !! \param [in]      n      size of symmetric matrix
 !! \param [in]      m      number of constrains
 !! \param [in]      b      number of constraint blocks
+!! \param [in]      nm     (integrated) size of constraint blocks (<=N*M)
 !! \param [in]      c      decomposed combined variable-band + constraints matrix
 !! \param [in]      india  pointer array
 !! \param [in]      l      constraint (block matrix row) offsets
 !! \param [in,out]  x      r.h.s vector B, replaced by solution vector X
 !!
-SUBROUTINE equslvs(n,m,b,c,india,l,x)                   ! solution vector
+SUBROUTINE equslvs(n,m,b,nm,c,india,l,x)                   ! solution vector
     USE mpdef
 
     IMPLICIT NONE
@@ -2617,9 +2616,10 @@ SUBROUTINE equslvs(n,m,b,c,india,l,x)                   ! solution vector
     INTEGER(mpi), INTENT(IN)              :: n
     INTEGER(mpi), INTENT(IN)              :: m
     INTEGER(mpi), INTENT(IN)              :: b
-    REAL(mpd), INTENT(IN)     :: c(*)
+    INTEGER(mpl), INTENT(IN)              :: nm
     INTEGER(mpi), INTENT(IN)              :: india(n+m)
-    INTEGER(mpi), INTENT(IN)              :: l(m)
+    INTEGER(mpi), INTENT(IN)              :: l(4*b)
+    REAL(mpd), INTENT(IN OUT) :: c(nm+india(n)+(m*m+m)/2)
     REAL(mpd), INTENT(IN OUT) :: x(n+m)
         
     CALL lltfwd(n,c,india,x)                           ! result is u
@@ -2859,6 +2859,7 @@ END SUBROUTINE presol
 !! \param [in]     p     number of constraints
 !! \param [in]     n     size of diagonal matrix
 !! \param [in]     b     number of constraint blocks
+!! \param [in]     nm    (integrated) size of constraint blocks (<=N*M)
 !! \param [in]     c     diagonal matrix (changed if c=cu as actual parameters)
 !! \param [out]    cu    1/sqrt(c)
 !! \param [in,out] a     modified constraint (block) matrix, modified 
@@ -2866,7 +2867,7 @@ END SUBROUTINE presol
 !! \param [out]    s     Cholesky decomposed symmetric (P,P) matrix
 !! \param [out]    nrkd  removed components
 
-SUBROUTINE precons(p,n,b,c,cu,a,l,s,nrkd)
+SUBROUTINE precons(p,n,b,nm,c,cu,a,l,s,nrkd)
     USE mpdef
 
     IMPLICIT NONE
@@ -2887,9 +2888,10 @@ SUBROUTINE precons(p,n,b,c,cu,a,l,s,nrkd)
     INTEGER(mpi), INTENT(IN)              :: p
     INTEGER(mpi), INTENT(IN)              :: n
     INTEGER(mpi), INTENT(IN)              :: b
+    INTEGER(mpl), INTENT(IN)              :: nm
     REAL(mpd), INTENT(IN)     :: c(n)
     REAL(mpd), INTENT(OUT)    :: cu(n)
-    REAL(mpd), INTENT(IN OUT) :: a(*)
+    REAL(mpd), INTENT(IN OUT) :: a(nm)
     INTEGER(mpi), INTENT(IN)     :: l(p)
     REAL(mpd), INTENT(OUT)    :: s((p*p+p)/2)
     INTEGER(mpi), INTENT(OUT) :: nrkd
@@ -2956,6 +2958,7 @@ END SUBROUTINE precons
 !! \param [in]     p     number of constraints
 !! \param [in]     n     size of diagonal matrix
 !! \param [in]     b     number of constraint blocks
+!! \param [in]     nm    (integrated) size of constraint blocks (<=N*M)
 !! \param [in]     cu    1/sqrt(c)
 !! \param [in]     a     modified constraint (block) matrix 
 !! \param [in]     l     constraint (block matrix row) offsets
@@ -2963,7 +2966,7 @@ END SUBROUTINE precons
 !! \param [out]    x     result vector
 !! \param [in]     y     rhs vector (changed if x=y as actual parameters)
 
-SUBROUTINE presols(p,n,b,cu,a,l,s,x,y) ! solution
+SUBROUTINE presols(p,n,b,nm,cu,a,l,s,x,y) ! solution
     USE mpdef
 
     IMPLICIT NONE
@@ -2982,9 +2985,10 @@ SUBROUTINE presols(p,n,b,cu,a,l,s,x,y) ! solution
     INTEGER(mpi), INTENT(IN)              :: p
     INTEGER(mpi), INTENT(IN)              :: n
     INTEGER(mpi), INTENT(IN)              :: b
+    INTEGER(mpl), INTENT(IN)              :: nm
     
     REAL(mpd), INTENT(IN)     :: cu(n)
-    REAL(mpd), INTENT(IN)     :: a(*)
+    REAL(mpd), INTENT(IN)     :: a(nm)
     INTEGER(mpi), INTENT(IN)     :: l(p)
     REAL(mpd), INTENT(IN)     :: s((p*p+p)/2)
     REAL(mpd), INTENT(OUT)    :: x(n+p)
@@ -3127,7 +3131,7 @@ SUBROUTINE sqmibb(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scflag
     INTEGER(mpi) :: npri
     INTEGER(mpi) :: nrankb
 
-    REAL(mpd), INTENT(IN OUT)         :: v(*)
+    REAL(mpd), INTENT(IN OUT)         :: v((n*n+n)/2)
     REAL(mpd), INTENT(OUT)            :: b(n)
     INTEGER(mpi), INTENT(IN)                      :: n
     INTEGER(mpi), INTENT(IN)                      :: nbdr
@@ -3383,7 +3387,7 @@ SUBROUTINE sqmibb2(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scfla
     INTEGER(mpi) :: npri
     INTEGER(mpi) :: nrankb
 
-    REAL(mpd), INTENT(IN OUT)         :: v(*)
+    REAL(mpd), INTENT(IN OUT)         :: v((n*n+n)/2)
     REAL(mpd), INTENT(OUT)            :: b(n)
     INTEGER(mpi), INTENT(IN)                      :: n
     INTEGER(mpi), INTENT(IN)                      :: nbdr

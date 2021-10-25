@@ -134,6 +134,7 @@ MODULE mpmod
     INTEGER(mpl) :: mszcon !< (integrated block) matrix size for constraint matrix
     INTEGER(mpl) :: mszprd !< (integrated block) matrix size for (constraint) product matrix
     INTEGER(mpi), DIMENSION(3) :: nprecond !< number of constraints (blocks), matrix size for preconditioner
+    INTEGER(mpl) :: mszpcc !< (integrated block) matrix size for constraint matrix for preconditioner
     INTEGER(mpi) :: nagbn !< max number of global paramters per record
     INTEGER(mpi) :: nalcn !< max number of local paramters per record
     INTEGER(mpi) :: naeqn !< max number of equations (measurements) per record

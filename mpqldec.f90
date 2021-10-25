@@ -135,7 +135,7 @@ SUBROUTINE qldec(a)
     REAL(mpd) :: nrm
     REAL(mpd) :: sp
 
-    REAL(mpd), INTENT(IN)             :: a(*)
+    REAL(mpd), INTENT(IN)             :: a(matsize)
 
     ! prepare
     vecVk=0._mpd
@@ -208,9 +208,9 @@ END SUBROUTINE qldec
 !! The lower triangular matrix L is stored in the M-by-M matrix matL.
 !!
 !! \param [in]     a     block compressed Npar-by-Ncon matrix
-!! \param [in]     bpar  2-by-NparBlock+1 matrix (with parameter block definition)
-!! \param [in]     bcon  3-by-NconBlock+1 matrix (with constraint block definition)
-!! \param [in]     cons  3-by-Ncons+1     matrix (with constraint definition)
+!! \param [in]     bpar  2-by-NparBlock+1    matrix (with parameter block definition)
+!! \param [in]     bcon  3-by-Ncon(Block)s+1 matrix (with constraint block definition)
+!! \param [in]     cons  3-by-Ncons+1        matrix (with constraint definition)
 !!
 SUBROUTINE qldecb(a,bpar,bcon,cons)
     USE mpqldec
@@ -243,10 +243,10 @@ SUBROUTINE qldecb(a,bpar,bcon,cons)
     REAL(mpd) :: nrm
     REAL(mpd) :: sp
 
-    REAL(mpd), INTENT(IN)             :: a(*)
-    INTEGER(mpi), INTENT(IN)          :: bpar(2,*)
-    INTEGER(mpi), INTENT(IN)          :: bcon(3,*)
-    INTEGER(mpi), INTENT(IN)          :: cons(3,*)
+    REAL(mpd), INTENT(IN)             :: a(matsize)
+    INTEGER(mpi), INTENT(IN)          :: bpar(2,nblock+1)
+    INTEGER(mpi), INTENT(IN)          :: bcon(3,ncon+1)
+    INTEGER(mpi), INTENT(IN)          :: cons(3,ncon+1)
 
     !$POMP INST BEGIN(qldecb)
     ! prepare 
@@ -408,8 +408,8 @@ SUBROUTINE qlmlq(x,m,t)
     INTEGER(mpi) :: nparb
     REAL(mpd) :: sp
 
-    REAL(mpd), INTENT(IN OUT)         :: x(*)
     INTEGER(mpi), INTENT(IN)          :: m
+    REAL(mpd), INTENT(IN OUT)         :: x(INT(npar,mpl)*INT(m,mpl))
     LOGICAL, INTENT(IN)               :: t
 
     icoff=ioffBlock(iblock) ! constraint offset in parameter block
@@ -464,8 +464,8 @@ SUBROUTINE qlmrq(x,m,t)
     INTEGER(mpi) :: kn
     REAL(mpd) :: sp
 
-    REAL(mpd), INTENT(IN OUT)         :: x(*)
     INTEGER(mpi), INTENT(IN)          :: m
+    REAL(mpd), INTENT(IN OUT)         :: x(INT(m,mpl)*INT(npar,mpl))
     LOGICAL, INTENT(IN)               :: t
 
     DO j=1,ncon
@@ -513,7 +513,7 @@ SUBROUTINE qlsmq(x,t)
     INTEGER(mpi) :: kn
     REAL(mpd) :: sp
 
-    REAL(mpd), INTENT(IN OUT)         :: x(*)
+    REAL(mpd), INTENT(IN OUT)         :: x(INT(npar,mpl)*INT(npar,mpl))
     LOGICAL, INTENT(IN)               :: t
 
     DO j=1,ncon
@@ -582,8 +582,8 @@ SUBROUTINE qlssq(aprod,A,roff,t)
     REAL(mpd) :: vtAv
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: Av
 
-    REAL(mpd), INTENT(IN OUT)         :: A(*)
-    INTEGER(mpl), INTENT(IN)          :: roff(*)
+    REAL(mpd), INTENT(IN OUT)         :: A((INT(npar,mpl)*INT(npar,mpl)+INT(npar,mpl))/2)
+    INTEGER(mpl), INTENT(IN)          :: roff(npar)
     LOGICAL, INTENT(IN)               :: t
 
     INTERFACE
@@ -723,7 +723,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: matCoeff ! coefficients (d(A*v)=sum(c_i*v_i)) 
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: irangeCoeff !< range for non zero part
 
-    REAL(mpd), INTENT(IN OUT)         :: B(*)
+    REAL(mpd), INTENT(IN OUT)         :: B(npar*m-(m*m-m)/2)
     INTEGER(mpi), INTENT(IN)          :: m
     LOGICAL, INTENT(IN)               :: t
 
@@ -971,8 +971,8 @@ SUBROUTINE qlbsub(d,y)
     INTEGER(mpi) :: k
     INTEGER(mpi) :: nconb
 
-    REAL(mpd), INTENT(IN)         :: d(*)
-    REAL(mpd), INTENT(OUT)        :: y(*)
+    REAL(mpd), INTENT(IN)         :: d(ncon)
+    REAL(mpd), INTENT(OUT)        :: y(ncon)
 
     ! solve L*y=d by forward substitution
     icoff=ioffBlock(iblock) ! constraint offset in parameter block
