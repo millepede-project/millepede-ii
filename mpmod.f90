@@ -48,10 +48,10 @@ MODULE mpmod
     REAL(mps)    :: chicut=0.0  !< cut in terms of 3-sigma cut, first iteration
     REAL(mps)    :: chirem=0.0  !< cut in terms of 3-sigma cut, other iterations, approaching 1.
     REAL(mps)    :: chhuge=50.0 !< cut in terms of 3-sigma for unreasonable data, all iterations
-    INTEGER(mpi) :: nrecpr=0  !< record number with printout
-    INTEGER(mpi) :: nrecp2=0  !< record number with printout
-    INTEGER(mpi) :: nrec1 =0  !< record number with largest residual
-    INTEGER(mpi) :: nrec2 =0  !< record number with largest chi^2/Ndf
+    INTEGER(mpl) :: nrecpr=0  !< record number with printout
+    INTEGER(mpl) :: nrecp2=0  !< record number with printout
+    INTEGER(mpl) :: nrec1 =0  !< record number with largest residual
+    INTEGER(mpl) :: nrec2 =0  !< record number with largest chi^2/Ndf
     REAL(mps)    :: value1=0.0!< largest residual
     REAL(mps)    :: value2=0.0!< largest chi^2/Ndf
     REAL(mps)    :: dwcut=0.0 !< down-weight fraction cut
@@ -75,8 +75,8 @@ MODULE mpmod
     INTEGER(mpi), DIMENSION(2) :: nbndr =0  !< number of records with bordered band matrix for local fit (upper/left, lower/right)
     INTEGER(mpi) :: nbdrx =0  !< max border size for local fit
     INTEGER(mpi) :: nbndx =0  !< max band width for local fit
-    INTEGER(mpi) :: nrecer=0  !< record with error (rank deficit or Not-a-Number) for printout
-    INTEGER(mpi) :: nrec3 = huge(nrec3) !< (1.) record number with error
+    INTEGER(mpl) :: nrecer=0  !< record with error (rank deficit or Not-a-Number) for printout
+    INTEGER(mpl) :: nrec3 = huge(nrec3) !< (1.) record number with error
     INTEGER(mpi) :: mreqpe=1  !< min number of pair entries
     INTEGER(mpi) :: mhispe=0  !< upper bound for pair entry histogrammimg
     INTEGER(mpi) :: msngpe=-1 !< upper bound for pair entry single precision storage
@@ -145,8 +145,11 @@ MODULE mpmod
     INTEGER(mpi) :: nagbn !< max number of global paramters per record
     INTEGER(mpi) :: nalcn !< max number of local paramters per record
     INTEGER(mpi) :: naeqn !< max number of equations (measurements) per record
-    INTEGER(mpi) :: nrec  !< number of records read
-    INTEGER(mpi) :: nrecd !< number of records read containing doubles
+    INTEGER(mpl) :: nrec  !< number of records read
+    INTEGER(mpl) :: nrecd !< number of records read containing doubles
+    INTEGER(mpl) :: neqn  !< number of equations (measurements) read
+    INTEGER(mpl) :: negb  !< number of equations read with global parameters
+    INTEGER(mpl) :: ndgb  !< number of global derivatives read
     REAL(mps)    :: dflim !< convergence limit
     INTEGER(mpi), DIMENSION(0:3) :: nrejec !< rejected events
     REAL(mps), DIMENSION(0:8) :: times !< cpu time counters
@@ -160,7 +163,7 @@ MODULE mpmod
     REAL         :: rstart !< cpu start time for solution iterations
     REAL(mps)    :: deltim !< cpu time difference
     INTEGER(mpi) :: npresg !< number of pre-sigmas
-    INTEGER(mpi) :: nrecal !< number of records
+    INTEGER(mpl) :: nrecal !< number of records
     INTEGER(mpi) :: ndefec=0 !< rank deficit for global matrix (from inversion)
     INTEGER(mpi) :: ndefpg=0 !< number of parameter groups with rank deficit (from inversion)
     INTEGER(mpi) :: nmiss1=0 !< rank deficit for constraints
@@ -182,8 +185,8 @@ MODULE mpmod
     ! each loop
     INTEGER(mpi) :: numReadbuffer     !< number of buffers (records) in (read) block
     INTEGER(mpi) :: numBlocks         !< number of (read) blocks
-    INTEGER(mpi) :: sumRecords        !< sum of records
-    INTEGER(mpi) :: skippedRecords    !< number of skipped records (buffer too small)
+    INTEGER(mpl) :: sumRecords        !< sum of records
+    INTEGER(mpl) :: skippedRecords    !< number of skipped records (buffer too small)
     INTEGER(mpi) :: minRecordsInBlock !< min. records in block
     INTEGER(mpi) :: maxRecordsInBlock !< max. records in block
     INTEGER(mpi) :: lenGlobalVec      !< length of global vector 'b' (A*x=b)
@@ -196,7 +199,6 @@ MODULE mpmod
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: globalParStart     !< start value for global parameters
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: globalParPreSigma  !< pre-sigma for global parameters
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: globalParPreWeight !< weight from pre-sigma
-    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalParCounts !< global parameters counts (from binary files)
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalParCons !< global parameters (number of) constraints
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalParComments !< global parameters comments
     ! global matrix, vector
@@ -204,7 +206,7 @@ MODULE mpmod
     REAL(mps), DIMENSION(:), ALLOCATABLE :: globalMatF !< global matrix 'A' (float part for compressed sparse)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: globalVector !< global vector 'x' (in A*x=b)
     INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: globalRowOffsets !< row offsets for full or unpacked matrix
-    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalCounter !< global counter (entries in 'x')
+    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: globalCounter !< global counter (entries in 'x')
     ! AVPROD (A*x=b) by MINRES
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: vecXav !< vector x for AVPROD (A*x=b)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: vecBav !< vector b for AVPROD (A*x=b)
@@ -252,7 +254,8 @@ MODULE mpmod
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: measHists !< measurement histograms (100 bins per thread)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: measRes !< average measurement error   
     ! global parameter mapping
-    INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: globalParLabelIndex !< global parameters label, total -> var. index
+    INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: globalParLabelIndex !< global parameters label, total -> var. index, group infos
+    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: globalParLabelCounter !< global parameters label counters
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalParHashTable    !< global parameters hash table
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalParVarToTotal   !< global parameters variable -> total index
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalAllParToGroup   !< all parameters variable -> group index
@@ -346,7 +349,7 @@ MODULE mpmod
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: lfd   !< length of file name
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: nfd   !< index (line) in (steering) file
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: kfd !< (1,.)=  number of records in file, (2,..)= file order
-    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: ifd   !< file: integrated record numbers (=offset)
+    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: ifd   !< file: integrated record numbers (=offset)
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: jfd   !< file: number of accepted records
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: dfd   !< file: ndf sum
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: xfd   !< file: max. record size

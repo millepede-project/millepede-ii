@@ -53,7 +53,7 @@
 !! 1. Download the software package from the DESY \c gitlab server to
 !!    \a target directory, e.g. (shallow clone):
 !!
-!!         git clone --depth 1 --branch V04-16-00 \
+!!         git clone --depth 1 --branch V04-16-01 \
 !!             https://gitlab.desy.de/claus.kleinwort/millepede-ii.git target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
@@ -180,6 +180,7 @@
 !! * 240214: Fix severe problem with external measurements depending on multiple global parameters.
 !! * 240227: Quick fix for possible integer overflow in summing up global Chi2 (ADDSUM). Needs careful revision.
 !! * 240229: Summation of global Chi2 and NDF revised (no more 32bit variables, update per record).
+!! * 240412: Counters scaling with the number of records are now long (64bit) integers.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -1661,7 +1662,7 @@ SUBROUTINE grpcon
         END IF
         IF(label > 0.AND.itype == 2) THEN  ! weighted constraints
             itgbi=inone(label) ! -> ITGBI= index of parameter label
-            listConstraints(i)%value=listConstraints(i)%value*globalParCounts(itgbi)
+            listConstraints(i)%value=listConstraints(i)%value*globalParLabelCounter(itgbi)
         END IF
     END DO
 
@@ -2711,7 +2712,7 @@ SUBROUTINE peread(more)
 
                 readBufferPointer(ioffp+nbuf)=noff       ! pointer to start of buffer
                 readBufferDataI(noff  )=noff+nr          ! pointer to  end  of buffer
-                readBufferDataI(noff-1)=ifd(kfile)+jrec  ! global record number (available with LOOP2)
+                readBufferDataI(noff-1)=jrec             ! local record number
                 readBufferDataD(noff  )=REAL(kfile,mpr8) ! file number
                 readBufferDataD(noff-1)=REAL(wfd(kfile),mpr8) ! weight
 
@@ -2871,8 +2872,8 @@ SUBROUTINE peread(more)
         floop=.FALSE.
         IF (ncache > 0.AND.nloopn <= 1.AND.mprint > 0)  &
             WRITE(*,179) numBlocks, sumRecords, minRecordsInBlock, maxRecordsInBlock
-179     FORMAT(/' Read  cache usage (#blocks, #records, ',  &
-            'min,max records/block'/17X,4I10)
+179     FORMAT(/' Read  cache usage (#blocks,   #records, ',  &
+            'min,max records/block'/17X,I10,I12,2I10)
     END IF
     RETURN
 
@@ -2954,6 +2955,10 @@ SUBROUTINE peprep(mode)
                 DO ! loop over measurements
                     CALL isjajb(nst,ist,ja,jb,jsp)
                     IF(jb == 0) EXIT
+                    neqn=neqn+1
+                    IF(jb == ist) CYCLE
+                    negb=negb+1
+                    ndgb=ndgb+(ist-jb)
                     DO j=1,ist-jb
                         itgbi=inone( readBufferDataI(jb+j) ) ! generate index
                     END DO
@@ -3154,11 +3159,6 @@ SUBROUTINE pepgrp
         ELSE
             ! record level, group     
             CALL pargrp(ist,nst)
-            ! count
-            DO j=ist,nst
-                itgbi=readBufferDataI(j)
-                globalParLabelIndex(4,itgbi)=globalParLabelIndex(4,itgbi)+1
-            END DO                                
         ENDIF
     END DO
     ! free back index
@@ -3200,6 +3200,8 @@ SUBROUTINE pargrp(inds,inde)
     ! build up groups
     DO j=inds,inde
         itgbi=readBufferDataI(j)
+        ! count entries
+        globalParLabelCounter(itgbi)=globalParLabelCounter(itgbi)+1
         istart=globalParLabelIndex(3,itgbi)     ! label of group start
         IF (istart == 0) THEN                   ! not yet in group
             IF (itgbi /= ltgbi+1) THEN          ! start group
@@ -3754,7 +3756,7 @@ SUBROUTINE loopn
     ! monitoring of residuals
     IF (imonit < 0 .OR. (nloopn == 1 .AND. btest(imonit,0))) CALL monres
 
-101 FORMAT(1X,a8,' =',i10,' = ',a)
+101 FORMAT(1X,a8,' =',i14,' = ',a)
 ! 101  FORMAT(' LOOPN',I6,' Function value',F22.8,10X,I6,' records')
 ! 102  FORMAT('   incl. constraint penalty',F22.8)
 ! 103  FORMAT(I13,3X,A,G12.4)
@@ -4335,6 +4337,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
     INTEGER(mpi) :: joffd
     INTEGER(mpi) :: joffi
     INTEGER(mpi) :: jproc
+    INTEGER(mpi) :: jrc
     INTEGER(mpi) :: jsp
     INTEGER(mpi) :: k
     INTEGER(mpi) :: kbdr
@@ -4358,7 +4361,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
     INTEGER(mpi) :: ngg
     INTEGER(mpi) :: nprdbg
     INTEGER(mpi) :: nrank
-    INTEGER(mpi) :: nrc
+    INTEGER(mpl) :: nrc
     INTEGER(mpi) :: nst
     INTEGER(mpi) :: nter
     INTEGER(mpi) :: nweig
@@ -4406,7 +4409,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
     !$OMP      writeBufferData,writeBufferIndices,writeBufferUpdates,globalVector,globalCounter, &
     !$OMP      globalParameter,globalParLabelIndex,globalIndexUsage,backIndexUsage, &
     !$OMP      measBins,numMeas,measIndex,measRes,measHists,globalAllParToGroup,globalAllIndexGroups, &
-    !$OMP      localCorrections,localEquations, &
+    !$OMP      localCorrections,localEquations,ifd, &
     !$OMP      NAGB,NVGB,NAGBN,ICALCM,ICHUNK,NLOOPN,NRECER,NPRDBG,IPRDBG, &
     !$OMP      NEWITE,CHICUT,LHUBER,CHUBER,ITERAT,NRECPR,MTHRD,NSPC,NAEQN, &
     !$OMP      DWCUT,CHHUGE,NRECP2,CAUCHY,LFITNP,LFITBB,IMONIT,IMONMD,MONPG1,LUNLOG) &
@@ -4415,8 +4418,9 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
     !$OMP   REDUCTION(MIN:NREC3) &
     !$OMP   SCHEDULE(DYNAMIC,ICHUNK)
     DO ibuf=1,numReadBuffer                       ! buffer for current record
-        nrc=readBufferDataI(readBufferPointer(ibuf)-1)         ! record
-        kfl=NINT(readBufferDataD(readBufferPointer(ibuf)),mpi) ! file
+        jrc=readBufferDataI(readBufferPointer(ibuf)-1)           ! record number in file
+        kfl=NINT(readBufferDataD(readBufferPointer(ibuf)),mpi)   ! file
+        nrc=ifd(kfl)+jrc                                         ! global record number
         dw1=REAL(readBufferDataD(readBufferPointer(ibuf)-1),mpd) ! weight
         dw2=SQRT(dw1)
   
@@ -4431,8 +4435,8 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
         !     ----- reset ------------------------------------------------------
         lprnt=.FALSE.
         lhist=(iproc == 0)
-        REC=nrc            ! floating point value
-        IF(nloopn == 1.AND.MOD(nrc,100000) == 0) THEN
+        REC=REAL(nrc,mps)    ! floating point value
+        IF(nloopn == 1.AND.MOD(nrc,100000_mpl) == 0) THEN
             WRITE(*,*) 'Record',nrc,' ... still reading'
             IF(monpg1>0) WRITE(lunlog,*) 'Record',nrc,' ... still reading'
         END IF
@@ -4595,7 +4599,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
                 STOP ' mismatch of number of global parameters '
             ENDIF
             ! index header
-            writeBufferIndices(ioffi-2)=nrc       ! event number
+            writeBufferIndices(ioffi-2)=jrc       ! record number in file
             writeBufferIndices(ioffi-1)=nalg      ! number of global parameters
             writeBufferIndices(ioffi  )=ngrp      ! number of global par groups
             DO k=1,ngg
@@ -4929,7 +4933,8 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
         IF(newite.AND.iterat == 2) THEN ! find record with largest Chi^2/Ndf
             IF(nrecp2 < 0.AND.chndf > writeBufferData(2,iproc+1)) THEN
                 writeBufferData(2,iproc+1)=chndf
-                writeBufferInfo(7,iproc+1)=nrc
+                writeBufferInfo(8,iproc+1)=jrc
+                writeBufferInfo(9,iproc+1)=kfl
             END IF
         END IF
   
@@ -4976,7 +4981,8 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
         IF(newite.AND.iterat == 2) THEN ! find record with largest residual
             IF(nrecpr < 0.AND.resmax > writeBufferData(1,iproc+1)) THEN
                 writeBufferData(1,iproc+1)=REAL(resmax,mps)
-                writeBufferInfo(6,iproc+1)=nrc
+                writeBufferInfo(6,iproc+1)=jrc
+                writeBufferInfo(7,iproc+1)=kfl
             END IF
         END IF
         !      'track quality' per binary file: accepted records
@@ -5248,7 +5254,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
             DO k=1,mthrd
                 IF (writeBufferData(1,k) > value1) THEN
                     value1=writeBufferData(1,k)
-                    nrec1 =writeBufferInfo(6,k)
+                    nrec1 =writeBufferInfo(6,k)+ifd(writeBufferInfo(7,k))
                 END IF
             END DO
         END IF
@@ -5256,7 +5262,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
             DO k=1,mthrd
                 IF (writeBufferData(2,k) > value2) THEN
                     value2=writeBufferData(2,k)
-                    nrec2 =writeBufferInfo(7,k)
+                    nrec2 =writeBufferInfo(8,k)+ifd(writeBufferInfo(9,k))
                 END IF
             END DO
         END IF
@@ -5290,7 +5296,7 @@ SUBROUTINE prtglo
     REAL(mps):: gcor
     INTEGER(mpi) :: i
     INTEGER(mpi) :: icom
-    INTEGER(mpi) :: icount
+    INTEGER(mpl) :: icount
     INTEGER(mpi) :: ie
     INTEGER(mpi) :: iev
     INTEGER(mpi) :: ij
@@ -5353,7 +5359,7 @@ SUBROUTINE prtglo
                 END IF
             END IF
         END IF
-        IF(ipcntr > 1) icount=globalParCounts(itgbi) ! from binary files 
+        IF(ipcntr > 1) icount=globalParLabelCounter(itgbi) ! from binary files
         IF(lowstat) icount=-(icount+1) ! flag 'lowstat' with icount < 0
         IF(itgbi <= iprlim) THEN
             IF(ivgbi <= 0) THEN
@@ -5474,7 +5480,7 @@ SUBROUTINE prtstat
     REAL(mps):: par
     REAL(mps):: presig
     INTEGER(mpi) :: icom
-    INTEGER(mpi) :: icount
+    INTEGER(mpl) :: icount
     INTEGER(mpi) :: ifrst
     INTEGER(mpi) :: ilast
     INTEGER(mpi) :: inext
@@ -5527,7 +5533,7 @@ SUBROUTINE prtstat
         IF (globalParLabelIndex(3,itgbi) == itgbl) c1='>'
         par=REAL(globalParameter(itgbi),mps)      ! initial value
         presig=REAL(globalParPreSigma(itgbi),mps) ! initial presigma
-        icount=globalParCounts(itgbi) ! from binary files
+        icount=globalParLabelCounter(itgbi) ! from binary files
         icgrp=globalParCons(itgbi) ! constraints group
 
         IF (ivgbi <= 0) THEN
@@ -6610,6 +6616,7 @@ INTEGER(mpi) FUNCTION inone(item)             ! translate 1-D identifier to nrs
     IF(globalParHeader(-1) == 0) THEN
         length=128                   ! initial number
         CALL mpalloc(globalParLabelIndex,four,length,'INONE: label & index')
+        CALL mpalloc(globalParLabelCounter,length,'INONE: counter') ! updated in pargrp
         CALL mpalloc(globalParHashTable,2*length,'INONE: hash pointer')
         globalParHashTable = 0
         globalParHeader(-0)=INT(length,mpi)       ! length of labels/indices
@@ -6640,9 +6647,10 @@ INTEGER(mpi) FUNCTION inone(item)             ! translate 1-D identifier to nrs
         j=globalParHeader(-1)
         globalParHashTable(k)=j                ! hash index
         globalParLabelIndex(1,j)=item          ! add new item
-        globalParLabelIndex(2,j)=0             ! reset counter
-        globalParLabelIndex(3,j)=0             ! reset group info
-        globalParLabelIndex(4,j)=0             ! reset group info
+        globalParLabelIndex(2,j)=0             ! reset index (for variable par.)
+        globalParLabelIndex(3,j)=0             ! reset group info (first label)
+        globalParLabelIndex(4,j)=0             ! reset group info (group index)
+        globalParLabelCounter(j)=0             ! reset (long) counter
         IF(globalParHeader(-1) /= globalParHeader(-0)) EXIT outer
         ! update with larger dimension and redefine index
         globalParHeader(-3)=globalParHeader(-3)*2
@@ -6651,10 +6659,11 @@ INTEGER(mpi) FUNCTION inone(item)             ! translate 1-D identifier to nrs
             globalParHeader(-3),' words'
     END DO outer
 
-    IF(globalParHeader(-2) == 0) THEN
-        globalParLabelIndex(2,j)=globalParLabelIndex(2,j)+1 ! increase counter
-        globalParHeader(-7)=globalParHeader(-7)+1
-    END IF
+    ! counting now in pargrp
+    !IF(globalParHeader(-2) == 0) THEN
+    !    globalParLabelIndex(2,j)=globalParLabelIndex(2,j)+1 ! increase counter
+    !    globalParHeader(-7)=globalParHeader(-7)+1
+    !END IF
     inone=j
 END FUNCTION inone
 
@@ -6674,12 +6683,13 @@ SUBROUTINE upone
     INTEGER(mpl) :: newLength
     INTEGER(mpl), PARAMETER :: four = 4
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: tempArr
+    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: tempVec
     SAVE
     !     ...
     finalUpdate=(globalParHeader(-3) == globalParHeader(-1))
     IF(finalUpdate) THEN ! final (cleanup) call
         IF (globalParHeader(-1) > globalParHeader(-8)) THEN
-            CALL sort22(globalParLabelIndex,globalParHeader(-1)) ! sort items
+            CALL sort22l(globalParLabelIndex,globalParLabelCounter,globalParHeader(-1)) ! sort items
             globalParHeader(-8)=globalParHeader(-1)
         END IF
     END IF
@@ -6688,14 +6698,20 @@ SUBROUTINE upone
     oldLength = globalParHeader(-0)
     CALL mpalloc(tempArr,four,oldLength,'INONE: temp array')
     tempArr(:,1:nused)=globalParLabelIndex(:,1:nused)
+    CALL mpalloc(tempVec,oldLength,'INONE: temp vector')
+    tempVec(1:nused)=globalParLabelCounter(1:nused)
     CALL mpdealloc(globalParLabelIndex)
+    CALL mpdealloc(globalParLabelCounter)
     CALL mpdealloc(globalParHashTable)
     ! create new LabelIndex
     newLength = globalParHeader(-3)
     CALL mpalloc(globalParLabelIndex,four,newLength,'INONE: label & index')
+    CALL mpalloc(globalParLabelCounter,newLength,'INONE: counter')
     CALL mpalloc(globalParHashTable,2*newLength,'INONE: hash pointer')
     globalParHashTable = 0
     globalParLabelIndex(:,1:nused) = tempArr(:,1:nused) ! copy back saved content
+    globalParLabelCounter(1:nused) = tempVec(1:nused)   ! copy back saved content
+    CALL mpdealloc(tempVec)
     CALL mpdealloc(tempArr)
     globalParHeader(-0)=INT(newLength,mpi)   ! length of labels/indices
     globalParHeader(-3)=globalParHeader(-1)
@@ -6732,7 +6748,7 @@ SUBROUTINE useone
     SAVE
     !     ...
     IF (globalParHeader(-1) > globalParHeader(-8)) THEN
-        CALL sort22(globalParLabelIndex,globalParHeader(-1)) ! sort items
+        CALL sort22l(globalParLabelIndex,globalParLabelCounter,globalParHeader(-1)) ! sort items
         ! redefine hash
         globalParHashTable = 0
         outer: DO i=1,globalParHeader(-1)
@@ -6840,6 +6856,9 @@ SUBROUTINE loop1
     END IF
     WRITE(lunlog,*) 'LOOP1: reading data files'
 
+    neqn=0 ! number of equations
+    negb=0 ! number of equations with global parameters
+    ndgb=0 ! number of global derivatives
     DO
         DO j=1,globalParHeader(-1)
             globalParLabelIndex(2,j)=0   ! reset count
@@ -6917,7 +6936,6 @@ SUBROUTINE loop1
     CALL mpalloc(globalParStart,length,'global parameters at start')
     globalParStart=0.
     CALL mpalloc(globalParCopy,length,'copy of global parameters')
-    CALL mpalloc(globalParCounts,length,'global parameter counts')
     CALL mpalloc(globalParCons,length,'global parameter constraints')
     globalParCons=0
     CALL mpalloc(globalParComments,length,'global parameter comments')
@@ -6957,10 +6975,9 @@ SUBROUTINE loop1
 
     indab=0
     DO i=1,ntgb
-        globalParCounts(i) = globalParLabelIndex(2+2*mcount,i)
         IF (globalParPreSigma(i) < 0.0) THEN
             globalParLabelIndex(2,i)=-1     ! fixed (pre-sigma), not used in matrix (not active)
-        ELSE IF(globalParCounts(i) < mreqenf) THEN
+        ELSE IF(globalParLabelCounter(i) < mreqenf) THEN
             globalParLabelIndex(2,i)=-2     ! fixed (entries cut), not used in matrix (not active) 
         ELSE IF (globalParCons(i) < 0) THEN           
             globalParLabelIndex(2,i)=-4     ! fixed (redundant), not used in matrix (not active)        
@@ -7086,6 +7103,9 @@ SUBROUTINE loop1
         WRITE(*,*) ' '
         WRITE(*,101) '  NREC',nrec,'number of records'
         IF (nrecd > 0) WRITE(*,101) ' NRECD',nrec,'number of records containing doubles'
+        WRITE(*,101) '  NEQN',neqn,'number of equations (measurements)'
+        WRITE(*,101) '  NEGB',negb,'number of equations with global parameters'
+        WRITE(*,101) '  NDGB',ndgb,'number of global derivatives'
         IF (mcount == 0) THEN
             WRITE(*,101) 'MREQENF',mreqenf,'required number of entries (eqns in binary files)'
         ELSE
@@ -7119,6 +7139,9 @@ SUBROUTINE loop1
     WRITE(8,*)   ' '
     WRITE(8,101) '  NREC',nrec,'number of records'
     IF (nrecd > 0) WRITE(8,101) ' NRECD',nrec,'number of records containing doubles'
+    WRITE(8,101) '  NEQN',neqn,'number of equations (measurements)'
+    WRITE(8,101) '  NEGB',negb,'number of equations with global parameters'
+    WRITE(8,101) '  NDGB',ndgb,'number of global derivatives'
     IF (mcount == 0) THEN
         WRITE(8,101) 'MREQENF',mreqenf,'required number of entries (eqns in binary files)'
     ELSE
@@ -7132,7 +7155,7 @@ SUBROUTINE loop1
     WRITE(lunlog,*) ' '
     CALL mend
 
-101 FORMAT(1X,a8,' =',i10,' = ',a)
+101 FORMAT(1X,a8,' =',i14,' = ',a)
 END SUBROUTINE loop1
 
 !> Iteration of first data \ref sssec-loop1 "loop".
@@ -7163,7 +7186,7 @@ SUBROUTINE loop1i
     INTEGER(mpi) :: nwrd
 
     INTEGER(mpl) :: length
-    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: newCounter
+    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: newCounter
     SAVE
 
     !     ...
@@ -7228,7 +7251,7 @@ SUBROUTINE loop1i
     indab=0
     DO i=1,ntgb
         IF(globalParLabelIndex(2,i) > 0) THEN
-            IF(newCounter(i) >= mreqenf .OR. globalParCounts(i) >= iteren) THEN
+            IF(newCounter(i) >= mreqenf .OR. globalParLabelCounter(i) >= iteren) THEN
                 indab=indab+1
                 globalParLabelIndex(2,i)=indab  ! variable, used in matrix (active)
             ELSE
@@ -7296,6 +7319,7 @@ SUBROUTINE loop2
     INTEGER(mpi) :: jcgrp
     INTEGER(mpi) :: jext
     INTEGER(mpi) :: jcgb
+    INTEGER(mpi) :: jrec
     INTEGER(mpi) :: jsp
     INTEGER(mpi) :: joff
     INTEGER(mpi) :: k
@@ -7606,11 +7630,12 @@ SUBROUTINE loop2
         CALL peprep(1)  ! prepare records
         ioff=0
         DO ibuf=1,numReadBuffer           ! buffer for current record
-            nrec=readBufferDataI(readBufferPointer(ibuf)-1)   ! record
+            jrec=readBufferDataI(readBufferPointer(ibuf)-1)          ! record number in file
+            kfile=NINT(readBufferDataD(readBufferPointer(ibuf)),mpi) ! file
+            nrec=ifd(kfile)+jrec                                     ! global record number
             !     Printout for DEBUG
             IF(nrec <= mdebug) THEN
                 nda=0
-                kfile=NINT(readBufferDataD(readBufferPointer(ibuf)),mpi)   ! file
                 wrec =REAL(readBufferDataD(readBufferPointer(ibuf)-1),mps) ! weight
                 WRITE(*,*) ' '
                 WRITE(*,*) 'Record number ',nrec,' from file ',kfile
@@ -7676,11 +7701,11 @@ SUBROUTINE loop2
                             kfile=NINT(readBufferDataD(readBufferPointer(ibuf)),mpi) ! file
                             IF (appearanceCounter(joff+1) == 0) THEN
                                 appearanceCounter(joff+1) = kfile
-                                appearanceCounter(joff+2) = nrec-ifd(kfile) ! (local) record number
+                                appearanceCounter(joff+2) = jrec ! (local) record number
                             END IF
                             IF (appearanceCounter(joff+3) /= kfile) appearanceCounter(joff+5)=appearanceCounter(joff+5)+1
                             appearanceCounter(joff+3) = kfile
-                            appearanceCounter(joff+4) = nrec-ifd(kfile) ! (local) record number
+                            appearanceCounter(joff+4) = jrec ! (local) record number
                             ! count pairs
                             DO k=1,j
                                 CALL inbmap(globalParLabelIndex(4,ij),globalParLabelIndex(4,readBufferDataI(jb+k)))
@@ -7710,12 +7735,12 @@ SUBROUTINE loop2
                                         kfile=NINT(readBufferDataD(readBufferPointer(ibuf)),mpi) ! file
                                         IF (appearanceCounter(joff+1) == 0) THEN
                                             appearanceCounter(joff+1) = kfile
-                                            appearanceCounter(joff+2) = nrec-ifd(kfile) ! (local) record number
+                                            appearanceCounter(joff+2) = jrec ! (local) record number
                                         END IF
                                         IF (appearanceCounter(joff+3) /= kfile) appearanceCounter(joff+5)=&
                                             appearanceCounter(joff+5)+1
                                         appearanceCounter(joff+3) = kfile
-                                        appearanceCounter(joff+4) = nrec-ifd(kfile) ! (local) record number                                    
+                                        appearanceCounter(joff+4) = jrec ! (local) record number
                                     END IF
                                 END IF
                                 IF (vecConsGroupIndex(k) < icount) THEN
@@ -8195,7 +8220,7 @@ SUBROUTINE loop2
     writeBufferHeader(-2)=(nagbn*nagbn+nagbn)/2 ! min free (double) words
     length=nggi*mthrd
     CALL mpalloc(writeBufferIndices,length,'symmetric update matrix indices')
-    rows=7; cols=mthrd
+    rows=9; cols=mthrd
     CALL mpalloc(writeBufferInfo,rows,cols,'write buffer status (I)')
     rows=2; cols=mthrd
     CALL mpalloc(writeBufferData,rows,cols,'write buffer status (F)')
@@ -8455,7 +8480,7 @@ SUBROUTINE loop2
         END IF
     END IF
     CALL mend
-101 FORMAT(1X,a8,' =',i10,' = ',a)
+101 FORMAT(1X,a8,' =',i14,' = ',a)
 102 FORMAT(22X,a)
 103 FORMAT(1X,a,g12.4)
 106 FORMAT(i6,2(3X,f9.3,f12.1,3X))

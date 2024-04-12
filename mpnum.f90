@@ -70,7 +70,8 @@
 !!        SORT1K   sort 1-dim key-array (CHK)
 !!        SORT2K   sort 2-dim key-array
 !!        SORT2I   sort 2-dim key-array with index (CHK)
-!!        SORT22   sort 2-dim key-array with two additional values (CHK)
+!!        SORT22L  sort 2-dim key-array with two additional values (CHK)
+!!                      and one additional "long" value   
 !!
 
 !----------------------------------------------------------------------
@@ -1973,10 +1974,11 @@ END SUBROUTINE sort2i
 !!
 !! Quick sort of A(4,N) integer.
 !!
-!! \param[in,out] a vector (pair) of integers, sorted at return and an index
+!! \param[in,out] a vector (quadruplet) of integers, sorted at return and an index
+!! \param[in,out] b vector of long integers, sorted at return and an index
 !! \param[in]     n size of vector
 
-SUBROUTINE sort22(a,n)
+SUBROUTINE sort22l(a,b,n)
     USE mpdef
 
     IMPLICIT NONE
@@ -1993,8 +1995,10 @@ SUBROUTINE sort22(a,n)
     INTEGER(mpi) ::a1       ! pivot key
     INTEGER(mpi) ::a2       ! pivot key
     INTEGER(mpi) ::at(4)
-
+    INTEGER(mpl) ::bt
+    
     INTEGER(mpi), INTENT(IN OUT) :: a(4,*)
+    INTEGER(mpl), INTENT(IN OUT) :: b(*)
     INTEGER(mpi), INTENT(IN)     :: n
     !     ...
     maxlev=0
@@ -2007,12 +2011,15 @@ SUBROUTINE sort22(a,n)
             at=a(:,l)       ! exchange L <-> R
             a(:,l)=a(:,r)
             a(:,r)=at
+            bt=b(l)
+            b(l)=b(r)
+            b(r)=bt
         END IF
         r=l
     END IF
     IF(r == l) THEN
         IF(lev <= 0) THEN
-            WRITE(*,*) 'SORT22 (quicksort): maxlevel used/available =', maxlev,'/64'
+            WRITE(*,*) 'SORT22l (quicksort): maxlevel used/available =', maxlev,'/64'
             RETURN
         END IF
         lev=lev-2
@@ -2036,11 +2043,14 @@ SUBROUTINE sort22(a,n)
             at=a(:,i)       ! exchange I <-> J
             a(:,i)=a(:,j)
             a(:,j)=at
+            bt=b(i)
+            b(i)=b(j)
+            b(j)=bt
             GO TO 20
         END IF
         IF(lev+2 > nlev) THEN
             CALL peend(33,'Aborted, stack overflow in quicksort')
-            STOP 'SORT22 (quicksort): stack overflow'
+            STOP 'SORT22l (quicksort): stack overflow'
         END IF
         IF(r-i < j-l) THEN
             lr(lev+1)=l
@@ -2055,7 +2065,7 @@ SUBROUTINE sort22(a,n)
         maxlev=MAX(maxlev,lev)
     END IF
     GO TO 10
-END SUBROUTINE sort22
+END SUBROUTINE sort22l
 
 !> Chi2/ndf cuts.
 !!
