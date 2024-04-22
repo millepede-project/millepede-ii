@@ -87,7 +87,6 @@
 from __future__ import print_function
 
 import sys
-import array
 
 # CLI module distributed with Python
 import argparse
@@ -96,14 +95,14 @@ import struct
 
 parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description = 'read a mille binary file and print its data'
+        description='read a mille binary file and print its data'
         )
-parser.add_argument('--type', choices = ['c','fortran','autodetect'], default='autodetect',
+parser.add_argument('--type', choices=['c', 'fortran', 'autodetect'], default='autodetect',
                     help='type of binary file that will be read')
 parser.add_argument('filename', help='binary file to read')
-parser.add_argument('-n','--num-records', type=int, default=10,
+parser.add_argument('-n', '--num-records', type=int, default=10,
                     help='Number of records (i.e. tracks) to print to terminal. Continue until the end of the file if negative.')
-parser.add_argument('-s','--skip-records', type=int, default=0,
+parser.add_argument('-s', '--skip-records', type=int, default=0,
                     help='number of records (tracks) to skip before starting to print.')
 parser.add_argument('--min-val', type=float,
                     help='minimum value to print derivatives')
@@ -116,25 +115,25 @@ arg = parser.parse_args()
 #   in the choices list, so if we get here, we can assume that arg.type
 #   is one of them.
 Cfiles = -1
-if arg.type == 'c' :
+if arg.type == 'c':
     CFiles = 1
-elif arg.type == 'fortran' :
+elif arg.type == 'fortran':
     CFiles = 0
-else :
+else:
     # need to auto-detect
     f = open(arg.filename, "rb")
     header_words = struct.unpack('ii', f.read(8))
     f.close()
-    Cfiles = 1 # C
-    if header_words[0] == 4*(header_words[1]+1): 
-        Cfiles = 0 # Fortran
+    Cfiles = 1  # C
+    if header_words[0] == 4 * (header_words[1] + 1): 
+        Cfiles = 0  # Fortran
         print("Detected Fortran binary file")
-
 
 # read file
 f = open(arg.filename, "rb")
 
-def unpack(typechar, number = 1) :
+
+def unpack(typechar, number=1):
     """unpack a certain number of the input type
 
     We read from the file stored in the variable `f`.
@@ -161,20 +160,21 @@ def unpack(typechar, number = 1) :
     """
     # 'i' and 'f' are 4 bytes, 'd' is 8 bytes
     bytesper = 4
-    if typechar == 'd' :
+    if typechar == 'd':
         bytesper = 8
 
-    total_bytes = bytesper*number
+    total_bytes = bytesper * number
     bin_data = f.read(total_bytes)
-    if len(bin_data) != total_bytes :
-        if len(bin_data) == 0 :
+    if len(bin_data) != total_bytes:
+        if len(bin_data) == 0:
             raise EOFError()
-        else :
+        else:
             raise ValueError('Requested %d bytes but only got %d from the file.' % (total_bytes, len(bin_data)))
 
     # struct knows that 'i' is 4 bytes, 'f' is 4 bytes, and 'd' is 8 bytes
     # https://docs.python.org/2.7/library/struct.html#format-characters
-    return struct.unpack(typechar*number, bin_data)
+    return struct.unpack(typechar * number, bin_data)
+
 
 nrec = 0
 try:
@@ -184,7 +184,7 @@ try:
         if (Cfiles == 0):
             lenf = struct.unpack('i', f.read(4))
 
-        try :
+        try:
             length = unpack('i')
         except EOFError:
             # EOF is allowed on first word of format,
@@ -199,7 +199,7 @@ try:
         nrec += 1
 
         floattype = 'f'
-        if length[0] < 0 :
+        if length[0] < 0:
             floattype = 'd'
 
         # read read nr floats and then nr integers
@@ -212,13 +212,13 @@ try:
         if (nrec <= arg.skip_records):  # must be after last fromfile
             continue
 
-        if arg.quiet :
+        if arg.quiet:
             continue
 
         print(" === NR ", nrec, length[0] / 2)
 
         # no details, only header
-        if arg.num_records < 0 :
+        if arg.num_records < 0:
             continue
 
         i = 0
@@ -280,7 +280,7 @@ except EOFError:
     if (nr > 0):
         print(" >>> error: end of file before end of record", nrec)
         sys.exit(1)
-except ValueError as e :
+except ValueError as e:
     print(" >>> error: unable to unpack values before end of record", nrec, *(e.args))
     sys.exit(2)
 
