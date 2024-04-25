@@ -98,7 +98,7 @@ MODULE mpmod
     INTEGER(mpi) :: lsearch=2 !< iterations (solutions) with line search:
                          !! >2: all, =2: all with (next) Chi2 cut scaling factor =1., =1: last, <1: none
     INTEGER(mpi) :: ipcntr=0  !< flag for output of global parameter counts (entries), =0: none, =1: local fits, >1: binary files
-    INTEGER(mpi) :: iwcons=0  !< flag for weighting of constraints (>0: weighting with \ref globalparcounts "globalParCounts", else: none)
+    INTEGER(mpi) :: iwcons=0  !< flag for weighting of constraints (>0: weighting with \ref globalparlabelcounter "globalParLabelCounter", else: none)
     INTEGER(mpi) :: icelim=1  !< flag for using elimination (instead of multipliers) for constraints
     INTEGER(mpi) :: icheck=0  !< flag for checking input only (no solution determined)
     INTEGER(mpi) :: ichkpg=0  !< flag for checking (rank of) parameter groups
