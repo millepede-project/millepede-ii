@@ -1,4 +1,4 @@
-#!/usr/bin32/python
+#!/usr/bin/env python3
 
 ## \file
 # Compare two millepede results files
@@ -6,7 +6,7 @@
 # \author Claus Kleinwort, DESY, 2014 (Claus.Kleinwort@desy.de)
 #
 #  \copyright
-#  Copyright (c) 2014 - 2022 Deutsches Elektronen-Synchroton,
+#  Copyright (c) 2014 - 2024 Deutsches Elektronen-Synchroton,
 #  Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 #  This library is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Library General Public License as
@@ -66,43 +66,46 @@ def combineFiles(name1, name2, name3):
     tf.close()    
     
   results = {}
+  print(' comparing MP2 results files')
   # read first file
+  print(' input file1        ', name1)
   addFile(name1)
   # read second file
+  print(' input file2        ', name2)
   addFile(name2)
 
   # write output file, correlate
   sn = sx = sy = sxx = sxy = syy = 0.
   fout = open(name3, 'w')
-  fout.write("label/I:value_1/F:value_2/F\n") # ROOT tree header
-  for l in sorted(results.iterkeys()):
+  fout.write("label/I:value_1/F:value_2/F\n")  # ROOT tree header
+  for l in sorted(results.keys()):
     r = results[l]
     if len(r) == 2:
       # matched label
-      if r[0] <> 0. or r[1] <> 0.: 
+      if r[0] != 0. or r[1] != 0.:
         fout.write("%10d %12.5g %12.5g \n" % (l, r[0], r[1]))
         sn += 1.; sx += r[0]; sy += r[1]; sxx += r[0] * r[0]; sxy += r[0] * r[1]; syy += r[1] * r[1]
     elif len(r) == 1: 
       # unmatched label
-      if r[0] <> 0.: 
+      if r[0] != 0.:
         fout.write("%10d %12.5g %12.5g \n" % (-l, r[0], r[0]))
-      print ' unmatched ', l  
+      print(' unmatched ', l)
   fout.close()
   
-  print ' output file        ', fileNameOut
-  print ' total parameters   ', len(results)
+  print(' output file        ', name3)
+  print(' total parameters   ', len(results))
   matched = int(sn)
   if (matched <= 0): 
     return 
   
   #comparision
-  print ' matched parameters ', matched
+  print(' matched parameters ', matched)
   sx /= sn; sy /= sn
-  print ' mean1, mean2       ', sx, sy  
+  print(' mean1, mean2       ', sx, sy)
   sxx /= sn; syy /= sn
-  print ' rms1, rms2         ', math.sqrt(sxx - sx * sx), math.sqrt(syy - sy * sy)
+  print(' rms1, rms2         ', math.sqrt(sxx - sx * sx), math.sqrt(syy - sy * sy))
   sxy /= sn
-  print ' correlation        ', (sxy - sx * sy) / (math.sqrt(sxx - sx * sx) * math.sqrt(syy - sy * sy))
+  print(' correlation        ', (sxy - sx * sy) / (math.sqrt(sxx - sx * sx) * math.sqrt(syy - sy * sy)))
 
           
 if __name__ == '__main__':
@@ -115,7 +118,7 @@ if __name__ == '__main__':
   narg = len(sys.argv)
   if narg > 1:
     if narg < 3:
-      print " usage: compareResults.py <input file name1>  <input file name2> [<output file name>]"
+      print(" usage: compareResults.py <input file name1>  <input file name2> [<output file name>]")
       sys.exit(2)
     else:
       fileNameIn1 = sys.argv[1]
@@ -123,6 +126,5 @@ if __name__ == '__main__':
       if narg > 3:
         fileNameOut = sys.argv[3]
 
-  print fileNameIn1, fileNameIn2, fileNameOut
   # combine input files 1 and 2 into output file
   combineFiles(fileNameIn1, fileNameIn2, fileNameOut)
