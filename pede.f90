@@ -53,7 +53,7 @@
 !! 1. Download the software package from the DESY \c gitlab server to
 !!    \a target directory, e.g. (shallow clone):
 !!
-!!         git clone --depth 1 --branch V04-16-01 \
+!!         git clone --depth 1 --branch V04-16-02 \
 !!             https://gitlab.desy.de/claus.kleinwort/millepede-ii.git target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
@@ -181,15 +181,18 @@
 !! * 240227: Quick fix for possible integer overflow in summing up global Chi2 (ADDSUM). Needs careful revision.
 !! * 240229: Summation of global Chi2 and NDF revised (no more 32bit variables, update per record).
 !! * 240412: Counters scaling with the number of records are now long (64bit) integers.
+!! * 240429: Added \c tinypede.py to tools.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
 !! * \c readMilleBinary.py: Python script to read binary files and print
 !!   records in text form.
-!! * \c compareResults.py: Python2 script to compare result files (<tt>millepede.res</tt>).
+!! * \c compareResults.py: Python3 script to compare result files (<tt>millepede.res</tt>).
 !! * \c readPedeHists.C: ROOT script to read and convert the **Millepede**
 !!   histogram file <tt>millepede.his</tt>.
 !! * \c lapack: Test programs to print LAPACK (library) configuration (MKL, OpenBLAS).
+!! * \c tinypede.py: **Pede** implementation in python3 with basic functionality for
+!!   illustration or testing with small problems.
 !!
 !! \section details_sec Details
 !!
