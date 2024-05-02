@@ -182,6 +182,7 @@
 !! * 240229: Summation of global Chi2 and NDF revised (no more 32bit variables, update per record).
 !! * 240412: Counters scaling with the number of records are now long (64bit) integers.
 !! * 240429: Added \c tinypede.py to tools.
+!! * 240502: Added \ref Legacy "legacy" (Millepede-I) folder.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -214,6 +215,12 @@
 !!
 !! For information exchange the **Millepede** mailing list
 !! anacentre-millepede2@desy.de should be used.
+!!
+!! \section Legacy
+!! The subdirectory \c legacy contains the original \ref millepede1.f90
+!! "Millepede-I" implementation from Volker
+!! Blobel (2000) and a Millepede-I to Millepede-II \ref mp1to2.f90 "interface"
+!! (creating Millepede-II input files from Millepede-I calls, developed for COMPASS at CERN).
 !!
 !! \section ref_sec References
 !!
