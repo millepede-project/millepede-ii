@@ -330,6 +330,7 @@ class Pede(object):
   #
   # Add (linear equality) constraints from text file.
   # Accept only constraints with at least one variable parameter.
+  # Assume zero r.h.s. (C*p=0). 
   #
   # @param[in] textFile  file name (text file with constraints)   
   #
@@ -386,6 +387,7 @@ class Pede(object):
   def construct(self, chi2Factor=50.):
     # create global matrix and vector 
     # size: number of parameters + number of Lagrange multipliers for constraints
+    # no initial non-zero values for global parameters (simplifying local fit, Lagrange multipliers)
     self.__vector = np.zeros(self.__numPar + self.__numCons)
     self.__matrix = np.zeros((self.__numPar + self.__numCons, self.__numPar + self.__numCons))
     print()
