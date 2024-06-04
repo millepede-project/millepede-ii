@@ -16,7 +16,7 @@
 GCC=gcc
 GCCVERS=$(shell $(GCC) -dumpversion)
 # On SL5 replace default (gcc41) by gcc44
-ifeq ($(findstring 4.1., $(GCCVERS)), 4.1.)
+ifeq ($(filter 4.1.,$(GCCVERS)),4.1.)
   GCC=gcc44
   GCCVERS=$(shell $(GCC) -dumpversion)  
 endif
