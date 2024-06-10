@@ -150,6 +150,7 @@ MODULE mpmod
     INTEGER(mpl) :: neqn  !< number of equations (measurements) read
     INTEGER(mpl) :: negb  !< number of equations read with global parameters
     INTEGER(mpl) :: ndgb  !< number of global derivatives read
+    INTEGER(mpl) :: nzgb  !< number of zero global derivatives read
     REAL(mps)    :: dflim !< convergence limit
     INTEGER(mpi), DIMENSION(0:3) :: nrejec !< rejected events
     REAL(mps), DIMENSION(0:8) :: times !< cpu time counters
@@ -256,6 +257,7 @@ MODULE mpmod
     ! global parameter mapping
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: globalParLabelIndex !< global parameters label, total -> var. index, group infos
     INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: globalParLabelCounter !< global parameters label counters
+    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: globalParLabelZeros   !< global parameters label with zero derivative counters
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalParHashTable    !< global parameters hash table
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalParVarToTotal   !< global parameters variable -> total index
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalAllParToGroup   !< all parameters variable -> group index

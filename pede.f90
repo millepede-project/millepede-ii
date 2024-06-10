@@ -183,6 +183,8 @@
 !! * 240412: Counters scaling with the number of records are now long (64bit) integers.
 !! * 240429: Added \c tinypede.py to tools.
 !! * 240502: Added \ref Legacy "legacy" (Millepede-I) folder.
+!! * 240610: In first loop over binary files for counting and grouping of global labels
+!!   ignore those with zero global derivative. (Option \ref cmd-printcounts "printcounts -1" will print their numbers.)
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -745,7 +747,8 @@
 !! \subsection cmd-printcounts printcounts
 !! Set flag \ref mpmod::ipcntr "ipcntr" to \a number1 [1].
 !! The counters for the global parameters from the accepted local fits (=1)
-!! or from the binary files (>1) will be printed in the result file.
+!! or from the binary files (>1) will be printed in the result file. Alternatively
+!! the counters for zero global derivatives from the binary files (<0) can be selected.
 !! \subsection cmd-printrecord printrecord
 !! \ref an-recpri "Record" numbers with printout.
 !! \subsection cmd-pullrange pullrange
@@ -3081,7 +3084,10 @@ SUBROUTINE pepgrp
     INTEGER(mpi) :: jb
     INTEGER(mpi) :: jsp
     INTEGER(mpi) :: nalg
+    INTEGER(mpi) :: neqna
+    INTEGER(mpi) :: nnz
     INTEGER(mpi) :: nst
+    INTEGER(mpi) :: nzero
     INTEGER(mpi) :: inone
     INTEGER(mpl) :: length
     !$ INTEGER(mpi) :: OMP_GET_THREAD_NUM
@@ -3094,7 +3100,7 @@ SUBROUTINE pepgrp
         CALL mpalloc(backIndexUsage,length,'global variable-index array')
         backIndexUsage=0
     END IF
-
+    nzero=0
 #ifdef __PGIC__
     ! to prevent "PGF90-F-0000-Internal compiler error. Could not locate uplevel instance for stblock"
     ichunk=256
@@ -3105,6 +3111,7 @@ SUBROUTINE pepgrp
     !$OMP  PARALLEL DO &
     !$OMP   DEFAULT(PRIVATE) &
     !$OMP   SHARED(numReadBuffer,readBufferPointer,readBufferDataI,readBufferDataD,backIndexUsage,globalParHeader,ICHUNK,MCOUNT) &
+    !$OMP   REDUCTION(+:NZERO) &
     !$OMP   SCHEDULE(DYNAMIC,ICHUNK)
     DO ibuf=1,numReadBuffer ! buffer for current record
         ist=readBufferPointer(ibuf)+1
@@ -3121,6 +3128,10 @@ SUBROUTINE pepgrp
                 IF(jb == 0) EXIT
                 IF (ist > jb) THEN
                     DO j=1,ist-jb
+                        IF (readBufferDataD(jb+j) == 0.0_mpd) THEN
+                            nzero=nzero+1
+                            CYCLE ! skip 'zero global derivatives' for counting and grouping
+                        END IF
                         itgbi=inone( readBufferDataI(jb+j) ) ! translate to index
                         IF (backIndexUsage(ioffbi+itgbi) == 0) THEN
                             nalg=nalg+1
@@ -3139,21 +3150,37 @@ SUBROUTINE pepgrp
             CALL sort1k(readBufferDataI(ioff+1),nalg)
             readBufferDataI(ioff)=ioff+nalg
         ELSE   
-            ! count per equation 
+            ! count per equation
+            nalg=1 ! reserve space for counter 'nnz'
+            ioff=readBufferPointer(ibuf)
+            neqna=0 ! number of accepted equations
             DO ! loop over measurements
                 CALL isjajb(nst,ist,ja,jb,jsp)
                 IF(jb == 0) EXIT
                 IF (ist > jb) THEN
+                    nnz=0 ! number of non-zero derivatives
                     DO j=1,ist-jb
-                        readBufferDataI(jb+j)=inone( readBufferDataI(jb+j) ) ! translate to index
+                        IF (readBufferDataD(jb+j) == 0.0_mpd) THEN
+                            nzero=nzero+1
+                            CYCLE ! skip 'zero global derivatives' for counting and grouping
+                        END IF
+                        nnz=nnz+1
+                        readBufferDataI(ioff+nalg+nnz)=inone( readBufferDataI(jb+j) ) ! translate to index
                     END DO
+                    IF (nnz == 0) CYCLE ! nothing for this equation
+                    readBufferDataI(ioff+nalg)=nnz
                     ! sort (equation)
-                    CALL sort1k(readBufferDataI(jb+1),ist-jb)
+                    CALL sort1k(readBufferDataI(ioff+nalg+1),nnz)
+                    nalg=nalg+nnz+1
+                    ! count (accepted) equations
+                    neqna=neqna+1
                 END IF   
             END DO
+            readBufferDataI(ioff)=neqna
         END IF               
     END DO
     !$OMP  END PARALLEL DO
+    nzgb=nzgb+nzero
         
     !$POMP INST BEGIN(pepgrp)    
     DO ibuf=1,numReadBuffer ! buffer for current record
@@ -3161,10 +3188,10 @@ SUBROUTINE pepgrp
         nst=readBufferDataI(readBufferPointer(ibuf))
         IF (mcount == 0) THEN
             ! equation level
-            DO ! loop over measurements
-                CALL isjajb(nst,ist,ja,jb,jsp)
-                IF(jb == 0) EXIT
-                CALL pargrp(jb+1,ist)                                
+            DO j=1,nst! loop over measurements
+                nnz=readBufferDataI(ist)
+                CALL pargrp(ist+1,ist+nnz)
+                ist=ist+nnz+1
             END DO
         ELSE
             ! record level, group     
@@ -3210,8 +3237,7 @@ SUBROUTINE pargrp(inds,inde)
     ! build up groups
     DO j=inds,inde
         itgbi=readBufferDataI(j)
-        ! count entries
-        globalParLabelCounter(itgbi)=globalParLabelCounter(itgbi)+1
+        globalParLabelCounter(itgbi)=globalParLabelCounter(itgbi)+1 ! count entries
         istart=globalParLabelIndex(3,itgbi)     ! label of group start
         IF (istart == 0) THEN                   ! not yet in group
             IF (itgbi /= ltgbi+1) THEN          ! start group
@@ -3651,6 +3677,7 @@ SUBROUTINE loopn
         END DO
         DO j=ia,ib
             factrj=listMeasurements(j)%value
+            IF (factrj == 0.0_mpd) CYCLE ! skip zero factors
             itgbij=inone(listMeasurements(j)%label) ! total parameter index
             !      add to vector
             ivgbij=0
@@ -5028,6 +5055,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
     
             DO j=1,ist-jb
                 ivgbj=globalParLabelIndex(2,readBufferDataI(jb+j))     ! -> index of variable global parameter
+                IF (readBufferDataD(jb+j) == 0.0_mpd) CYCLE ! skip zero global derivatives
                 IF(ivgbj > 0) THEN
                     globalVector(ioffb+ivgbj)=globalVector(ioffb+ivgbj)  &
                         +dw1*wght*rmeas*REAL(readBufferDataD(jb+j),mpd) ! vector  !!! reverse
@@ -5371,6 +5399,7 @@ SUBROUTINE prtglo
         END IF
         IF(ipcntr > 1) icount=globalParLabelCounter(itgbi) ! from binary files
         IF(lowstat) icount=-(icount+1) ! flag 'lowstat' with icount < 0
+        IF(ipcntr < 0) icount=globalParLabelZeros(itgbi) ! 'zero derivatives' from binary files
         IF(itgbi <= iprlim) THEN
             IF(ivgbi <= 0) THEN
                 WRITE(*  ,102) itgbl,par,REAL(globalParPreSigma(itgbi),mps)
@@ -5532,7 +5561,11 @@ SUBROUTINE prtstat
     WRITE(lup,*) '*** Results of checking input only, no solution performed ***'
     WRITE(lup,*) '! === global parameters ==='
     WRITE(lup,*) '! fixed-1: by pre-sigma, -2: by entries cut, -3: by iterated entries cut'
-    WRITE(lup,*) '!      Label       Value     Pre-sigma         Entries Cons. group  Status '
+    IF (ipcntr < 0) THEN
+        WRITE(lup,*) '!      Label       Value     Pre-sigma  SkippedEntries Cons. group  Status '
+    ELSE
+        WRITE(lup,*) '!      Label       Value     Pre-sigma         Entries Cons. group  Status '
+    END IF
     !iprlim=10
     DO itgbi=1,ntgb  ! all parameter variables
         itgbl=globalParLabelIndex(1,itgbi)
@@ -5544,6 +5577,7 @@ SUBROUTINE prtstat
         par=REAL(globalParameter(itgbi),mps)      ! initial value
         presig=REAL(globalParPreSigma(itgbi),mps) ! initial presigma
         icount=globalParLabelCounter(itgbi) ! from binary files
+        IF (ipcntr < 0) icount=globalParLabelZeros(itgbi) ! 'zero derivatives' from binary files
         icgrp=globalParCons(itgbi) ! constraints group
 
         IF (ivgbi <= 0) THEN
@@ -6869,6 +6903,7 @@ SUBROUTINE loop1
     neqn=0 ! number of equations
     negb=0 ! number of equations with global parameters
     ndgb=0 ! number of global derivatives
+    nzgb=0 ! number of zero global derivatives
     DO
         DO j=1,globalParHeader(-1)
             globalParLabelIndex(2,j)=0   ! reset count
@@ -7116,6 +7151,9 @@ SUBROUTINE loop1
         WRITE(*,101) '  NEQN',neqn,'number of equations (measurements)'
         WRITE(*,101) '  NEGB',negb,'number of equations with global parameters'
         WRITE(*,101) '  NDGB',ndgb,'number of global derivatives'
+        IF (nzgb > 0) THEN
+            WRITE(*,101) '  NZGB',nzgb,'number of zero global der. (ignored in entry counts)'
+        ENDIF
         IF (mcount == 0) THEN
             WRITE(*,101) 'MREQENF',mreqenf,'required number of entries (eqns in binary files)'
         ELSE
@@ -7478,6 +7516,10 @@ SUBROUTINE loop2
     CALL mpalloc(globalIndexRanges,length,'global index ranges')
     globalIndexRanges=0
     
+    length=ntgb
+    CALL mpalloc(globalParLabelZeros,length,'global label with zero der. counters')
+    globalParLabelZeros=0
+
     ! prepare constraints - determine number of constraints NCGB
     !                     - sort and split into blocks
     !                     -  update globalIndexRanges
@@ -7705,6 +7747,10 @@ SUBROUTINE loop2
                     nfixed=0
                     DO j=1,ist-jb
                         ij=readBufferDataI(jb+j)                     ! index of global parameter
+                        IF (nzgb > 0) THEN
+                            ! count zero global derivatives
+                            IF (readBufferDataD(jb+j) == 0.0_mpl) globalParLabelZeros(ij)=globalParLabelZeros(ij)+1
+                        END IF
                         ! check appearance 
                         IF (icheck > 1) THEN
                             joff = 5*(ij-1)
@@ -12212,7 +12258,7 @@ SUBROUTINE intext(text,nline)
         mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
         IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
             ipcntr=1
-            IF (nums > 0.AND.dnum(1) > 0.0) ipcntr=NINT(dnum(1),mpi)
+            IF (nums > 0) ipcntr=NINT(dnum(1),mpi)
             RETURN
         END IF
 
