@@ -121,6 +121,7 @@ MODULE mpmod
     INTEGER(mpi) :: ipddbg=0 !< flag for debugging Intel oneMKL PARDISO
 #endif
 #endif
+    REAL(mps)    :: cndlmx=100.0!< cut on log10(condition of band part) of local (bordered-band matrix) fit
 
     ! variables
     INTEGER(mpi) :: lunmon !< unit for monitoring output file
@@ -152,7 +153,7 @@ MODULE mpmod
     INTEGER(mpl) :: ndgb  !< number of global derivatives read
     INTEGER(mpl) :: nzgb  !< number of zero global derivatives read
     REAL(mps)    :: dflim !< convergence limit
-    INTEGER(mpi), DIMENSION(0:3) :: nrejec !< rejected events
+    INTEGER(mpl), DIMENSION(6) :: nrejec !< rejected records
     REAL(mps), DIMENSION(0:8) :: times !< cpu time counters
     REAL(mps)    :: stepl !< step length (line search)
     CHARACTER (LEN=74) :: textl !< name of current MP 'module' (step)

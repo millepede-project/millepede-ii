@@ -53,7 +53,7 @@
 !! 1. Download the software package from the DESY \c gitlab server to
 !!    \a target directory, e.g. (shallow clone):
 !!
-!!         git clone --depth 1 --branch V04-16-03 \
+!!         git clone --depth 1 --branch V04-16-05 \
 !!             https://gitlab.desy.de/claus.kleinwort/millepede-ii.git target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
@@ -185,6 +185,9 @@
 !! * 240502: Added \ref Legacy "legacy" (Millepede-I) folder.
 !! * 240610: In first loop over binary files for counting and grouping of global labels
 !!   ignore those with zero global derivative. (Option \ref cmd-printcounts "printcounts -1" will print their numbers.)
+!! * 240626: For local fits with bordered-band matrix structure use condition of diagonal matrix from
+!!   root-free Cholesky decomposition (of band part) to optionally reject records (see \ref cmd-maxlocalcond
+!!   and internal histogram 16).
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -317,7 +320,7 @@
 !! eigenvalue (and eigenvector) for all global parameters.
 !! \subsection ch-minres Minimal Residual Method (MINRES)
 !! The solution is obtained by minimizing \f$\Vert\Vek{A}\cdot\Vek{x}-\Vek{b}\Vert_2\f$
-!! iteratively. \ref minresmodule::minres "MINRES"  [\ref ref_sec "ref 8"] is a special case of the
+!! iteratively and is only approximate. \ref minresmodule::minres "MINRES"  [\ref ref_sec "ref 8"] is a special case of the
 !! generalized minimal residual method (\ref an-gmres "GMRES") for symmetric matrices.
 !! Preconditioning with a band matrix of zero or finite
 !! \ref mpmod::mbandw "bandwidth" is possible.
@@ -418,6 +421,8 @@
 !! <i>root-free Cholesky decomposition</i> the time for the solution is linear
 !! and for the calculation of \f$\Gamma^{-1}\f$
 !! (needed for the construction of the global matrix) quadratic in \f$n_{lp}\f$.
+!! The condition of the diagonal matrix from the decomposition (of the band part)
+!! can be used to reject ill conditioned cases (see \ref cmd-maxlocalcond).
 !! For each local fit the structure of \f$\Vek{\Gamma}\f$ is checked and the faster
 !! solution method selected automatically.
 !!
@@ -675,6 +680,9 @@
 !! \subsection cmd-matmoni matmoni
 !! Set record interval \ref mpmod::matmon "matmon" for monitoring of (sparse) matrix
 !! construction to \a number1.
+!! \subsection cmd-maxlocalcond maxlocalcond
+!! Set maximal Log10(condition) of decomposition of band part for local fit
+!! \ref mpmod::cndlmx "cndlmx" to \a number1. Records with larger condition will be rejected.
 !! \subsection cmd-maxrecord maxrecord
 !! Set record limit \ref mpmod::mxrec "mxrec" to \a number1.
 !! \subsection cmd-measurement measurement
@@ -1333,12 +1341,10 @@ PROGRAM mptwo
 
     !     Rejects ----------------------------------------------------------
 
-    IF(nrejec(0)+nrejec(1)+nrejec(2)+nrejec(3) /= 0) THEN
+    IF(SUM(nrejec) /= 0) THEN
         WRITE(8,*) ' '
-        WRITE(8,*) 'Data rejected in last iteration:   '
-        WRITE(8,*) '   ',  &
-            nrejec(0), ' (rank deficit/NaN) ',nrejec(1),' (Ndf=0)   ',  &
-            nrejec(2), ' (huge)   ',nrejec(3),' (large)'
+        WRITE(8,*) 'Data records rejected in last iteration:   '
+        CALL prtrej(8)
         WRITE(8,*) ' '
     END IF
     IF (icheck <= 0) CALL explfc(8)
@@ -3418,7 +3424,7 @@ SUBROUTINE loopn
     INTEGER(mpi) :: ngras
     INTEGER(mpi) :: nparl
     INTEGER(mpi) :: nr
-    INTEGER(mpi) :: nrej
+    INTEGER(mpl) :: nrej
     INTEGER(mpi) :: inone
     INTEGER(mpi) :: ilow
     INTEGER(mpi) :: nlow
@@ -3448,6 +3454,7 @@ SUBROUTINE loopn
         END IF
         CALL hmpdef( 5,0.0,0.0,'Number of degrees of freedom')
         CALL hmpdef(11,0.0,0.0,'Number of local parameters')
+        CALL hmpdef(16,0.0,24.0,'LOG10(cond(band part decomp.)) local fit ')
         CALL hmpdef(23,0.0,0.0, 'SQRT of diagonal elements without presigma')
         CALL hmpdef(24,0.0,0.0, 'Log10 of off-diagonal elements')
         CALL hmpdef(25,0.0,0.0, 'Relative individual pre-sigma')
@@ -3486,7 +3493,7 @@ SUBROUTINE loopn
         newite=.TRUE.
         funref=fvalue
         IF(nloopn > 1) THEN
-            nrej=nrejec(0)+nrejec(1)+nrejec(2)+nrejec(3)
+            nrej=SUM(nrejec)
             !            CALL MEND
             IF(iterat == 1) THEN
                 chicut=chirem
@@ -3499,9 +3506,7 @@ SUBROUTINE loopn
     !         WRITE(*,111) ! header line
     END IF
 
-    DO i=0,3
-        nrejec(i)=0   ! reset reject counter
-    END DO
+    nrejec=0   ! reset reject counter
     DO k=3,6
         writeBufferHeader(k)=0  ! cache usage
         writeBufferHeader(-k)=0
@@ -3725,21 +3730,14 @@ SUBROUTINE loopn
 
     !     rejects ...
 
-    nrej  =nrejec(0)+nrejec(1)+nrejec(2)+nrejec(3)
+    nrej  =SUM(nrejec)
     IF(nloopn == 1) THEN
         IF(nrej /= 0) THEN
             WRITE(*,*) ' '
-            WRITE(*,*) 'Data rejected in initial loop:'
-            WRITE(*,*) '   ',  &
-                nrejec(0), ' (rank deficit/NaN) ',nrejec(1),' (Ndf=0)   ',  &
-                nrejec(2), ' (huge)   ',nrejec(3),' (large)'
+            WRITE(*,*) 'Data records rejected in initial loop:'
+            CALL prtrej(6)
         END IF
     END IF
-    !      IF(NREJEC(1)+NREJEC(2)+NREJEC(3).NE.0) THEN
-    !         WRITE(LUNLOG,*) 'Data rejected in initial loop:',NREJEC(1),
-    !     +   ' (Ndf=0)   ',NREJEC(2),' (huge)   ',NREJEC(3),' (large)'
-    !      END IF
-
 
     IF(newite.AND.iterat == 2) THEN
         IF(nrecpr /= 0.OR.nrecp2 /= 0) nrecer=nrec3
@@ -3774,6 +3772,7 @@ SUBROUTINE loopn
         !         IF(NHISTP.NE.0) CALL HMPRNT(11) ! Nlocal
         CALL hmpwrt(5)
         CALL hmpwrt(11)
+        CALL hmpwrt(16)
     END IF
 
     !     local fit: band matrix structure !?
@@ -3832,7 +3831,7 @@ SUBROUTINE ploopb(lunp)
     INTEGER :: minut
     INTEGER(mpi) :: nfa
     INTEGER :: nhour
-    INTEGER(mpi) :: nrej
+    INTEGER(mpl) :: nrej
     INTEGER(mpi) :: nsecnd
     REAL(mps) :: ratae
     REAL :: rstb
@@ -3848,7 +3847,7 @@ SUBROUTINE ploopb(lunp)
     DATA ccalcm / ' end','   S', ' F  ',' FMS' /
     SAVE
 
-    nrej=nrejec(0)+nrejec(1)+nrejec(2)+nrejec(3)    ! rejects
+    nrej=SUM(nrejec)    ! rejects
     IF(nrej > 9999999) nrej=9999999
     rstb=etime(ta)
     deltim=rstb-rstart
@@ -3889,7 +3888,7 @@ SUBROUTINE ploopc(lunp)
     INTEGER(mpi) :: minut
     INTEGER(mpi) :: nfa
     INTEGER(mpi) :: nhour
-    INTEGER(mpi) :: nrej
+    INTEGER(mpl) :: nrej
     INTEGER(mpi) :: nsecnd
     REAL(mps) :: ratae
     REAL :: rstb
@@ -3904,7 +3903,7 @@ SUBROUTINE ploopc(lunp)
     DATA ccalcm / ' end','   S', ' F  ',' FMS' /
     SAVE
 
-    nrej=nrejec(0)+nrejec(1)+nrejec(2)+nrejec(3)    ! rejects
+    nrej=SUM(nrejec)    ! rejects
     IF(nrej > 9999999) nrej=9999999
     rstb=etime(ta)
     deltim=rstb-rstart
@@ -4405,17 +4404,20 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
     INTEGER(mpi) :: ngrp
     INTEGER(mpi) :: npar
 
-    INTEGER(mpi), INTENT(IN OUT)                     :: nrej(0:3)
+    INTEGER(mpl), INTENT(IN OUT)                     :: nrej(6)
     INTEGER(mpi), INTENT(IN)                         :: numfil
     INTEGER(mpi), INTENT(IN OUT)                     :: naccf(numfil)
     REAL(mps), INTENT(IN OUT)                        :: chi2f(numfil)
     INTEGER(mpi), INTENT(IN OUT)                     :: ndff(numfil)
 
-    REAL(mpd):: dchi2
-    REAL(mpd)::dvar
-    REAL(mpd):: dw1
-    REAL(mpd)::dw2
-    REAL(mpd)::summ
+    REAL(mps) :: cndl10
+    REAL(mpd) :: dchi2
+    REAL(mpd) :: dvar
+    REAL(mpd) :: dw1
+    REAL(mpd) :: dw2
+    REAL(mpd) :: evdmin
+    REAL(mpd) :: evdmax
+    REAL(mpd) :: summ
     INTEGER(mpi) :: ijprec
 
     !$    INTEGER(mpi) OMP_GET_THREAD_NUM
@@ -4449,7 +4451,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
     !$OMP      localCorrections,localEquations,ifd, &
     !$OMP      NAGB,NVGB,NAGBN,ICALCM,ICHUNK,NLOOPN,NRECER,NPRDBG,IPRDBG, &
     !$OMP      NEWITE,CHICUT,LHUBER,CHUBER,ITERAT,NRECPR,MTHRD,NSPC,NAEQN, &
-    !$OMP      DWCUT,CHHUGE,NRECP2,CAUCHY,LFITNP,LFITBB,IMONIT,IMONMD,MONPG1,LUNLOG) &
+    !$OMP      DWCUT,CHHUGE,NRECP2,CAUCHY,LFITNP,LFITBB,IMONIT,IMONMD,MONPG1,LUNLOG,MDEBUG,CNDLMX) &
     !$OMP   REDUCTION(+:NREJ,NBNDR,NACCF,CHI2F,NDFF) &
     !$OMP   REDUCTION(MAX:NBNDX,NBDRX) &
     !$OMP   REDUCTION(MIN:NREC3) &
@@ -4681,6 +4683,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
             END DO
             ndown=0
             nweig=0
+            cndl10=0.
             DO ieq=1,neq! loop over measurements
                 ja=localEquations(1,ioffq+ieq)
                 jb=localEquations(2,ioffq+ieq)
@@ -4788,11 +4791,14 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
                 IF (icalcm == 1.OR.lprnt) inv=2     ! complete inverse
                 IF (mside == 1) THEN
                     CALL sqmibb(clmat,blvec,nalc,mbdr,mbnd,inv,nrank,  &
-                        vbnd,vbdr,aux,vbk,vzru,scdiag,scflag)
+                        vbnd,vbdr,aux,vbk,vzru,scdiag,scflag,evdmin,evdmax)
                 ELSE
                     CALL sqmibb2(clmat,blvec,nalc,mbdr,mbnd,inv,nrank,  &
-                        vbnd,vbdr,aux,vbk,vzru,scdiag,scflag)
+                        vbnd,vbdr,aux,vbk,vzru,scdiag,scflag,evdmin,evdmax)
                 ENDIF
+                ! log10(condition of band part)
+                IF (evdmin > 0.0_mpl) cndl10=LOG10(REAL(evdmax/evdmin,mps))
+                IF (lhist.AND.nloopn == 1) CALL hmpent(16,cndl10)
             ELSE
                 !      full inversion and solution
                 inv=2
@@ -4943,20 +4949,43 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
                 WRITE(1,*) suwt,' is sum of factors, compared to',nweig,  &
                     ' Downweight fraction:',resing
             END IF
-            IF(nrank /= nalc.OR.nan > 0) THEN
-                nrej(0)=nrej(0)+1         ! count cases
+            IF(nan > 0) THEN
+                nrej(1)=nrej(1)+1         ! count cases
                 IF (nrec3 == huge(nrec3)) nrec3=nrc
                 IF(lprnt) THEN
-                    WRITE(1,*) ' rank deficit/NaN ', nalc, nrank, nan
+                    WRITE(1,*) ' NaNs ', nalc, nrank, nan
                     WRITE(1,*) '   ---> rejected!'
                 END IF
+                IF (mdebug < 0.AND.nloopn == 1) PRINT *, ' bad local fit-1 ', kfl,jrc,nrc,mside,neq,nalc,nrank,nan,cndl10
+                GO TO 90
+            END IF
+            IF(nrank /= nalc) THEN
+                nrej(2)=nrej(2)+1         ! count cases
+                IF (nrec3 == huge(nrec3)) nrec3=nrc
+                IF(lprnt) THEN
+                    WRITE(1,*) ' rank deficit', nalc, nrank
+                    WRITE(1,*) '   ---> rejected!'
+                END IF
+                IF (mdebug < 0.AND.nloopn == 1) PRINT *, ' bad local fit-2 ', kfl,jrc,nrc,mside,neq,nalc,nrank,nan,cndl10
+                GO TO 90
+            END IF
+            IF(cndl10 > cndlmx) THEN
+                nrej(3)=nrej(3)+1         ! count cases
+                IF (nrec3 == huge(nrec3)) nrec3=nrc
+                IF(lprnt) THEN
+                    WRITE(1,*) ' too large condition(band part) ', nalc, nrank, cndl10
+                    WRITE(1,*) '   ---> rejected!'
+                END IF
+                IF (mdebug < 0.AND.nloopn == 1) PRINT *, ' bad local fit-3 ', kfl,jrc,nrc,mside,neq,nalc,nrank,nan,cndl10
                 GO TO 90
             END IF
             IF(ndf <= 0) THEN
-                nrej(1)=nrej(1)+1         ! count cases
+                nrej(4)=nrej(4)+1         ! count cases
                 IF(lprnt) THEN
+                    WRITE(1,*) ' Ndf<=0', nalc, nrank, ndf
                     WRITE(1,*) '   ---> rejected!'
                 END IF
+                IF (mdebug < 0.AND.nloopn == 1) PRINT *, ' bad local fit-4 ', kfl,jrc,nrc,mside,neq,nalc,nrank,nan,cndl10
                 GO TO 90
             END IF
   
@@ -4980,7 +5009,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
         ! CHK CHICUT<0: NO cut (1st iteration)
         IF(chicut >= 0.0) THEN
             IF(summ > chhuge*chichi) THEN ! huge
-                nrej(2)=nrej(2)+1    ! count cases with huge chi^2
+                nrej(5)=nrej(5)+1    ! count cases with huge chi^2
                 IF(lprnt) THEN
                     WRITE(1,*) '   ---> rejected!'
                 END IF
@@ -4997,7 +5026,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
                     !              add to FVALUE
                     dchi2=chlimt                           ! total contribution limit
                     CALL addsums(iproc+1, dchi2, ndf, dw1) ! add total contribution
-                    nrej(3)=nrej(3)+1      ! count cases with large chi^2
+                    nrej(6)=nrej(6)+1      ! count cases with large chi^2
                     GO TO 90
                 END IF
             END IF
@@ -5007,7 +5036,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
             !         add to FVALUE
             dchi2=summ                             ! total contribution
             CALL addsums(iproc+1, dchi2, ndf, dw1) ! add total contribution
-            nrej(3)=nrej(3)+1      ! count cases with large chi^2
+            nrej(6)=nrej(6)+1      ! count cases with large chi^2
             !          WRITE(*,*) 'Downweight fraction cut ',RESING,DWCUT,SUMM
             IF(lprnt) THEN
                 WRITE(1,*) '   ---> rejected!'
@@ -5308,8 +5337,24 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
 
 END SUBROUTINE loopbf
 
+!***********************************************************************
 
+!> Print rejection statistics
+!!
+SUBROUTINE prtrej(lun)
+    USE mpmod
 
+    IMPLICIT NONE
+    INTEGER(mpi), INTENT(IN)                      :: lun
+
+    IF (nrejec(1)>0) WRITE(lun,*) nrejec(1), ' (local solution contains NaNs)'
+    IF (nrejec(2)>0) WRITE(lun,*) nrejec(2), ' (local matrix with rank deficit)'
+    IF (nrejec(3)>0) WRITE(lun,*) nrejec(3), ' (local matrix with ill condition)'
+    IF (nrejec(4)>0) WRITE(lun,*) nrejec(4), ' (local fit with Ndf=0)'
+    IF (nrejec(5)>0) WRITE(lun,*) nrejec(5), ' (local fit with huge Chi2(Ndf))'
+    IF (nrejec(6)>0) WRITE(lun,*) nrejec(6), ' (local fit with large Chi2(Ndf))'
+
+END SUBROUTINE prtrej
 
 !***********************************************************************
 
@@ -10254,7 +10299,7 @@ SUBROUTINE xloopn                !
     INTEGER(mpi) :: k
     INTEGER(mpi) :: labelg
     INTEGER(mpi) :: litera
-    INTEGER(mpi) :: lrej
+    INTEGER(mpl) :: lrej
     INTEGER(mpi) :: lun
     INTEGER(mpi) :: lunp
     INTEGER(mpi) :: minf
@@ -10265,7 +10310,7 @@ SUBROUTINE xloopn                !
     INTEGER(mpi) :: nloopsol
     INTEGER(mpi) :: npar
     INTEGER(mpi) :: nrati
-    INTEGER(mpi) :: nrej
+    INTEGER(mpl) :: nrej
     INTEGER(mpi) :: nsol
     INTEGER(mpi) :: inone
 #ifdef LAPACK64    
@@ -10537,13 +10582,11 @@ SUBROUTINE xloopn                !
             CALL loopn                       ! data loop
             CALL addcst                      ! constraints
             lrej=nrej
-            nrej=nrejec(0)+nrejec(1)+nrejec(2)+nrejec(3) ! total number of rejects
+            nrej=SUM(nrejec) ! total number of rejects
             IF(3*nrej > nrecal) THEN
                 WRITE(*,*) ' '
-                WRITE(*,*) 'Data rejected in previous loop:   '
-                WRITE(*,*) '   ',  &
-                    nrejec(0), ' (rank deficit/NaN) ',nrejec(1),' (Ndf=0)   ',  &
-                    nrejec(2), ' (huge)   ',nrejec(3),' (large)'
+                WRITE(*,*) 'Data records rejected in previous loop:   '
+                CALL prtrej(6)
                 WRITE(*,*) 'Too many rejects (>33.3%) - stop'
                 CALL peend(26,'Aborted, too many rejects')
                 STOP
@@ -10734,12 +10777,10 @@ SUBROUTINE xloopn                !
 
 90      icalcm=-2
     END DO
-    IF(nrejec(0)+nrejec(1)+nrejec(2)+nrejec(3) /= 0) THEN
+    IF(SUM(nrejec) /= 0) THEN
         WRITE(*,*) ' '
-        WRITE(*,*) 'Data rejected in last loop:   '
-        WRITE(*,*) '   ',  &
-            nrejec(0), ' (rank deficit/NaN) ',nrejec(1),' (Ndf=0)   ',  &
-            nrejec(2), ' (huge)   ',nrejec(3),' (large)'
+        WRITE(*,*) 'Data records rejected in last loop:   '
+        CALL prtrej(6)
     END IF
     
     ! monitoring of residuals
@@ -10856,7 +10897,7 @@ SUBROUTINE xloopn                !
         IF(nloopn /= 1.AND.lhuber /= 0) WRITE(lunp,*)  &
             '            with correction for down-weighting   ',catio
     END DO
-    nrej=nrejec(0)+nrejec(1)+nrejec(2)+nrejec(3) ! total number of rejects
+    nrej=SUM(nrejec) ! total number of rejects
 
     !     ... the end with exit code ???????????????????????????????????????
 
@@ -11061,7 +11102,7 @@ SUBROUTINE chkrej
     INTEGER(mpi) :: kmin
     INTEGER(mpi) :: kmax
     INTEGER(mpi) :: nrc
-    INTEGER(mpi) :: nrej
+    INTEGER(mpl) :: nrej
     
     REAL(mps) :: fmax
     REAL(mps) :: fmin
@@ -12218,13 +12259,20 @@ SUBROUTINE intext(text,nline)
             RETURN
         END IF
   
+        keystx='maxlocalcond'
+        mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
+        IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
+            IF (nums > 0.AND.dnum(1) > 0.0) cndlmx=REAL(dnum(1),mps)
+            RETURN
+        END IF
+
         keystx='pullrange'
         mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
         IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
             prange=ABS(REAL(dnum(1),mps))
             RETURN
         END IF
-  
+
         keystx='subito'
         mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
         IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching

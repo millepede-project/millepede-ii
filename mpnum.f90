@@ -3112,8 +3112,10 @@ END SUBROUTINE presols
 !! \param [out]    vzru   border solution
 !! \param [out]    scdiag workspace (D)
 !! \param [out]    scflag workspace (I)
+!! \param [out]    evdmin min. eigenvalue of diagonal matrix from band decomposition
+!! \param [out]    evdmin max. eigenvalue of diagonal matrix from band decomposition
 !!
-SUBROUTINE sqmibb(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scflag)
+SUBROUTINE sqmibb(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scflag,evdmin,evdmax)
     USE mpdef
 
     ! REAL(mpd) scratch arrays:
@@ -3157,6 +3159,8 @@ SUBROUTINE sqmibb(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scflag
     REAL(mpd), INTENT(OUT) :: vzru(nbdr)
     REAL(mpd), INTENT(OUT) :: scdiag(nbdr)
     INTEGER(mpi), INTENT(OUT)          :: scflag(nbdr)
+    REAL(mpd), INTENT(OUT) :: evdmin
+    REAL(mpd), INTENT(OUT) :: evdmax
 
     SAVE npri
     DATA npri / 100 /
@@ -3195,6 +3199,9 @@ SUBROUTINE sqmibb(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scflag
     ! use? CALL DBFDEC(VBND,MP1,NMB) ! modified decomp., numerically more stable
     !      CALL DBCPRB(VBND,MP1,NMB)
     ip=1
+    nrank=0
+    evdmin=0._mpl
+    evdmax=0._mpl
     DO i=1, nmb
         IF (vbnd(ip) <= 0.0_mpd) THEN
             npri=npri-1
@@ -3214,9 +3221,18 @@ SUBROUTINE sqmibb(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scflag
             END DO
             RETURN
         END IF
+        nrank=nrank+1
+        ! get min/max eigenvalue
+        IF (nrank == 1) THEN
+            evdmin=vbnd(ip)
+            evdmax=vbnd(ip)
+        ELSE
+            evdmin=MIN(evdmin,vbnd(ip))
+            evdmax=MAX(evdmax,vbnd(ip))
+        END IF
         ip=ip+mp1
     END DO
-    nrank=nmb
+
 
     IF (nbdr == 0) THEN ! special case NBDR=0
   
@@ -3368,8 +3384,10 @@ END SUBROUTINE sqmibb
 !! \param [out]    vzru   border solution
 !! \param [out]    scdiag workspace (D)
 !! \param [out]    scflag workspace (I)
+!! \param [out]    evdmin min. eigenvalue of diagonal matrix from band decomposition
+!! \param [out]    evdmin max. eigenvalue of diagonal matrix from band decomposition
 !!
-SUBROUTINE sqmibb2(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scflag)
+SUBROUTINE sqmibb2(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scflag,evdmin,evdmax)
     USE mpdef
 
     ! REAL(mpd) scratch arrays:
@@ -3413,6 +3431,8 @@ SUBROUTINE sqmibb2(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scfla
     REAL(mpd), INTENT(OUT) :: vzru(nbdr)
     REAL(mpd), INTENT(OUT) :: scdiag(nbdr)
     INTEGER(mpi), INTENT(OUT)          :: scflag(nbdr)
+    REAL(mpd), INTENT(OUT) :: evdmin
+    REAL(mpd), INTENT(OUT) :: evdmax
 
     SAVE npri
     DATA npri / 100 /
@@ -3448,6 +3468,9 @@ SUBROUTINE sqmibb2(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scfla
     ! use? CALL DBFDEC(VBND,MP1,NMB) ! modified decomp., numerically more stable
     !      CALL DBCPRB(VBND,MP1,NMB)
     ip=1
+    nrank=0
+    evdmin=0._mpl
+    evdmax=0._mpl
     DO i=1, nmb
         IF (vbnd(ip) <= 0.0_mpd) THEN
             npri=npri-1
@@ -3467,9 +3490,17 @@ SUBROUTINE sqmibb2(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scfla
             END DO
             RETURN
         END IF
+        nrank=nrank+1
+        ! get min/max eigenvalue
+        IF (nrank == 1) THEN
+            evdmin=vbnd(ip)
+            evdmax=vbnd(ip)
+        ELSE
+            evdmin=MIN(evdmin,vbnd(ip))
+            evdmax=MAX(evdmax,vbnd(ip))
+        END IF
         ip=ip+mp1
     END DO
-    nrank=nmb
 
     IF (nbdr == 0) THEN ! special case NBDR=0
   

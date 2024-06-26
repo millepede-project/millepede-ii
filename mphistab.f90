@@ -9,7 +9,7 @@
 !! \author Claus Kleinwort, DESY (maintenance and developement)
 !!
 !! \copyright
-!! Copyright (c) 2009 - 2022 Deutsches Elektronen-Synchroton,
+!! Copyright (c) 2009 - 2024 Deutsches Elektronen-Synchroton,
 !! Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 !! This library is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU Library General Public License as
@@ -94,7 +94,7 @@ MODULE hmpcons
     USE mpdef
     IMPLICIT NONE
     
-    INTEGER(mpi), PARAMETER :: numhis=15  !< number of histograms
+    INTEGER(mpi), PARAMETER :: numhis=16  !< number of histograms
     INTEGER(mpi), PARAMETER :: nbin=120   !< number of bins
     INTEGER(mpi), PARAMETER :: nsampl=120 !< number of samples for auto scaling
     
