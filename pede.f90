@@ -188,6 +188,8 @@
 !! * 240626: For local fits with bordered-band matrix structure use condition of diagonal matrix from
 !!   root-free Cholesky decomposition (of band part) to optionally reject records (see \ref cmd-maxlocalcond
 !!   and internal histogram 16).
+!! * 240708: Code complies the with fortran standard 2023
+!!   (<tt>gcc14 -std=f2023 -fall-intrinsics</tt>). Still GNU fortran extensions are used.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
