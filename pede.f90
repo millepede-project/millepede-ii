@@ -53,7 +53,7 @@
 !! 1. Download the software package from the DESY \c gitlab server to
 !!    \a target directory, e.g. (shallow clone):
 !!
-!!         git clone --depth 1 --branch V04-16-05 \
+!!         git clone --depth 1 --branch V04-17-00 \
 !!             https://gitlab.desy.de/claus.kleinwort/millepede-ii.git target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
@@ -190,6 +190,8 @@
 !!   and internal histogram 16).
 !! * 240708: Code complies the with fortran standard 2023
 !!   (<tt>gcc14 -std=f2023 -fall-intrinsics</tt>). Still GNU fortran extensions are used.
+!! * 240716: Modernisation of developement environment (from EL7 to EL9 (gcc11.4),
+!!   from ompP to [Score-P](http:score-p.org) for profiling).
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:

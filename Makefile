@@ -60,24 +60,27 @@ SUPPORT_PARDISO =
 #
 # If yes use multithreading with OpenMP (TM)
 SUPPORT_OPENMP = yes
-# ompP profiler (http://www.ompp-tool.com, needs Opari for source-to-source instrumentation)
-OMPP = 
-#kinst-ompp
+# Instrumentation/profiling with Score-P (score-p.org)
+SCOREP =
+# scorep --pomp
 #
 # make install copies the binary to $(PREFIX)/bin
 PREFIX = .
 #
 # #################################################################
 #
-FCOMP = $(OMPP) $(GCC)
+FCOMP = $(SCOREP) $(GCC)
 F_FLAGS = -Wall -fautomatic -fno-backslash -O3 -cpp
 #
-CCOMP = $(OMPP) $(GCC) 
+CCOMP = $(SCOREP) $(GCC) 
 C_FLAGS = -Wall -Wno-unused-function -O3
 F_INCLUDEDIRS = # e.g. -I
 C_INCLUDEDIRS = # e.g. -I
+#
+LOADER = $(SCOREP) $(GCC)
+L_FLAGS = -Wall -O3
 #.
-ifeq ($(findstring 4.4., $(GCCVERS)), 4.4.)
+ifeq ($(filter 4.4., $(GCCVERS)), 4.4.)
 # gcc44: 
   C_LIBS = -lgfortran -lgfortranbegin
 else  
@@ -89,7 +92,7 @@ DEBUG =          # e.g. -g
 #
 ifeq ($(SUPPORT_OPENMP),yes)
 # Multithreading with OpenMP (TM)
-  C_LIBS  += -lgomp
+  L_FLAGS += -fopenmp
   F_FLAGS += -fopenmp
 endif
 #
@@ -126,9 +129,6 @@ ifeq ($(SUPPORT_LAPACK64),yes)
   endif  
 endif
 #
-LOADER = $(OMPP) $(GCC)
-L_FLAGS = -Wall -O3
-#
 # objects for this project
 #
 USER_OBJ_PEDE = mpdef.o mpdalc.o mpmod.o mpmon.o mpbits.o mpqldec.o mptest1.o mptest2.o mille.o mpnum.o mptext.o mphistab.o \
@@ -150,8 +150,7 @@ ifeq ($(SUPPORT_READ_C),yes)
     endif
   endif
 endif
-#  -L$(MKL_DIR) -lmkl_rt
-#  -lopenblasp64
+#
 # Make the executables
 EXECUTABLES = pede readMilleBinary
 #
