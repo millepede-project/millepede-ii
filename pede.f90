@@ -190,7 +190,7 @@
 !!   and internal histogram 16).
 !! * 240708: Code complies the with fortran standard 2023
 !!   (<tt>gcc14 -std=f2023 -fall-intrinsics</tt>). Still GNU fortran extensions are used.
-!! * 240716: Modernisation of developement environment (from EL7 to EL9 (gcc11.4),
+!! * 240716: Modernisation of development environment (from EL7 to EL9 (gcc11.4),
 !!   from ompP to [Score-P](http:score-p.org) for profiling).
 !!
 !! \section tools_sec Tools
@@ -2660,9 +2660,8 @@ SUBROUTINE peread(more)
     !$OMP  DEFAULT(PRIVATE) &
     !$OMP  SHARED(readBufferInfo,readBufferPointer,readBufferDataI,readBufferDataD, &
     !$OMP  readBufferDataF,nPointer,nData,skippedRecords,ndimbuf,NTHR,NFILF,FLOOP, &
-    !$OMP        IFD,KFD,IFILE,NFILB,WFD,XFD,icheck,keepOpen,ireeof,nrderr) &
-    !$OMP  NUM_THREADS(NTHR)
-
+    !$OMP        IFD,KFD,IFILE,NFILB,WFD,XFD,icheck,keepOpen,ireeof,nrderr) NUM_THREADS(NTHR)
+    ! NUM_THREADS(NTHR) moved to previuos line to make scorep-8.4. happy
     ithr=1
     !$ ITHR=OMP_GET_THREAD_NUM()+1     ! thread number
     jfile=readBufferInfo(1,ithr)  ! file index
