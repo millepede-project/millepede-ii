@@ -3113,7 +3113,7 @@ END SUBROUTINE presols
 !! \param [out]    scdiag workspace (D)
 !! \param [out]    scflag workspace (I)
 !! \param [out]    evdmin min. eigenvalue of diagonal matrix from band decomposition
-!! \param [out]    evdmin max. eigenvalue of diagonal matrix from band decomposition
+!! \param [out]    evdmax max. eigenvalue of diagonal matrix from band decomposition
 !!
 SUBROUTINE sqmibb(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scflag,evdmin,evdmax)
     USE mpdef
@@ -3385,7 +3385,7 @@ END SUBROUTINE sqmibb
 !! \param [out]    scdiag workspace (D)
 !! \param [out]    scflag workspace (I)
 !! \param [out]    evdmin min. eigenvalue of diagonal matrix from band decomposition
-!! \param [out]    evdmin max. eigenvalue of diagonal matrix from band decomposition
+!! \param [out]    evdmax max. eigenvalue of diagonal matrix from band decomposition
 !!
 SUBROUTINE sqmibb2(v,b,n,nbdr,nbnd,inv,nrank,vbnd,vbdr,aux,vbk,vzru,scdiag,scflag,evdmin,evdmax)
     USE mpdef
