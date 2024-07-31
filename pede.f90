@@ -53,7 +53,7 @@
 !! 1. Download the software package from the DESY \c gitlab server to
 !!    \a target directory, e.g. (shallow clone):
 !!
-!!         git clone --depth 1 --branch V04-17-00 \
+!!         git clone --depth 1 --branch V04-17-01 \
 !!             https://gitlab.desy.de/claus.kleinwort/millepede-ii.git target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
@@ -192,6 +192,9 @@
 !!   (<tt>gcc14 -std=f2023 -fall-intrinsics</tt>). Still GNU fortran extensions are used.
 !! * 240716: Modernisation of development environment (from EL7 to EL9 (gcc11.4),
 !!   from ompP to [Score-P](http:score-p.org) for profiling).
+!! * 240731: For instrumentation and profiling with [Score-P](http:score-p.org) switched
+!!   from POMP (<tt>scorep --pomp</tt>) (based on OPARI2, to be superseded by OMPT (OpenMP 5.0))
+!!   to user (<tt>scorep --user</tt>) regions.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -896,6 +899,10 @@
 !! \"<tt>-g -fcheck=all -fbacktrace</tt>\"
 !! to the \c F_FLAGS in the \c Makefile and recompile.
 
+#ifdef SCOREP_USER_ENABLE
+#include "scorep/SCOREP_User.inc"
+#endif
+
 !> Millepede II main program \ref sssec-stalone "Pede".
 PROGRAM mptwo
     USE mpmod
@@ -984,6 +991,9 @@ PROGRAM mptwo
 #ifdef __PGIC__
     WRITE(*,111)  __PGIC__ , __PGIC_MINOR__ , __PGIC_PATCHLEVEL__
 111 FORMAT(' compiled with pgi ',i0,'.',i0,'.',i0)
+#endif
+#ifdef SCOREP_USER_ENABLE
+    WRITE(*,*) 'instrumenting Score-P user regions'
 #endif
     WRITE(*,*) ' '
     WRITE(*,*) '  <  Millepede II-P starting ... ',chdate
@@ -2661,7 +2671,7 @@ SUBROUTINE peread(more)
     !$OMP  SHARED(readBufferInfo,readBufferPointer,readBufferDataI,readBufferDataD, &
     !$OMP  readBufferDataF,nPointer,nData,skippedRecords,ndimbuf,NTHR,NFILF,FLOOP, &
     !$OMP        IFD,KFD,IFILE,NFILB,WFD,XFD,icheck,keepOpen,ireeof,nrderr) NUM_THREADS(NTHR)
-    ! NUM_THREADS(NTHR) moved to previuos line to make scorep-8.4. happy
+    ! NUM_THREADS(NTHR) moved to previuos line to make OPARI2 used by scorep-8.4. happy
     ithr=1
     !$ ITHR=OMP_GET_THREAD_NUM()+1     ! thread number
     jfile=readBufferInfo(1,ithr)  ! file index
@@ -2964,6 +2974,9 @@ SUBROUTINE peprep(mode)
     END IF
 
     !$POMP INST BEGIN(peprep)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_BEGIN("UR_peprep", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
     IF (mode <= 0) THEN
         nbad=0
         DO ibuf=1,numReadBuffer ! buffer for current record
@@ -2992,6 +3005,9 @@ SUBROUTINE peprep(mode)
             STOP 'PEREAD: stopping due to bad records'
         END IF
     END IF
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_END("UR_peprep")
+#endif
     !$POMP INST END(peprep)
 
 END SUBROUTINE peprep
@@ -3191,7 +3207,10 @@ SUBROUTINE pepgrp
     !$OMP  END PARALLEL DO
     nzgb=nzgb+nzero
         
-    !$POMP INST BEGIN(pepgrp)    
+    !$POMP INST BEGIN(pepgrp)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_BEGIN("UR_pepgrp", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
     DO ibuf=1,numReadBuffer ! buffer for current record
         ist=readBufferPointer(ibuf)+1
         nst=readBufferDataI(readBufferPointer(ibuf))
@@ -3211,6 +3230,9 @@ SUBROUTINE pepgrp
     IF (mcount > 0) THEN
         CALL mpdealloc(backIndexUsage)
     END IF
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_END("UR_pepgrp")
+#endif
     !$POMP INST END(pepgrp)
     globalParHeader(-2)=0 ! reset flag to reenable further updates
 
@@ -8636,6 +8658,9 @@ SUBROUTINE monres
     END IF
 
     !$POMP INST BEGIN(monres)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_BEGIN("UR_monres", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
     ! analyze histograms
     ioff=0
     DO i=1,ntgb
@@ -8686,6 +8711,9 @@ SUBROUTINE monres
             ioff=ioff+measBins
         END IF
     END DO
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_END("UR_monres")
+#endif
     !$POMP INST END(monres)
  
 110 FORMAT(i5,2i10,3G14.5)
@@ -9194,7 +9222,13 @@ SUBROUTINE mdptrf
                     CALL monini(lunlog,monpg1,monpg2)
                 END IF
                 !$POMP INST BEGIN(dsptrf)
+#ifdef SCOREP_USER_ENABLE
+                SCOREP_USER_REGION_BY_NAME_BEGIN("UR_dsptrf", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
                 CALL dsptrf('U',INT(nfit,mpl),globalMatD(imoff+1:),lapackIPIV(ipoff+1:),infolp)
+#ifdef SCOREP_USER_ENABLE
+                SCOREP_USER_REGION_BY_NAME_END("UR_dsptrf")
+#endif
                 !$POMP INST END(dsptrf)
                 IF(monpg1 > 0) CALL monend()
             ELSE
@@ -9204,7 +9238,13 @@ SUBROUTINE mdptrf
                     CALL monini(lunlog,monpg1,monpg2)
                 END IF
                 !$POMP INST BEGIN(dpptrf)
+#ifdef SCOREP_USER_ENABLE
+                SCOREP_USER_REGION_BY_NAME_BEGIN("UR_dpptrf", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
                 CALL dpptrf('U',INT(nfit,mpl),globalMatD(imoff+1:),infolp)
+#ifdef SCOREP_USER_ENABLE
+                SCOREP_USER_REGION_BY_NAME_END("UR_dpptrf")
+#endif
                 !$POMP INST END(dpptrf)
                 IF(monpg1 > 0) CALL monend()
             ENDIF
@@ -9348,8 +9388,14 @@ SUBROUTINE mdutrf
                     CALL monini(lunlog,monpg1,monpg2)
                 END IF
                 !$POMP INST BEGIN(dsytrf)
+#ifdef SCOREP_USER_ENABLE
+                SCOREP_USER_REGION_BY_NAME_BEGIN("UR_dsytrf", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
                 CALL dsytrf('U',INT(nfit,mpl),globalMatD(imoff+1:),INT(nfit,mpl),&
                     lapackIPIV(ipoff+1:),lapackWORK,lplwrk,infolp)
+#ifdef SCOREP_USER_ENABLE
+                SCOREP_USER_REGION_BY_NAME_END("UR_dsytrf")
+#endif
                 !$POMP INST END(dsytrf)
                 IF(monpg1 > 0) CALL monend()
             ELSE
@@ -9359,7 +9405,13 @@ SUBROUTINE mdutrf
                     CALL monini(lunlog,monpg1,monpg2)
                 END IF
                 !$POMP INST BEGIN(dpotrf)
+#ifdef SCOREP_USER_ENABLE
+                SCOREP_USER_REGION_BY_NAME_BEGIN("UR_dpotrf", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
                 CALL dpotrf('U',INT(nfit,mpl),globalMatD(imoff+1:),INT(npar,mpl),infolp)
+#ifdef SCOREP_USER_ENABLE
+                SCOREP_USER_REGION_BY_NAME_END("UR_dpotrf")
+#endif
                 !$POMP INST END(dpotrf)
                 IF(monpg1 > 0) CALL monend()
             ENDIF
@@ -9508,9 +9560,15 @@ SUBROUTINE lpqldec(a,emin,emax)
         lplwrk=int(ncon,mpl)*int(nbopt,mpl)
         CALL mpalloc(lapackWORK, lplwrk,'LAPACK WORK array (d)')
         !$POMP INST BEGIN(dgeqlf)
+#ifdef SCOREP_USER_ENABLE
+        SCOREP_USER_REGION_BY_NAME_BEGIN("UR_dgeqlf", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
         CALL dgeqlf(INT(npar,mpl),INT(ncon,mpl),lapackQL(iloff+1:),INT(npar,mpl),&
             lapackTAU(icoff+1:),lapackWORK,lplwrk,infolp)
         IF(infolp /= 0) PRINT *, ' DGEQLF failed: ', infolp
+#ifdef SCOREP_USER_ENABLE
+        SCOREP_USER_REGION_BY_NAME_END("UR_dgeqlf")
+#endif
         !$POMP INST END(dgeqlf)
         CALL mpdealloc(lapackwork)
         iloff=iloff+INT(npar,mpl)*INT(ncon,mpl)
@@ -9576,6 +9634,9 @@ SUBROUTINE lpavat(t)
         IF(ncon <= 0 ) CYCLE
            
         !$POMP INST BEGIN(dormql)
+#ifdef SCOREP_USER_ENABLE
+        SCOREP_USER_REGION_BY_NAME_BEGIN("UR_dormql", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
         ! expand matrix (copy lower to upper triangle)
         ! parallelize row loop
         ! slot of 32 'I' for next idle thread
@@ -9597,6 +9658,9 @@ SUBROUTINE lpavat(t)
             INT(npar,mpl),lapackTAU(icoff+1:),globalMatD(imoff+1:),int(npar,mpl),&
             lapackWORK,lplwrk,infolp)
         IF(infolp /= 0) PRINT *, ' DORMQL failed: ', infolp
+#ifdef SCOREP_USER_ENABLE
+        SCOREP_USER_REGION_BY_NAME_END("UR_dormql")
+#endif
         !$POMP INST END(dormql)
 
         iloff=iloff+INT(npar,mpl)*INT(ncon,mpl)
@@ -9673,6 +9737,9 @@ SUBROUTINE mspardiso
         IF (nfgb > nvgb)  mtype = -2 ! indefinte symmetric matrix (Lagrange multipliers)
 
         !$POMP INST BEGIN(mspd00)
+#ifdef SCOREP_USER_ENABLE
+        SCOREP_USER_REGION_BY_NAME_BEGIN("UR_mspd00", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
         WRITE(*,*)
         WRITE(*,*) 'MSPARDISO: number of non-zero elements = ', csr3RowOffsets(npdblk+1)-csr3RowOffsets(1)
         ! fill up last block?
@@ -9725,6 +9792,9 @@ SUBROUTINE mspardiso
         DO i = 1, 64
             pt(i)%DUMMY =  0
         END DO
+#ifdef SCOREP_USER_ENABLE
+        SCOREP_USER_REGION_BY_NAME_END("UR_mspd00")
+#endif
         !$POMP INST END(mspd00)
     END IF
 
@@ -9738,6 +9808,9 @@ SUBROUTINE mspardiso
         !.. Reordering and Symbolic Factorization, This step also allocates
         ! all memory that is necessary for the factorization
         !$POMP INST BEGIN(mspd11)
+#ifdef SCOREP_USER_ENABLE
+        SCOREP_USER_REGION_BY_NAME_BEGIN("UR_mspd11", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
         phase = 11 ! only reordering and symbolic factorization
         IF (matbsz > 1) THEN
             iparm(1) = 1 ! non default setting
@@ -9750,6 +9823,9 @@ SUBROUTINE mspardiso
         END IF
         CALL pardiso_64(pt, maxfct, mnum, mtype, phase, INT(npdblk,mpl), globalMatD, csr3RowOffsets, csr3ColumnList, &
             idum, nrhs, iparm, msglvl, ddum, ddum, error)
+#ifdef SCOREP_USER_ENABLE
+        SCOREP_USER_REGION_BY_NAME_END("UR_mspd11")
+#endif
         !$POMP INST END(mspd11)
         WRITE(lun,*) 'PARDISO reordering completed ... '
         WRITE(lun,*) 'PARDISO peak memory required (KB)', iparm(15)
@@ -9776,9 +9852,15 @@ SUBROUTINE mspardiso
 
         !.. Factorization.
         !$POMP INST BEGIN(mspd22)
+#ifdef SCOREP_USER_ENABLE
+        SCOREP_USER_REGION_BY_NAME_BEGIN("UR_mspd22", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
         phase = 22 ! only factorization
         CALL pardiso_64(pt, maxfct, mnum, mtype, phase, INT(npdblk,mpl), globalMatD, csr3RowOffsets, csr3ColumnList, &
             idum, nrhs, iparm, msglvl, ddum, ddum, error)
+#ifdef SCOREP_USER_ENABLE
+        SCOREP_USER_REGION_BY_NAME_END("UR_mspd22")
+#endif
         !$POMP INST END(mspd22)
         WRITE(lun,*) 'PARDISO factorization completed ... '
         IF (ipddbg > 0) THEN
@@ -9812,10 +9894,16 @@ SUBROUTINE mspardiso
     CALL mpalloc(x,length,' PARDISO solution')
     b(:nfgb) = globalCorrections
     !$POMP INST BEGIN(mspd33)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_BEGIN("UR_mspd33", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
     iparm(6) = 0 ! don't update r.h.s. with solution
     phase = 33 ! only solving
     CALL pardiso_64(pt, maxfct, mnum, mtype, phase, INT(npdblk,mpl), globalMatD, csr3RowOffsets, csr3ColumnList, &
         idum, nrhs, iparm, msglvl, b, x, error)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_END("UR_mspd33")
+#endif
     !$POMP INST END(mspd33)
     globalCorrections = x(:nfgb)
     CALL mpdealloc(x)
@@ -10813,15 +10901,27 @@ SUBROUTINE xloopn                !
                     END IF
                     IF (matsto == 1) THEN
                         !$POMP INST BEGIN(dsptri)
+#ifdef SCOREP_USER_ENABLE
+                        SCOREP_USER_REGION_BY_NAME_BEGIN("UR_dsptri", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
                         CALL dsptri('U',INT(nfit,mpl),globalMatD(imoff+1:),lapackIPIV(ipoff+1:),WorkSpaceD,infolp)
                         IF(infolp /= 0) PRINT *, ' DSPTRI failed: ', infolp
-                         !$POMP INST END(dsptri)
+#ifdef SCOREP_USER_ENABLE
+                        SCOREP_USER_REGION_BY_NAME_END("UR_dsptri")
+#endif
+                        !$POMP INST END(dsptri)
                         IF(monpg1 > 0) CALL monend()
                     ELSE
                         !$POMP INST BEGIN(dsytri)
+#ifdef SCOREP_USER_ENABLE
+                        SCOREP_USER_REGION_BY_NAME_BEGIN("UR_dsytri", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
                         CALL dsytri('U',INT(nfit,mpl),globalMatD(imoff+1:),INT(nfit,mpl),&
                             lapackIPIV(ipoff+1:),WorkSpaceD,infolp)
                         IF(infolp /= 0) PRINT *, ' DSYTRI failed: ', infolp
+#ifdef SCOREP_USER_ENABLE
+                        SCOREP_USER_REGION_BY_NAME_END("UR_dsytri")
+#endif
                         !$POMP INST END(dsytri)
                         IF(monpg1 > 0) CALL monend()
                     END IF
@@ -10832,13 +10932,25 @@ SUBROUTINE xloopn                !
                     END IF
                     IF (matsto == 1) THEN
                         !$POMP INST BEGIN(dpptri)
+#ifdef SCOREP_USER_ENABLE
+                        SCOREP_USER_REGION_BY_NAME_BEGIN("UR_dpptri", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
                         CALL dpptri('U',INT(nfit,mpl),globalMatD(imoff+1:),infolp)
                         IF(infolp /= 0) PRINT *, ' DPPTRI failed: ', infolp
+#ifdef SCOREP_USER_ENABLE
+                        SCOREP_USER_REGION_BY_NAME_END("UR_dpptri")
+#endif
                         !$POMP INST END(dpptri)
                     ELSE
                         !$POMP INST BEGIN(dpotri)
+#ifdef SCOREP_USER_ENABLE
+                        SCOREP_USER_REGION_BY_NAME_BEGIN("UR_dpotri", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
                         CALL dpotri('U',INT(nfit,mpl),globalMatD(imoff+1:),INT(npar,mpl),infolp)
                         IF(infolp /= 0) PRINT *, ' DPOTRI failed: ', infolp
+#ifdef SCOREP_USER_ENABLE
+                        SCOREP_USER_REGION_BY_NAME_END("UR_dpotri")
+#endif
                         !$POMP INST END(dpotri)
                     END IF
                     IF(monpg1 > 0) CALL monend()

@@ -61,8 +61,10 @@ SUPPORT_PARDISO =
 # If yes use multithreading with OpenMP (TM)
 SUPPORT_OPENMP = yes
 # Instrumentation/profiling with Score-P (score-p.org)
-SCOREP =
-# scorep --pomp
+#SCOREPROOT = <path to scorep>
+# POMP replaced by 'user regions'
+SCOREP = 
+#$(SCOREPROOT)/bin/scorep --user
 #
 # make install copies the binary to $(PREFIX)/bin
 PREFIX = .
@@ -94,6 +96,10 @@ ifeq ($(SUPPORT_OPENMP),yes)
 # Multithreading with OpenMP (TM)
   L_FLAGS += -fopenmp
   F_FLAGS += -fopenmp
+endif
+# for Score-P user regions
+ifdef SCOREP
+  F_INCLUDEDIRS += -I $(SCOREPROOT)/include
 endif
 #
 ifeq ($(SUPPORT_LAPACK64),yes)

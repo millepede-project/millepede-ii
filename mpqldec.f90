@@ -4,7 +4,7 @@
 !! \author Claus Kleinwort, DESY, 2015 (Claus.Kleinwort@desy.de)
 !!
 !! \copyright
-!! Copyright (c) 2015-2023 Deutsches Elektronen-Synchroton,
+!! Copyright (c) 2015-2024 Deutsches Elektronen-Synchroton,
 !! Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 !! This library is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU Library General Public License as
@@ -22,6 +22,10 @@
 !! QL decomposition of constraints matrix by Householder transformations
 !! for solution by elimination. Optionally split into disjoint blocks.
 !!
+
+#ifdef SCOREP_USER_ENABLE
+#include "scorep/SCOREP_User.inc"
+#endif
 
 !> QL data.
 MODULE mpqldec
@@ -249,6 +253,9 @@ SUBROUTINE qldecb(a,bpar,bcon,rcon)
     INTEGER(mpi), INTENT(IN)          :: rcon(4,ncon)
 
     !$POMP INST BEGIN(qldecb)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_BEGIN("UR_qldecb", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
     ! prepare 
     vecVk=0.0_mpd
     matV=a(1:matsize)
@@ -377,6 +384,9 @@ SUBROUTINE qldecb(a,bpar,bcon,rcon)
             irangeParNZ(2,k)=ilast-iboff
         END DO
     END DO
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_END("UR_qldecb")
+#endif
     !$POMP INST END(qldecb)
     
     
@@ -603,6 +613,9 @@ SUBROUTINE qlssq(aprod,A,s,roff,t)
         END SUBROUTINE aprod
     END INTERFACE
     !$POMP INST BEGIN(qlssq)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_BEGIN("UR_qlssq", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
     
     length=npar
     CALL mpalloc(Av,length,'qlssq: A*v')
@@ -677,6 +690,9 @@ SUBROUTINE qlssq(aprod,A,s,roff,t)
     END DO
 
     CALL mpdealloc(Av)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_END("UR_qlssq")
+#endif
     !$POMP INST END(qlssq)
 
 END SUBROUTINE qlssq
@@ -744,6 +760,9 @@ SUBROUTINE qlpssq(aprod,B,m,t)
         END SUBROUTINE aprod
     END INTERFACE
     !$POMP INST BEGIN(qlpssq)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_BEGIN("UR_qlpssq", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
 
     length=npar
     CALL mpalloc(vecAv,length,'qlpssq: A*v')    
@@ -918,6 +937,9 @@ SUBROUTINE qlpssq(aprod,B,m,t)
     CALL mpdealloc(matvtAvp)
     CALL mpdealloc(matvtvp)
     CALL mpdealloc(vecAv)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_END("UR_qlpssq")
+#endif
     !$POMP INST END(qlpssq)
 
 END SUBROUTINE qlpssq

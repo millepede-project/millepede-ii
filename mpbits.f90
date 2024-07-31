@@ -5,7 +5,7 @@
 !! \author Claus Kleinwort, DESY (maintenance and developement)
 !!
 !! \copyright
-!! Copyright (c) 2009 - 2023 Deutsches Elektronen-Synchroton,
+!! Copyright (c) 2009 - 2024 Deutsches Elektronen-Synchroton,
 !! Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
 !! This library is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU Library General Public License as
@@ -35,6 +35,10 @@
 !! For this a new set of routines have been added (starting with 'P').
 !! In this case the bit array has two parts: A triangular one for pairs of parameter groups
 !! and a rectangular one for Lagrange multipliers (parameter constraint pairs).
+
+#ifdef SCOREP_USER_ENABLE
+#include "scorep/SCOREP_User.inc"
+#endif
 
 !> Bit field data.
 MODULE mpbits
@@ -617,6 +621,9 @@ SUBROUTINE pbsbits(npgrp,ibsize,nnzero,nblock,nbkrow)
     nbkrow=0
 
     !$POMP INST BEGIN(pbsbits)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_BEGIN("pbsbits", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
     nd=npgrp(n+1)-npgrp(1) ! number of diagonal elements
     mb=(nd+nac-1)/ibsize+1 ! max. number of blocks per row/column
     mbt=(nd-1)/ibsize+1 ! max. number of blocks in triangular part
@@ -728,6 +735,9 @@ SUBROUTINE pbsbits(npgrp,ibsize,nnzero,nblock,nbkrow)
     CALL mpdealloc(blockCounter)
     CALL mpdealloc(rowBlocksToGroups)
 
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_END("pbsbits")
+#endif
     !$POMP INST END(pbsbits)
     WRITE(*,*) ' '
     WRITE(*,*) 'PBSBITS: number of used elements', nnzero
@@ -790,6 +800,9 @@ SUBROUTINE pblbits(npgrp,ibsize,nsparr,nsparc)
     LOGICAL :: btest
 
     !$POMP INST BEGIN(pblbits)
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_BEGIN("pblbits", SCOREP_USER_REGION_TYPE_COMMON)
+#endif
     nd=npgrp(n+1)-npgrp(1) ! number of diagonal elements
     mb=(nd+nac-1)/ibsize+1 ! max. number of blocks per row/column
     mbt=(nd-1)/ibsize+1 ! max. number of blocks in triangular part
@@ -900,6 +913,9 @@ SUBROUTINE pblbits(npgrp,ibsize,nsparr,nsparc)
     CALL mpdealloc(blockCounter)
     CALL mpdealloc(rowBlocksToGroups)
 
+#ifdef SCOREP_USER_ENABLE
+    SCOREP_USER_REGION_BY_NAME_END("pblbits")
+#endif
     !$POMP INST END(pblbits)
     WRITE(*,*) ' '
     WRITE(*,*) 'PBLBITS: column list constructed ',nsparr(mb+1)-nsparr(1), ' words'
