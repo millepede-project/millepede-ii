@@ -53,7 +53,7 @@
 !! 1. Download the software package from the DESY \c gitlab server to
 !!    \a target directory, e.g. (shallow clone):
 !!
-!!         git clone --depth 1 --branch V04-17-01 \
+!!         git clone --depth 1 --branch V04-17-03 \
 !!             https://gitlab.desy.de/claus.kleinwort/millepede-ii.git target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
@@ -195,6 +195,7 @@
 !! * 240731: For instrumentation and profiling with [Score-P](http:score-p.org) switched
 !!   from POMP (<tt>scorep --pomp</tt>) (based on OPARI2, to be superseded by OMPT (OpenMP 5.0))
 !!   to user (<tt>scorep --user</tt>) regions.
+!! * 240918: Allow for post processing of results (option \ref cmd-postprocessing) .
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -755,6 +756,8 @@
 !! Define \ref sssec-parinf "initial value, pre-sigma" for global parameters.
 !! \subsection cmd-pardiso pardiso
 !! Modify for \ref ch-pardiso "PARDISO" the internal steering parameters.
+!! \subsection cmd-postprocessing postprocessing
+!! Define post processing *string*. Will be executed by system at end of **pede**.
 !! \subsection cmd-presigma presigma
 !! Set default pre-sigma \ref mpmod::regpre "regpre" to \a number1 [1].
 !! \subsection cmd-print print
@@ -1375,6 +1378,21 @@ PROGRAM mptwo
 #endif
 #endif
     WRITE(*,*) ' '
+    ! close files
+    CLOSE(UNIT=7) ! histogram file
+    CLOSE(UNIT=8) ! log file
+
+    ! post processing?
+    IF (lenPostProc > 0) THEN
+        WRITE(*,*) 'Postprocessing:'
+        IF (lenPostProc >= 80) THEN
+            WRITE(*,*) cPostProc(1:38) // ' .. ' // cPostProc(lenPostProc-37:lenPostProc)
+        ELSE
+            WRITE(*,*) cPostProc(1:lenPostProc)
+        ENDIF
+        WRITE(*,*) ' '
+        CALL system(cPostProc(1:lenPostProc))
+    END IF
 
 102 FORMAT(2X,i4,i10,2X,3F10.5)
 103 FORMAT(' Times [in sec] for     text processing',f12.3/  &
@@ -5557,7 +5575,8 @@ SUBROUTINE prtglo
             iev=0
             WRITE(lup,*) ' '
         END DO
-  
+        CLOSE(UNIT=lup)
+
     END IF
 
 101 FORMAT(1X,'    label       parameter      presigma        differ',  &
@@ -12451,6 +12470,14 @@ SUBROUTINE intext(text,nline)
         mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
         IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
             icelim=1
+            RETURN
+        END IF
+
+        keystx='postprocessing'
+        mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
+        IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
+            lenPostProc=ib-keyb-1
+            cPostProc(1:lenPostProc)=text(keyb+2:ib)
             RETURN
         END IF
 

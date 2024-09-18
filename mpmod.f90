@@ -346,6 +346,8 @@ MODULE mpmod
     INTEGER(mpl) :: ipdmem=0 !< memory (kB) used by Intel oneMKL PARDISO
 #endif
 #endif
+    INTEGER(mpi) :: lenPostProc=0  !< length of post processing string
+    CHARACTER (LEN=1024) :: cPostProc !< post processing string
     !======================================================
     ! file information
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: mfd   !< file mode: cbinary =1, text =2, fbinary=3
