@@ -53,7 +53,7 @@
 !! 1. Download the software package from the DESY \c gitlab server to
 !!    \a target directory, e.g. (shallow clone):
 !!
-!!         git clone --depth 1 --branch V04-17-03 \
+!!         git clone --depth 1 --branch V04-17-04 \
 !!             https://gitlab.desy.de/claus.kleinwort/millepede-ii.git target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
@@ -195,7 +195,8 @@
 !! * 240731: For instrumentation and profiling with [Score-P](http:score-p.org) switched
 !!   from POMP (<tt>scorep --pomp</tt>) (based on OPARI2, to be superseded by OMPT (OpenMP 5.0))
 !!   to user (<tt>scorep --user</tt>) regions.
-!! * 240918: Allow for post processing of results (option \ref cmd-postprocessing) .
+!! * 240918: Allow for post processing of results (option \ref cmd-postprocessing).
+!! * 241205: Proper abort (message) in case of wrong binary file type (Fortranfiles or Cfiles).
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -2714,9 +2715,11 @@ SUBROUTINE peread(more)
                     (readBufferDataI(noff+i),i=1,min(n/2,nr))
                 nr=n/2
                 ! convert to double
-                DO i=1,nr
-                    readBufferDataD(noff+i)=REAL(readBufferDataF(noffs+i),mpr8)
-                END DO
+                IF (nr <= ndimbuf) THEN
+                    DO i=1,nr
+                        readBufferDataD(noff+i)=REAL(readBufferDataF(noffs+i),mpr8)
+                    END DO
+                END IF
                 ! IF (ierrf < 0) REWIND lun ! end-of-file ! CHK use binrwd()
                 eof=(ierrf /= 0)
             ELSE         ! C file
@@ -2736,7 +2739,7 @@ SUBROUTINE peread(more)
                     IF (icheck <= 0 .AND. ireeof <=0) THEN ! stop unless 'checkinput' mode or 'readerroraseof'
                         WRITE(cfile,'(I7)') kfile
                         CALL peend(18,'Aborted, read error(s) for binary file ' // cfile)
-                        STOP 'PEREAD: stopping due to read errors'
+                        STOP 'PEREAD: stopping due to read errors (bad record, wrong file type?)'
                     END IF
                     IF (kfd(1,jfile) == 1) THEN ! count files with read errors in first loop
                         !$OMP ATOMIC
@@ -6998,16 +7001,15 @@ SUBROUTINE loop1
             globalParLabelIndex(2,j)=0   ! reset count
         END DO
 
-        !     read all data files and add all labels to global labels table ----
-
-        IF(mprint /= 0) THEN
-            WRITE(*,*) 'Read all binary data files:'
-        END IF
         CALL hmpldf(1,'Number of words/record in binary file')
         CALL hmpdef(8,0.0,60.0,'not_stored data per record')
         !     define read buffer
         nc31=ncache/(31*mthrdr) ! split read cache 1 : 10 : 10*2 for pointers, ints, floats
         nwrd=nc31+1
+        IF(ndimbuf > nwrd) THEN
+            CALL peend(20,'Aborted, bad binary records')
+            STOP 'LOOP1: length of binary record exceeds cache size, wrong file type?'
+        END IF
         length=nwrd*mthrdr
         CALL mpalloc(readBufferPointer,length,'read buffer, pointer')
         nwrd=nc31*10+2+ndimbuf
@@ -7017,6 +7019,11 @@ SUBROUTINE loop1
         ! to read (old) float binary files
         length=(ndimbuf+2)*mthrdr
         CALL mpalloc(readBufferDataF,length,'read buffer, float')
+
+        !     read all data files and add all labels to global labels table ----
+        IF(mprint /= 0) THEN
+            WRITE(*,*) 'Read all binary data files:'
+        END IF
 
         DO
             CALL peread(nr)  ! read records
