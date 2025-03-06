@@ -53,7 +53,7 @@
 !! 1. Download the software package from the DESY \c gitlab server to
 !!    \a target directory, e.g. (shallow clone):
 !!
-!!         git clone --depth 1 --branch V04-17-04 \
+!!         git clone --depth 1 --branch V04-17-05 \
 !!             https://gitlab.desy.de/claus.kleinwort/millepede-ii.git target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
@@ -197,6 +197,7 @@
 !!   to user (<tt>scorep --user</tt>) regions.
 !! * 240918: Allow for post processing of results (option \ref cmd-postprocessing).
 !! * 241205: Proper abort (message) in case of wrong binary file type (Fortranfiles or Cfiles).
+!! * 250306: Some tools have been reimplemented in \ref julia_sec.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -208,6 +209,11 @@
 !! * \c lapack: Test programs to print LAPACK (library) configuration (MKL, OpenBLAS).
 !! * \c tinypede.py: **Pede** implementation in python3 with basic functionality for
 !!   illustration or testing with small problems.
+!!
+!! \section julia_sec Julia
+!! The subdirectory \c julia contains some of the above tools reimplemeted in [Julia](https://julialang.org):
+!! * \c readMilleBinary.jl
+!! * \c tinypede.jl
 !!
 !! \section details_sec Details
 !!
