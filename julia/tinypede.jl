@@ -24,7 +24,7 @@
 """
 tiny PEDE implementation
 """
-module TinyPede
+module Pede
 
 using Distributions
 
@@ -69,7 +69,7 @@ function defineParameters()
 		end
 		println("   records found ", nRec)
 		close(io)
-		TinyPede.numRec += nRec
+		Pede.numRec += nRec
 	end
 
 	# fix parameters
@@ -121,7 +121,7 @@ function addConstraints()
 			if lowercase(fields[1]) == "constraint"
 				ncons += 1
 				if nelem > 0
-					TinyPede.numCons += 1
+					Pede.numCons += 1
 				end
 				nelem = 0
 			else
@@ -136,7 +136,7 @@ function addConstraints()
 			end
 		end
 		if nelem > 0
-			TinyPede.numCons += 1
+			Pede.numCons += 1
 		end
 		println("   number of constr. in file  ", ncons)
 		println("   number of accepted constr. ", numCons)
@@ -158,11 +158,11 @@ function constructGlobalEquationSystem()
 	fill!(globalMatrix, 0.0)
 	fill!(globalVector, 0.0)
 	"Number "
-	TinyPede.numAccepted = 0
-	TinyPede.numRejected = 0
-	TinyPede.numBad = 0
-	TinyPede.sumNdf = 0
-	TinyPede.sumChi2 = 0.0
+	Pede.numAccepted = 0
+	Pede.numRejected = 0
+	Pede.numBad = 0
+	Pede.sumNdf = 0
+	Pede.sumChi2 = 0.0
 	# loop over records
 	for (fileName, fileType, maxRec) in binaryFiles
 		io = open(fileName, "r")
@@ -173,9 +173,9 @@ function constructGlobalEquationSystem()
 			ndf, Chi2 = localFit(meas, inder, glder, true)
 			# record accepted?
 			if ndf > 0
-				TinyPede.numAccepted += 1
-				TinyPede.sumNdf += ndf
-				TinyPede.sumChi2 += Chi2
+				Pede.numAccepted += 1
+				Pede.sumNdf += ndf
+				Pede.sumChi2 += Chi2
 			end
 		end
 	end
@@ -259,7 +259,7 @@ function localFit(measurements, indices, derivatives, updateGlobalMatrix)
 		prob = 1.0 - cdf(Chisq(locNdf), locChi2 / chi2Factor)
 		# reject (at 3 sigma)
 		if prob < 0.0027
-			TinyPede.numRejected += 1
+			Pede.numRejected += 1
 			return -1, 0.0
 		end
 		# update global matrix?
@@ -303,7 +303,7 @@ function localFit(measurements, indices, derivatives, updateGlobalMatrix)
 					end
 				end
 			end
-			# compressed update matrix, vector (parameter part)
+			# compressed update matrix, vector (global parameter part)
 			compressedUpdateMatrix = gloDerS' * gloDerS
 			compressedUpdateVector = gloDerS' * vecMeasS
 			# account for correlations (via local parameters)
@@ -330,7 +330,7 @@ function localFit(measurements, indices, derivatives, updateGlobalMatrix)
 	catch e
 		println("Inversion of local matrix failed: $e")
 		println(" numMeas $numMeas numLocal $numLocal")
-		TinyPede.numBad += 1
+		Pede.numBad += 1
 		return -2, 0.0
 	end
 end
@@ -405,9 +405,9 @@ function pede()
 		get variable global parameters
 	=#
 	defineParameters()
-	TinyPede.numVarPar = length(parIndices)
-	TinyPede.activeVarParList = zeros(Int32, TinyPede.numVarPar)
-	TinyPede.activeVarParIndices = zeros(Int32, TinyPede.numVarPar)
+	Pede.numVarPar = length(parIndices)
+	Pede.activeVarParList = zeros(Int32, Pede.numVarPar)
+	Pede.activeVarParIndices = zeros(Int32, Pede.numVarPar)
 	println("time elapsed $(time()-startTime)")
 
 	#=
@@ -420,8 +420,8 @@ function pede()
 	#=
 		construct global (linear) equation system, Lagrange multipliers
 	=#
-	TinyPede.globalMatrix = Matrix{Float64}(undef, numVarPar + numCons, numVarPar + numCons)
-	TinyPede.globalVector = Vector{Float64}(undef, numVarPar + numCons)
+	Pede.globalMatrix = Matrix{Float64}(undef, numVarPar + numCons, numVarPar + numCons)
+	Pede.globalVector = Vector{Float64}(undef, numVarPar + numCons)
 	constructGlobalEquationSystem()
 	println("time elapsed $(time()-startTime)")
 
