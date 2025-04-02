@@ -72,6 +72,9 @@
 =#
 
 using ArgParse
+# to read gzipped binary files:
+using GZip
+# replace 'open()' by 'GZip.open()' 
 
 # define command line arguments
 s = ArgParseSettings()
@@ -110,7 +113,7 @@ elseif parsed_args["type"] == "fortran"
 	isCFile = false
 else
 	# need to auto-detect
-	io = open(parsed_args["filename"], "r")
+	io = GZip.open(parsed_args["filename"], "r")
 	n1 = read(io, Int32) # fortran: total record length (bytes)
 	n2 = read(io, Int32) # fortran: MP2 record length (words)
 	close(io)
@@ -122,7 +125,7 @@ else
 end
 
 # read file
-io = open(parsed_args["filename"], "r")
+io = GZip.open(parsed_args["filename"], "r")
 maxRec = parsed_args["num-records"]
 skipRec = parsed_args["skip-records"]
 nRec = 0
