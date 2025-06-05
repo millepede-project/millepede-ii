@@ -1,5 +1,5 @@
 """
-Read (and decode) MP2 binary record
+Read (and decode) MP2 binary record, 'special data (blocks)' NOT supported!
 
 ### Arguments
 - `io`: file to read from
@@ -32,76 +32,13 @@ function readRecord(io, isCfile)
 	end
 
 	# decode record
-	# - step 1: count measurements
-	numMeas = 0
-	# internal indices
-	i = 1
-	ja = 1
-	jb = 1
-	jsp = 1
-	nsp = 0
-	while i < nw - 1
-		i += 1
-		while (i <= nw) && (inder[i] != 0)
-			i += 1
-		end
-		ja = i
-		i += 1
-		while (i <= nw) && (inder[i] != 0)
-			i += 1
-		end
-		jb = i
-		i += 1
-		# special data ?
-		if (ja + 1 == jb) && (glder[jb] < 0.0)
-			jsp = jb
-			nsp = int(-glder[jb])
-			i += nsp - 1
-			println(" ### spec. $nsp $(inder[jsp + 1:i + 1]) $(glder[jsp + 1:i + 1])")
-			continue
-		end
-		while (i <= nw) && (inder[i] != 0)
-			i += 1
-		end
-		numMeas += 1
-		i -= 1
-	end
-	measurements = Vector{Tuple{Int32, Int32, Int32}}(undef, numMeas)
-	# - step 2: fill measurements (indices)
-	numMeas = 0
-	# internal indices
-	i = 1
-	ja = 1
-	jb = 1
-	jsp = 1
-	nsp = 0
-	while i < nw - 1
-		i += 1
-		while (i <= nw) && (inder[i] != 0)
-			i += 1
-		end
-		ja = i
-		i += 1
-		while (i <= nw) && (inder[i] != 0)
-			i += 1
-		end
-		jb = i
-		i += 1
-		# special data ?
-		if (ja + 1 == jb) && (glder[jb] < 0.0)
-			jsp = jb
-			nsp = int(-glder[jb])
-			i += nsp - 1
-			println(" ### spec. $nsp $(inder[jsp + 1:i + 1]) $(glder[jsp + 1:i + 1])")
-			continue
-		end
-		while (i <= nw) && (inder[i] != 0)
-			i += 1
-		end
-		numMeas += 1
-		#println("numMeas $numMeas $ja $jb $i")
-		measurements[numMeas] = (ja, jb, i)
-		i -= 1
-	end
+	#  ignore error counter
+	inder[1] = -1
+	#  find zero indices
+	ind0 = findall(iszero, inder)
+	#  add begin of next record
+	push!(ind0, nw + 1)
+	#  define measurements
+	measurements = [(ind0[i], ind0[i+1], ind0[i+2]) for i in 1:2:length(ind0)-1]
 	return measurements, inder, glder
 end

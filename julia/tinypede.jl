@@ -27,6 +27,16 @@ tiny PEDE implementation
 module Pede
 
 using Distributions
+using CPUTime
+using LinearAlgebra
+
+#= to read gzipped binary files:
+using GZip
+# replace 'open()' by 'GZip.open()' 
+# or
+using CodecZlib
+# replace open() by GzipDecompressorStream(open())
+=#
 
 # Read MP2 record
 include("readRecord.jl")
@@ -401,6 +411,9 @@ function pede()
 	=#
 	startTime = time()
 	println("\n TinyPede - a simple PEDE implementation in julia\n")
+
+	LinearAlgebra.BLAS.set_num_threads(1)
+	println("Number of BLAS threads, $(LinearAlgebra.BLAS.get_num_threads()) ")
 	#=
 		get variable global parameters
 	=#
@@ -408,14 +421,18 @@ function pede()
 	Pede.numVarPar = length(parIndices)
 	Pede.activeVarParList = zeros(Int32, Pede.numVarPar)
 	Pede.activeVarParIndices = zeros(Int32, Pede.numVarPar)
-	println("time elapsed $(time()-startTime)")
+	println("time elapsed $(time()-startTime), cpu $(CPUtime_us()*1.0E-6)")
+	# no free parameters?
+	if Pede.numVarPar == 0
+		exit(22)
+	end
 
 	#=
 		add constraints
 	=#
 	addConstraints()
 	#println("consElements $consElements")
-	println("time elapsed $(time()-startTime)")
+	println("time elapsed $(time()-startTime), cpu $(CPUtime_us()*1.0E-6)")
 
 	#=
 		construct global (linear) equation system, Lagrange multipliers
@@ -423,13 +440,13 @@ function pede()
 	Pede.globalMatrix = Matrix{Float64}(undef, numVarPar + numCons, numVarPar + numCons)
 	Pede.globalVector = Vector{Float64}(undef, numVarPar + numCons)
 	constructGlobalEquationSystem()
-	println("time elapsed $(time()-startTime)")
+	println("time elapsed $(time()-startTime), cpu $(CPUtime_us()*1.0E-6)")
 
 	#=
 		solve global (linear) equation system
 	=#
 	solveGlobalEquationSystem()
-	println("time elapsed $(time()-startTime)")
+	println("time elapsed $(time()-startTime), cpu $(CPUtime_us()*1.0E-6)")
 end
 
 pede()
