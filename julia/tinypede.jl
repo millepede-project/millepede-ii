@@ -29,6 +29,7 @@ module Pede
 using Distributions
 using CPUTime
 using LinearAlgebra
+using SparseArrays
 
 #= to read gzipped binary files:
 using GZip
@@ -167,7 +168,6 @@ function constructGlobalEquationSystem()
 	# reset
 	fill!(globalMatrix, 0.0)
 	fill!(globalVector, 0.0)
-	"Number "
 	Pede.numAccepted = 0
 	Pede.numRejected = 0
 	Pede.numBad = 0
@@ -195,11 +195,11 @@ function constructGlobalEquationSystem()
 	# matrix information
 	matSize = numVarPar + numCons
 	nonZero = count(x -> x != 0.0, globalMatrix)
-	println("   size of global matrix      ", matSize)
-	println("   fraction of elements <> 0. ", trunc(100.0 * nonZero / matSize^2), '%')
-	# add Lagrange multipliers
+	println("   dimension of global matrix ", matSize)
+	println("   size of global matrix [MB] ", round(sizeof(globalMatrix) / 1000000, RoundUp))
+	println("   fraction of elements <> 0. ", trunc(200.0 * nonZero / (matSize^2 + matSize)), '%')
+	# add Lagrange multipliers to upper triangle (of symmetric globalMatrix)
 	for (iCons, label, value) in consElements
-		globalMatrix[numVarPar+iCons, label] = value
 		globalMatrix[label, numVarPar+iCons] = value
 	end
 end
@@ -256,10 +256,18 @@ function localFit(measurements, indices, derivatives, updateGlobalMatrix)
 	#println(localMatrix)
 	# local fit
 	try
-		# covariance matrix
-		localCov = inv(localMatrix)
-		# solution
-		localSol = localCov * localVector
+		if updateGlobalMatrix
+			# covariance matrix
+			#localCov = inv(localMatrix) # dense localMatrix
+			localCov = Symmetric(sparse(localMatrix)) \ Matrix{Float64}(I(numLocal)) # sparse localMatrix
+			# solution
+			localSol = localCov * localVector
+		else
+			# no covarinace matrix
+			# solution
+			#localSol = Symmetric(localMatrix) \ localVector # dense localMatrix
+			localSol = Symmetric(sparse(localMatrix)) \ localVector # sparse localMatrix
+		end
 		# (scaled) residuals
 		locResidualsS = vecMeasS - locDerS * localSol
 		# chi2, ndf
@@ -313,20 +321,20 @@ function localFit(measurements, indices, derivatives, updateGlobalMatrix)
 					end
 				end
 			end
+			# global derivatives are usually sparse
+			sparseGloDerS = sparse(gloDerS)
 			# compressed update matrix, vector (global parameter part)
-			compressedUpdateMatrix = gloDerS' * gloDerS
-			compressedUpdateVector = gloDerS' * vecMeasS
+			compressedUpdateMatrix = sparseGloDerS' * sparseGloDerS
+			compressedUpdateVector = sparseGloDerS' * vecMeasS
 			# account for correlations (via local parameters)
-			matGloLoc = gloDerS' * locDerS
-			compressedUpdateMatrix -= matGloLoc * (localCov * matGloLoc')
+			matGloLoc = sparseGloDerS' * locDerS
+			compressedUpdateMatrix -= matGloLoc * (Symmetric(localCov) * matGloLoc')
 			compressedUpdateVector -= matGloLoc * localSol
 			# apply update ("expand")
+			globalVector[activeGloPar] += compressedUpdateVector[1:numActive]
+			# to upper triangle (of symmetric globalMatrix)
 			for i in 1:numActive
-				index = activeGloPar[i]
-				globalVector[index] += compressedUpdateVector[i]
-				for j in 1:numActive
-					globalMatrix[index, activeGloPar[j]] += compressedUpdateMatrix[i, j]
-				end
+				globalMatrix[activeGloPar[i], activeGloPar[i:numActive]] += compressedUpdateMatrix[i, i:numActive]
 			end
 			# cleanup  (active global parameters)
 			for i in 1:numActive
@@ -338,7 +346,7 @@ function localFit(measurements, indices, derivatives, updateGlobalMatrix)
 
 		# local fit failed
 	catch e
-		println("Inversion of local matrix failed: $e")
+		println("Local fit failed: $e")
 		println(" numMeas $numMeas numLocal $numLocal")
 		Pede.numBad += 1
 		return -2, 0.0
@@ -346,16 +354,16 @@ function localFit(measurements, indices, derivatives, updateGlobalMatrix)
 end
 
 """
-Solve linear equation system
+Solve linear equation system (Inversion)
 
 Solve linear equation system (global fit) and print results.
 """
-function solveGlobalEquationSystem()
+function solveGlobalEquationSystemInv()
 	println()
-	println(" Solving linear equations system")
+	println(" Solving linear equations system (Inversion)")
 	try
 		# global covarinace matrix
-		globalCov = inv(globalMatrix)
+		globalCov = inv(globalMatrixSym)
 		# global solution
 		globalSol = globalCov * globalVector
 		# Chi2 reduction
@@ -392,6 +400,50 @@ function solveGlobalEquationSystem()
 end
 
 """
+Solve linear equation system (Factorisation)
+
+Solve linear equation system (global fit) and print results.
+"""
+function solveGlobalEquationSystemFact()
+	println()
+	println(" Solving linear equations system (Factorisation)")
+	try
+		# global solution
+		globalSol = globalMatrixSym \ globalVector
+		# Chi2 reduction
+		deltaChi2 = globalVector' * globalSol
+
+		println("   sum(ndf)                 ", sumNdf - numVarPar)
+		println("   initial sum(chi2)        ", sumChi2)
+		println("   chi2 reduction by fit    ", deltaChi2)
+		println("   final sum(chi2)          ", sumChi2 - deltaChi2)
+		println("   final sum(chi2)/sum(ndf) ", (sumChi2 - deltaChi2) / (sumNdf - numVarPar))
+		println()
+
+		# write results to text file
+		io = open("tinypede.res", "w")
+		println(io, " Solution")
+		println(io, "   parameter label, #entries, correction, error")
+
+		for (label, counts) in sort(collect(parCounters))
+			if haskey(parIndices, label)
+				index = parIndices[label]
+				println(io, "$label $counts $(globalSol[index])")
+			else
+				println(io, "$label $counts fixed")
+			end
+		end
+		close(io)
+
+		# global fit failed
+	catch e
+		println("Factorisation of global matrix failed: $e")
+		println("   >>> improve input data <<<")
+		return
+	end
+end
+
+"""
 Pede step
 
 Implements only very basic **PEDE** functionality. 
@@ -410,10 +462,12 @@ function pede()
 	initialise
 	=#
 	startTime = time()
-	println("\n TinyPede - a simple PEDE implementation in julia\n")
+	println("\n TinyPede - a simple PEDE implementation in julia ($VERSION)\n")
 
-	LinearAlgebra.BLAS.set_num_threads(1)
-	println("Number of BLAS threads, $(LinearAlgebra.BLAS.get_num_threads()) ")
+	if numThreadsBLAS > 0
+		LinearAlgebra.BLAS.set_num_threads(numThreadsBLAS)
+	end
+	println("Number of BLAS threads $(LinearAlgebra.BLAS.get_num_threads()) ")
 	#=
 		get variable global parameters
 	=#
@@ -440,12 +494,13 @@ function pede()
 	Pede.globalMatrix = Matrix{Float64}(undef, numVarPar + numCons, numVarPar + numCons)
 	Pede.globalVector = Vector{Float64}(undef, numVarPar + numCons)
 	constructGlobalEquationSystem()
+	Pede.globalMatrixSym = Symmetric(globalMatrix)
 	println("time elapsed $(time()-startTime), cpu $(CPUtime_us()*1.0E-6)")
 
 	#=
 		solve global (linear) equation system
 	=#
-	solveGlobalEquationSystem()
+	solveGlobalEquationSystemInv()
 	println("time elapsed $(time()-startTime), cpu $(CPUtime_us()*1.0E-6)")
 end
 

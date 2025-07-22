@@ -12,3 +12,5 @@ constraintFiles = ["mp2con.txt"]
 #constraintFiles = String[] # no constraints
 " Chi2 scaling factor"
 chi2Factor = 50.0
+"Number of BLAS threads"
+numThreadsBLAS = 1 # 0: all available

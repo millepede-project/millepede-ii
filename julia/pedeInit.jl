@@ -25,6 +25,8 @@ parIndices = Dict{Int32, Int32}()
 consElements = Tuple{Int32, Int32, Float64}[]
 "Global matrix"
 globalMatrix = Float64[;;]
+"Global matrix (symmetric view)"
+globalMatrixSym = Symmetric(Float64[;;])
 "Global vector"
 globalVector = Float64[;]
 "List of active variable global parameters in record"
