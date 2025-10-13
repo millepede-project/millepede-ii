@@ -199,7 +199,7 @@
 !! * 241205: Proper abort (message) in case of wrong binary file type (Fortranfiles or Cfiles).
 !! * 250306: Some tools have been reimplemented in \ref julia_sec.
 !! * 250819: Some optimizations for \c tinypede.jl tool.
-!! * 251013: New command \ref cmd-outlierfracwarnthreshold "outlierfracwarnthreshold" to set warning threshold for outlier fraction.
+!! * 251013: New command \ref cmd-outlierfracwarnthreshold "outlierfracwarnthreshold" to set warning threshold for outlier fraction. readMilleBinary to py3, small cosmetic changes to readc.c 
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
