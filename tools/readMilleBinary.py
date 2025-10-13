@@ -84,8 +84,6 @@
 
 # in Python2.7, we can use the beta version of the print function
 #    imports from __future__ need to happen before any other code
-from __future__ import print_function
-
 import sys
 
 # CLI module distributed with Python
@@ -176,13 +174,13 @@ def unpack(typechar, number=1):
     return struct.unpack(typechar * number, bin_data)
 
 
-nrec = 0
+numberReadRecords = 0
 try:
-    while (nrec < arg.num_records + arg.skip_records) or (arg.num_records < 0):
+    while (numberReadRecords < arg.num_records + arg.skip_records) or (arg.num_records < 0):
 # read 1 record
-        nr = 0
+        equationsInRecord = 0
         if (Cfiles == 0):
-            lenf = struct.unpack('i', f.read(4))
+            lengthForFortran = struct.unpack('i', f.read(4))
 
         try:
             length = unpack('i')
@@ -195,94 +193,94 @@ try:
         #   integer-division was promoted to its own operator
         #   in Python3, luckily shifting by 1 is the same as
         #   integer division by 2
-        nr = abs(length[0] >> 1)
-        nrec += 1
+        equationsInRecord = abs(length[0] >> 1)
+        numberReadRecords += 1
 
         floattype = 'f'
         if length[0] < 0:
             floattype = 'd'
 
-        # read read nr floats and then nr integers
-        glder = unpack(floattype, nr)
-        inder = unpack('i', nr)
+        # read read equationsInRecord floats and then equationsInRecord integers
+        floatEntries = unpack(floattype, equationsInRecord)
+        integerEntries = unpack('i', equationsInRecord)
 
         if (Cfiles == 0):
-            lenf = unpack('i')
+            lengthForFortran = unpack('i')
 
-        if (nrec <= arg.skip_records):  # must be after last fromfile
+        if (numberReadRecords <= arg.skip_records):  # must be after last fromfile
             continue
 
         if arg.quiet:
             continue
 
-        print(" === NR ", nrec, length[0] / 2)
+        print(" === NR ", numberReadRecords, length[0] / 2)
 
         # no details, only header
         if arg.num_records < 0:
             continue
 
-        i = 0
-        nh = 0
-        ja = 0
-        jb = 0
-        jsp = 0
-        nsp = 0
-        while (i < (nr - 1)):
-            i += 1
-            while (i < nr) and (inder[i] != 0): i += 1
-            ja = i
-            i += 1
-            while (i < nr) and (inder[i] != 0): i += 1
-            jb = i
-            i += 1
+        lineIndex = 0
+        equationIndex = 0
+        startOfLocalBlock = 0
+        startOfGlobalBlock = 0
+        specialDataIndex = 0
+        numberOfSpecial = 0
+        while (lineIndex < (equationsInRecord - 1)):
+            lineIndex += 1
+            while (lineIndex < equationsInRecord) and (integerEntries[lineIndex] != 0): lineIndex += 1
+            startOfLocalBlock = lineIndex
+            lineIndex += 1
+            while (lineIndex < equationsInRecord) and (integerEntries[lineIndex] != 0): lineIndex += 1
+            startOfGlobalBlock = lineIndex
+            lineIndex += 1
             # special data ?
-            if (ja + 1 == jb) and (glder[jb] < 0.):
-                jsp = jb
-                nsp = int(-glder[jb])
-                i += nsp - 1
-                print(' ### spec. ', nsp, inder[jsp + 1:i + 1], glder[jsp + 1:i + 1])
+            if (startOfLocalBlock + 1 == startOfGlobalBlock) and (floatEntries[startOfGlobalBlock] < 0.):
+                specialDataIndex = startOfGlobalBlock
+                numberOfSpecial = int(-floatEntries[startOfGlobalBlock])
+                lineIndex += numberOfSpecial - 1
+                print(' ### spec. ', numberOfSpecial, integerEntries[specialDataIndex + 1:lineIndex + 1], floatEntries[specialDataIndex + 1:lineIndex + 1])
                 continue
-            while (i < nr) and (inder[i] != 0): i += 1
-            i -= 1
-            nh += 1
-            if (jb < i):
+            while (lineIndex < equationsInRecord) and (integerEntries[lineIndex] != 0): lineIndex += 1
+            lineIndex -= 1
+            equationIndex += 1
+            if (startOfGlobalBlock < lineIndex):
 # measurement with global derivatives
-                print(' -g- meas. ', nh, inder[jb + 1], jb - ja - 1, i - jb, glder[ja], glder[jb])
+                print(' -g- meas. ', equationIndex, integerEntries[startOfGlobalBlock + 1], startOfGlobalBlock - startOfLocalBlock - 1, lineIndex - startOfGlobalBlock, floatEntries[startOfLocalBlock], floatEntries[startOfGlobalBlock])
             else:
 # measurement without global derivatives
-                print(' -l- meas. ', nh, inder[ja + 1], jb - ja - 1, i - jb, glder[ja], glder[jb])
-            if (ja + 1 < jb):
-                lab = []
-                val = []
-                for k in range(ja + 1, jb):
+                print(' -l- meas. ', equationIndex, integerEntries[startOfLocalBlock + 1], startOfGlobalBlock - startOfLocalBlock - 1, lineIndex - startOfGlobalBlock, floatEntries[startOfLocalBlock], floatEntries[startOfGlobalBlock])
+            if (startOfLocalBlock + 1 < startOfGlobalBlock):
+                listOfLabels = []
+                listOfValues = []
+                for k in range(startOfLocalBlock + 1, startOfGlobalBlock):
                     if arg.min_val is None:
-                        lab.append(inder[k])
-                        val.append(glder[k])
-                    elif abs(glder[k]) >= arg.min_val:
-                        lab.append(inder[k])
-                        val.append(glder[k])
-                print(" local  ", lab)
-                print(" local  ", val)
-            if (jb + 1 < i + 1):
-                lab = []
-                val = []
-                for k in range(jb + 1, i + 1):
+                        listOfLabels.append(integerEntries[k])
+                        listOfValues.append(floatEntries[k])
+                    elif abs(floatEntries[k]) >= arg.min_val:
+                        listOfLabels.append(integerEntries[k])
+                        listOfValues.append(floatEntries[k])
+                print(" local  ", listOfLabels)
+                print(" local  ", listOfValues)
+            if (startOfGlobalBlock + 1 < lineIndex + 1):
+                listOfLabels = []
+                listOfValues = []
+                for k in range(startOfGlobalBlock + 1, lineIndex + 1):
                     if arg.min_val is None:
-                        lab.append(inder[k])
-                        val.append(glder[k]) 
-                    elif abs(glder[k]) >= arg.min_val:
-                        lab.append(inder[k])
-                        val.append(glder[k])
-                print(" global ", lab)
-                print(" global ", val)
+                        listOfLabels.append(integerEntries[k])
+                        listOfValues.append(floatEntries[k]) 
+                    elif abs(floatEntries[k]) >= arg.min_val:
+                        listOfLabels.append(integerEntries[k])
+                        listOfValues.append(floatEntries[k])
+                print(" global ", listOfLabels)
+                print(" global ", listOfValues)
 
 except EOFError:
-    if (nr > 0):
-        print(" >>> error: end of file before end of record", nrec)
+    if (equationsInRecord > 0):
+        print(" >>> error: end of file before end of record", numberReadRecords)
         sys.exit(1)
 except ValueError as e:
-    print(" >>> error: unable to unpack values before end of record", nrec, *(e.args))
+    print(" >>> error: unable to unpack values before end of record", numberReadRecords, *(e.args))
     sys.exit(2)
 
-print(" end of file after", nrec, "records")
+print(" end of file after", numberReadRecords, "records")
 f.close()

@@ -71,6 +71,8 @@
 #ifdef USE_ZLIB
 #include <zlib.h>
 #endif
+#include <string.h>
+
 
 /* ________ global variables used for file handling __________ */
 
@@ -107,10 +109,10 @@ void initc(int nFiles) {
 
 /*______________________________________________________________*/
 /// Open file.
-void openc(const char *fileName, int lfn, int nFileIn, int *errorFlag)
+void openc(const char *fileName, int lengthFileName, int nFileIn, int *errorFlag)
 /**
  * \param[in]  fileName  File name
- * \param[in]  lfn  Length of file name
+ * \param[in]  lengthFileName  Length of file name
  * \param[in]  nFileIn  File number (1 .. maxNumFiles) or <=0 for next one
  * \param[out] errorFlag error flag:
  *      * 0: if file opened and OK,
@@ -130,12 +132,9 @@ void openc(const char *fileName, int lfn, int nFileIn, int *errorFlag)
         if (fileIndex >= maxNumFiles) {
                         *errorFlag = 1;
         } else {
-                char *s = malloc(lfn+1);
-                int i;
-                for ( i=0; i<lfn; i++ ) {
-                        s[i] = fileName[i];
-                }
-                s[lfn] = '\0';
+                char *s = malloc(lengthFileName+1);
+				memcpy(s, fileName, lengthFileName); 
+                s[lengthFileName] = '\0';
 #ifdef USE_ZLIB
                 files[fileIndex] = gzopen(s, "rb");
                 if (!files[fileIndex]) {
