@@ -55,6 +55,7 @@ MODULE mpmod
     REAL(mps)    :: value1=0.0!< largest residual
     REAL(mps)    :: value2=0.0!< largest chi^2/Ndf
     REAL(mps)    :: dwcut=0.0 !< down-weight fraction cut
+    REAL(mps)    :: warnThresholdChi2=100  !< warning threshold for large chi2 tracks, units of 1e-4 (100 = 1%)
     INTEGER(mpi) :: isubit=0  !< subito flag '-s'
     REAL(mps)    :: wolfc1=0.0!< C_1 of strong Wolfe condition
     REAL(mps)    :: wolfc2=0.0!< C_2 of strong Wolfe condition

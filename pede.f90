@@ -53,7 +53,7 @@
 !! 1. Download the software package from the DESY \c gitlab server to
 !!    \a target directory, e.g. (shallow clone):
 !!
-!!         git clone --depth 1 --branch V04-17-06 \
+!!         git clone --depth 1 --branch V04-17-07 \
 !!             https://gitlab.desy.de/claus.kleinwort/millepede-ii.git target
 !!
 !! 2. Create **Pede** executable (in \a target directory):
@@ -199,6 +199,7 @@
 !! * 241205: Proper abort (message) in case of wrong binary file type (Fortranfiles or Cfiles).
 !! * 250306: Some tools have been reimplemented in \ref julia_sec.
 !! * 250819: Some optimizations for \c tinypede.jl tool.
+!! * 251013: New command \ref cmd-outlierfracwarnthreshold "outlierfracwarnthreshold" to set warning threshold for outlier fraction.
 !!
 !! \section tools_sec Tools
 !! The subdirectory \c tools contains some useful scripts:
@@ -653,6 +654,9 @@
 !! \subsection cmd-dwfractioncut dwfractioncut
 !! Set \ref an-dwcut "down-weighting fraction" cut \ref mpmod::dwcut "dwcut"
 !! to \a number1 (max. 0.5).
+!! \subsection cmd-outlierfracwarnthreshold outlierfracwarnthreshold
+!! Set \ref an-outlierfracwarnthreshold "warning level for fraction of large chi2 entries" \ref mpmod::warnthresholdchi2 "warnthresholdchi2"
+!! to \a number1 [100]. Units of 1e-4, i.e. 100 = 1%.
 !! \subsection cmd-entries entries
 !! Set \ref an-entries "entries" cuts for variable global parameter
 !! \ref mpmod::mreqenf "mreqenf" to \a number1 [25],
@@ -11073,7 +11077,7 @@ SUBROUTINE xloopn                !
 
     warner=.FALSE. ! warnings
     IF(mrati < 90.OR.mrati > 110) warner=.TRUE.
-    IF(nrati > 100) warner=.TRUE.
+    IF(nrati > warnThresholdChi2) warner=.TRUE.
     IF(ncgbe /= 0) warner=.TRUE.
     warners = .FALSE. ! severe warnings
     IF(nalow /= 0) warners=.TRUE.
@@ -11102,11 +11106,10 @@ SUBROUTINE xloopn                !
             WRITE(*,*) '        => multiply all input standard ',  &
                 'deviations by factor',cfacin
         END IF
-
-        IF(nrati > 100) THEN
+        IF(nrati > warnThresholdChi2) THEN
             WRITE(*,199) ' '
             WRITE(*,*) '        Fraction of rejects =',crjrat,' %',  &
-                '  (should be far below 1 %)'
+                '  (far below 1 % for gaussian errors, warn threshold set to',warnThresholdChi2*0.01,' %)'
             WRITE(*,*) '        => please provide correct mille data'
             CALL chkrej ! check (and print) rejection details
         END IF
@@ -11838,7 +11841,9 @@ SUBROUTINE filetx ! ---------------------------------------------------
         nfiln=1
         !      read text file
         DO
+            !  read the next line 
             READ(10,102,IOSTAT=ierrf) text
+            ! if we are at EOF, exit 
             IF (ierrf < 0) THEN
                 text=' '
                 CALL intext(text,nline)
@@ -11852,8 +11857,9 @@ SUBROUTINE filetx ! ---------------------------------------------------
                 WRITE(*,101) nline,text(1:nab)
                 IF(nline == nlinmx) WRITE(*,*) '    ...'
             END IF
-  
+            ! strip empty spaces
             CALL rltext(text,ia,ib,nab)        ! test content   'end'
+            ! check for a 3-letter word matching "end". 
             IF(ib == ia+2) THEN
                 mat=matint(text(ia:ib),'end',npat,ntext)
                 IF(mat == max(npat,ntext)) THEN ! exact matching
@@ -11866,6 +11872,9 @@ SUBROUTINE filetx ! ---------------------------------------------------
   
             IF(i == 0) THEN ! first text file - exclude lines with file names
                 IF(nfiln <= nfiles) THEN
+                    ! if we have reached the next line where we expect a file name (ndf(nfiln)), 
+                    ! we reset the ext content of the current line (skip) and update nfiln 
+                    ! to the next input file we have not yet found in our steering 
                     IF(nline == nfd(nfiln)) THEN
                         nfiln=nfiln+1
                         text=' '
@@ -12205,7 +12214,6 @@ SUBROUTINE intext(text,nline)
     CALL rltext(text,ia,ib,nab)   ! return indices for non-blank area
     IF(nab == 0) GOTO 10
     CALL ratext(text(1:nab),nums,dnum,mnum) ! translate text to DP numbers
-
     IF(nums /= 0) nkey=0
     IF(keyb /= 0) THEN
         keywrd=text(keya:keyb) !          text is TEXT(KEYA)...TEXT(KEYB)
@@ -12396,6 +12404,13 @@ SUBROUTINE intext(text,nline)
         IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
             lhuber=NINT(dnum(1),mpi)
             IF(lhuber > 0.AND.lhuber <= 2) lhuber=2 ! at least 2 Huber iterations (if any)
+            RETURN
+        END IF
+  
+        keystx='outlierfracwarnthreshold'
+        mat=matint(text(keya:keyb),keystx,npat,ntext) ! comparison
+        IF(100*mat >= 80*max(npat,ntext)) THEN ! 80% (symmetric) matching
+            warnThresholdChi2=100 * REAL(dnum(1),mps)
             RETURN
         END IF
   
