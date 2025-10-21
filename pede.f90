@@ -869,6 +869,7 @@
 !!    + **33**   Aborted, stack overflow in quicksort
 !!    + **34**   Aborted, pattern string too long - obsolete
 !!    + **35**   Aborted, mismatch of number of global parameters
+!!    + **36**   Aborted, unselected solution method requested
 !!    + **40**   Aborted, other errors
 
 !> \page troubleshooting_page Troubleshooting
@@ -12841,6 +12842,7 @@ SUBROUTINE intext(text,nline)
             IF(miter >= 1) mitera=miter
             dflim=REAL(dnum(2),mps)
             lkey=0
+            metsol=-1
             DO i=1,nmeth
                 keystx=methxt(i)
                 mat=matint(text(keyb+1:keyc),keystx,npat,ntext) ! comparison
@@ -12882,6 +12884,13 @@ SUBROUTINE intext(text,nline)
                     END IF
                 END IF
             END DO
+            if (metsol .eq. -1) then 
+                write(*,*) "Unsupported solution method ",text(keyb+1:keyc)
+                write(*,*) "This may be a typo, or this build may not support the requested method."
+                write(*,*) "Supported in this build: [",methxt(1:nmeth),"]"
+                call peend(36, "Unsupported solution method") 
+                stop "Unsupported solution method"
+            end if 
         END IF
     ELSE IF(nkey == 0) THEN  ! data for continuation
         IF(lkey == 2) THEN              ! parameter
