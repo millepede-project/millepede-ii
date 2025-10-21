@@ -36,15 +36,10 @@ endif()
 # Define fortran compiler
 SET(CMAKE_FC_COMPILER  gcc)
 
-
-# Defines location for libraries
+# Destination targets for build results
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
-
-# Executable directory location
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
-
-# Add our local modules to the module path (*.mod)
 SET(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
 
 
@@ -61,7 +56,11 @@ endif()
 
 # ===== Mille ======= 
 add_library(Mille SHARED)
-target_sources(Mille PUBLIC Mille.cc  Mille.h)
+target_sources(Mille 
+            PRIVATE Mille.cc 
+            PUBLIC 
+                FILE_SET HEADERS 
+                FILES Mille.h)
 
 # ===== Pede ======== 
 add_executable(pede)
@@ -109,3 +108,12 @@ if (SUPPORT_OPENMP)
     target_compile_options(pede PUBLIC -fopenmp)
     target_link_options(pede PUBLIC -fopenmp)
 endif()
+
+# install headers for Mille 
+install(
+  TARGETS Mille
+  LIBRARY DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+  # This replaces install(DIRECTORY ...)
+  FILE_SET HEADERS DESTINATION
+    ${CMAKE_CURRENT_BINARY_DIR}/include
+)
