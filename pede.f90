@@ -656,7 +656,7 @@
 !! to \a number1 (max. 0.5).
 !! \subsection cmd-outlierfracwarnthreshold outlierfracwarnthreshold
 !! Set \ref an-outlierfracwarnthreshold "warning level for fraction of large chi2 entries" \ref mpmod::warnthresholdchi2 "warnthresholdchi2"
-!! to \a number1 [0.01].
+!! to \a number1 [1]. Value is expected to be in percent (1.0 parsed as 1%).
 !! \subsection cmd-entries entries
 !! Set \ref an-entries "entries" cuts for variable global parameter
 !! \ref mpmod::mreqenf "mreqenf" to \a number1 [25],
