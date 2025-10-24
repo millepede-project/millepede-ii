@@ -70,7 +70,7 @@ target_sources(pede
 	minresDataModule.f90 minresModule.f90 minresqlpDataModule.f90 minresqlpBlasModule.f90 minresqlpModule.f90 
     randoms.f90 vertpr.f90 linesrch.f90 Dbandmatrix.f90 mpmod.f90 pede.f90
 )
-target_link_libraries(pede PUBLIC gfortran)
+target_link_libraries(pede PUBLIC gfortran m )
 
 # Special setup implementing build options
 
@@ -78,7 +78,7 @@ target_link_libraries(pede PUBLIC gfortran)
 if (LAPACK_MKL)
     message ("Building with LAPACK support via MKL")
     target_include_directories(pede PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_link_libraries(pede PUBLIC $<LINK_ONLY:MKL::MKL>)
+    # target_link_libraries(pede PUBLIC $<LINK_ONLY:MKL::MKL>)
     target_link_libraries(pede PUBLIC mkl_rt)
     target_compile_definitions(pede PUBLIC LAPACK64=\"MKL\")
     target_link_directories(pede PUBLIC ${MKL_ROOT}/lib/${MKL_ARCH})
@@ -107,7 +107,7 @@ endif()
 if (SUPPORT_OPENMP)
     message ("Building with openMP support")
     target_compile_options(pede PUBLIC -fopenmp)
-    target_link_options(pede PUBLIC -fopenmp)
+    target_link_libraries(pede PUBLIC gomp)
 endif()
 
 # install headers for Mille 
@@ -125,7 +125,7 @@ install(
 )
 
 # Standalone histogrammer 
-find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO )
+find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO QUIET )
 if (${ROOT_FOUND})
     set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
     message ("Found ROOT - will build histogram reader") 
