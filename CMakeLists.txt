@@ -1,6 +1,8 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.26.5)
 
-PROJECT(millepede-II LANGUAGES Fortran C CXX)
+PROJECT(millepedeII LANGUAGES Fortran C CXX)
+
+set(CMAKE_Fortran_COMPILER gcc)
 
 # Arguments for CMake
 option(DEBUG "Debug" OFF)
@@ -33,8 +35,6 @@ if (LAPACK_MKL)
 endif()
 
 
-# Define fortran compiler
-SET(CMAKE_FC_COMPILER  gcc)
 
 # Destination targets for build results
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
@@ -70,6 +70,7 @@ target_sources(pede
 	minresDataModule.f90 minresModule.f90 minresqlpDataModule.f90 minresqlpBlasModule.f90 minresqlpModule.f90 
     randoms.f90 vertpr.f90 linesrch.f90 Dbandmatrix.f90 mpmod.f90 pede.f90
 )
+target_link_libraries(pede PUBLIC gfortran)
 
 # Special setup implementing build options
 
@@ -112,8 +113,36 @@ endif()
 # install headers for Mille 
 install(
   TARGETS Mille
-  LIBRARY DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+  LIBRARY DESTINATION lib
   # This replaces install(DIRECTORY ...)
-  FILE_SET HEADERS DESTINATION
-    ${CMAKE_CURRENT_BINARY_DIR}/include
+  FILE_SET HEADERS 
+  DESTINATION include
 )
+# install headers for Mille 
+install(
+  TARGETS pede
+  DESTINATION bin
+)
+
+# Standalone histogrammer 
+find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO )
+if (${ROOT_FOUND})
+    set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
+    message ("Found ROOT - will build histogram reader") 
+    add_executable(readPedeHists readPedeHists.cpp)
+    target_link_libraries(readPedeHists PRIVATE ${ROOT_LIBRARIES})
+    target_include_directories(readPedeHists PRIVATE ${ROOT_INCLUDE_DIRS})
+    install (
+        TARGETS readPedeHists
+        DESTINATION bin
+    )
+endif()
+
+# finally, prepare a setup script for the user 
+# to get pede into their environment 
+configure_file(
+    ${millepedeII_SOURCE_DIR}/cmake/setup.sh.cmake.in
+    ${millepedeII_BINARY_DIR}/mp2setup.sh @ONLY)
+
+install(FILES ${millepedeII_BINARY_DIR}/mp2setup.sh
+         DESTINATION . )
