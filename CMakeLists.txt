@@ -4,6 +4,9 @@ PROJECT(millepedeII LANGUAGES Fortran C CXX)
 
 set(CMAKE_Fortran_COMPILER gcc)
 
+# check for ROOT 
+find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO QUIET )
+
 # Arguments for CMake
 option(DEBUG "Debug" OFF)
 option(SUPPORT_READ_C "read C files" ON)
@@ -12,7 +15,8 @@ option(SUPPORT_C_RFIO "Use C RFIO" OFF)
 option(SUPPORT_OPENMP "Support OPENMP" ON)
 option(LAPACK_OPENBLAS "Use LAPACK with OpenBLAS" ON)
 option(LAPACK_MKL "Use LAPACK with MKL. Define MKL_DIR if installed in a nonstandard location." OFF)
-
+option(PARDISO "Support Intel oneMKL PARDISO. Define MKL_DIR if installed in a nonstandard location." OFF)
+option(SCOREP "Add SCORE-P instrumentation. Define SCOREP_DIR if installed in a nonstandard location." OFF)
 
 # Check dependencies
 if (SUPPORT_ZLIB)
@@ -78,10 +82,14 @@ target_link_libraries(pede PUBLIC gfortran m )
 if (LAPACK_MKL)
     message ("Building with LAPACK support via MKL")
     target_include_directories(pede PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-    # target_link_libraries(pede PUBLIC $<LINK_ONLY:MKL::MKL>)
     target_link_libraries(pede PUBLIC mkl_rt)
     target_compile_definitions(pede PUBLIC LAPACK64=\"MKL\")
     target_link_directories(pede PUBLIC ${MKL_ROOT}/lib/${MKL_ARCH})
+    if (PARDISO)
+        message ("Using Intel oneMKL PARDISO")
+        target_compile_definitions(pede PUBLIC PARDISO)
+        target_include_directories(pede PUBLIC ${MKL_ROOT}/include)
+    endif()
 endif()
 # ===== LAPACK with OpenMP ===== 
 if (useLP_OPENBLAS)
@@ -114,18 +122,29 @@ endif()
 install(
   TARGETS Mille
   LIBRARY DESTINATION lib
-  # This replaces install(DIRECTORY ...)
   FILE_SET HEADERS 
   DESTINATION include
 )
-# install headers for Mille 
+# add SCORE-P instrumentation 
+if (SCOREP)
+    if (NOT DEFINED SCOREP_DIR)
+        message ( FATAL_ERROR "Please set SCOREP_DIR to the base path of your SCORE-P installation to enable SCORE-P profiling. ")  
+    else()
+        message ("Adding instrumentation for SCORE-P profiling") 
+        set(CMAKE_C_COMPILER "${SCOREP_DIR}/bin/scorep-gcc")
+        set(CMAKE_Fortran_COMPILER "${SCOREP_DIR}/bin/scorep-gcc")
+        target_include_directories(pede PUBLIC ${SCOREP_DIR}/include)
+    endif()
+endif()
+
+
+# install pede executable 
 install(
   TARGETS pede
   DESTINATION bin
 )
 
-# Standalone histogrammer 
-find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO QUIET )
+# Standalone histogrammer (if we have ROOT)
 if (${ROOT_FOUND})
     set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
     message ("Found ROOT - will build histogram reader") 
@@ -146,3 +165,11 @@ configure_file(
 
 install(FILES ${millepedeII_BINARY_DIR}/mp2setup.sh
          DESTINATION . )
+
+if (SCOREP AND DEFINED SCOREP_DIR)
+    message("=============================
+Please make sure to 
+    export SCOREP_WRAPPER_INSTRUMENTER_FLAGS=\"--pomp --user --thread=omp\"
+before invoking make with SCORE-P instrumentation
+=============================" )
+endif()
