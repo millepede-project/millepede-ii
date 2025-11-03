@@ -11809,6 +11809,9 @@ SUBROUTINE filetx ! ---------------------------------------------------
 
     CHARACTER (LEN=1024) :: text
     CHARACTER (LEN=1024) :: fname
+#ifdef LAPACK64
+    CHARACTER (LEN = 30) :: LP = LAPACK64
+#endif 
 
     WRITE(*,*) ' '
     WRITE(*,*) 'Processing text files ...'
@@ -11937,6 +11940,19 @@ SUBROUTINE filetx ! ---------------------------------------------------
         matsto=1
     ELSE IF(metsol == 8) THEN   ! if LAPACK
         matsto=0
+        ! catch bug in unpacked LAPACK with OpenBLAS p64 build
+        IF(LP == "OPENBLAS") THEN
+            write(*,*) "=========================="
+            write(*,*) "WARNING: Selected OpenBLAS LAPACK with unpacked storage currently affected by bug."
+            write(*,*) "Switching to packed storage." 
+            write(*,*) "=========================="
+            write(lunlog,*) "=========================="
+            write(lunlog,*) "WARNING: Selected OpenBLAS LAPACK with unpacked storage currently affected by bug."
+            write(lunlog,*) "Switching to packed storage." 
+            write(lunlog,*) "=========================="
+            matsto = 1
+            metsol = 7
+        ENDIF 
 #ifdef PARDISO
     ELSE IF(metsol == 9) THEN   ! if Intel oneMKL PARDISO
         matsto=3
