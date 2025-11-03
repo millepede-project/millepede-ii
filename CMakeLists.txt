@@ -125,15 +125,31 @@ install(
   FILE_SET HEADERS 
   DESTINATION include
 )
+
 # add SCORE-P instrumentation 
 if (SCOREP)
-    if (NOT DEFINED SCOREP_DIR)
-        message ( FATAL_ERROR "Please set SCOREP_DIR to the base path of your SCORE-P installation to enable SCORE-P profiling. ")  
+    message ("Adding instrumentation for SCORE-P profiling") 
+    # first, we try to find a system-wide installation. 
+    # Score-P does not come with a CMake config, so look for the main 
+    # program 
+    find_program (
+          found_SCOREP
+          NAMES scorep 
+          PATHS ENV PATH 
+          ) 
+    # if we find no installation on PATH, we assume there is a custom setup. 
+    # In this case, the user should supply "SCOREP_DIR" to specify where to look. 
+    if (NOT found_SCOREP) 
+        if (NOT DEFINED SCOREP_DIR)
+            message ( FATAL_ERROR "Please set SCOREP_DIR to the base path of your SCORE-P installation to enable SCORE-P profiling. ")  
+        else()
+            set(CMAKE_C_COMPILER "${SCOREP_DIR}/bin/scorep-gcc")
+            set(CMAKE_Fortran_COMPILER "${SCOREP_DIR}/bin/scorep-gcc")
+            target_include_directories(pede PUBLIC ${SCOREP_DIR}/include)
+        endif()
     else()
-        message ("Adding instrumentation for SCORE-P profiling") 
-        set(CMAKE_C_COMPILER "${SCOREP_DIR}/bin/scorep-gcc")
-        set(CMAKE_Fortran_COMPILER "${SCOREP_DIR}/bin/scorep-gcc")
-        target_include_directories(pede PUBLIC ${SCOREP_DIR}/include)
+        set(CMAKE_C_COMPILER "scorep-gcc")
+        set(CMAKE_Fortran_COMPILER "scorep-gcc")
     endif()
 endif()
 
