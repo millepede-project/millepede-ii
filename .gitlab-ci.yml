@@ -19,6 +19,7 @@
 stages:          # List of stages for jobs, and their order of execution
   - build
   - test
+  - deploy
 
 build-job:       # This job runs in the build stage, which runs first.
   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
@@ -36,6 +37,25 @@ build-job:       # This job runs in the build stage, which runs first.
     paths:
       - install/
 
+doc-job:       # This job runs in the build stage, which runs first.
+  image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
+  stage: build
+  script:
+    - git clone https://gitlab.desy.de/millepede/millepede-ii.git src
+    - cd src 
+    - doxygen pede.f90   
+    - echo "Doc complete."
+    - cd ..
+    - mkdir public 
+    - cp -r src/html/* public/ 
+  artifacts: 
+    name: "Doc"
+    paths:
+      - src/html/ 
+      - src/latex/ 
+      - public
+    expose_as: "Documentation"
+
 test-job: 
   stage: test
   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
@@ -45,3 +65,14 @@ test-job:
     - ls 
     - source install/mp2setup.sh
     - pede -t 
+pages:
+  stage: deploy
+  needs: 
+    - doc-job
+  script:
+    - ls -l public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
