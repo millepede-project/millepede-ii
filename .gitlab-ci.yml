@@ -82,7 +82,10 @@ runtime-image:
   script:
     - echo  "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$GITLAB_USER\",\"password\":\"$GITLAB_TOKEN\"}}}" > /kaniko/.docker/config.json
     # Build and push the image from the Dockerfile at the root of the project.
-    - /kaniko/executor --context src/CI/millepede/runtime_image/ --dockerfile Dockerfile --build-arg GITLAB_USER=${GITLAB_USER} --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} --destination $IMAGE_DESTINATION
+    - ls 
+    - ls src/ 
+    - ls src/CI/runtime_image/
+    - /kaniko/executor --context src/CI/runtime_image/ --dockerfile Dockerfile --build-arg GITLAB_USER=${GITLAB_USER} --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} --destination $IMAGE_DESTINATION
     # Print the full registry path of the pushed image
     - echo "Image pushed successfully to ${IMAGE_DESTINATION}"
   interruptible: true
