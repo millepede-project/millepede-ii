@@ -65,6 +65,28 @@ test-job:
     - ls 
     - source install/mp2setup.sh
     - pede -t 
+
+runtime-image:
+  stage: deploy 
+  needs: 
+    - build-job
+  image: 
+    name: gcr.io/kaniko-project/executor
+    entrypoint: [""]
+  variables:
+    IMAGE_DESTINATION: ${CI_REGISTRY_IMAGE}:mp2runtime
+    # all submodules will be cloned recursively upon start of CI job
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SSL_NO_VERIFY: "true"
+  script:
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$GITLAB_USER\",\"password\":\"$GITLAB_TOKEN\"}}}" > /kaniko/.docker/config.json
+    # Build and push the image from the Dockerfile at the root of the project.
+    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/CI/millepede/runtime_image/Dockerfile --build-arg GITLAB_USER=${GITLAB_USER} --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} --destination $IMAGE_DESTINATION
+    # Print the full registry path of the pushed image
+    - echo "Image pushed successfully to ${IMAGE_DESTINATION}"
+  interruptible: true
+
+
 pages:
   stage: deploy
   needs: 
