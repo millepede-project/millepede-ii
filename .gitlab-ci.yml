@@ -18,24 +18,24 @@
 
 stages:          # List of stages for jobs, and their order of execution
   - build
-  - test
-  - deploy
+  # - test
+  # - deploy
 
-# build-job:       # This job runs in the build stage, which runs first.
-#   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
-#   stage: build
-#   script:
-#     - git clone https://gitlab.desy.de/millepede/millepede-ii.git src
-#     - mkdir build install
-#     - cd build  
-#     - cmake -DCMAKE_INSTALL_PREFIX=../install ../src 
-#     - make 
-#     - make install
-#     - echo "Compile complete."
-#   artifacts: 
-#     name: "pede_installation"
-#     paths:
-#       - install/
+build-job:       # This job runs in the build stage, which runs first.
+  image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
+  stage: build
+  script:
+    - git clone https://gitlab.desy.de/millepede/millepede-ii.git src
+    - mkdir build install
+    - cd build  
+    - cmake -DCMAKE_INSTALL_PREFIX=../install ../src 
+    - make 
+    - make install
+    - echo "Compile complete."
+  artifacts: 
+    name: "pede_installation"
+    paths:
+      - install/
 
 # doc-job:       # This job runs in the build stage, which runs first.
 #   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
@@ -68,8 +68,8 @@ stages:          # List of stages for jobs, and their order of execution
 
 runtime-image:
   stage: build 
-  # needs: 
-  #   - build-job
+  needs: 
+    - build-job
   image: 
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
@@ -79,9 +79,10 @@ runtime-image:
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_SSL_NO_VERIFY: "true"
   script:
+    - git clone https://gitlab.desy.de/millepede/millepede-ii.git src
     - echo  "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$GITLAB_USER\",\"password\":\"$GITLAB_TOKEN\"}}}" > /kaniko/.docker/config.json
     # Build and push the image from the Dockerfile at the root of the project.
-    #- /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/CI/millepede/runtime_image/Dockerfile --build-arg GITLAB_USER=${GITLAB_USER} --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} --destination $IMAGE_DESTINATION
+    - /kaniko/executor --context src/CI/millepede/runtime_image/ --dockerfile src/CI/millepede/runtime_image/Dockerfile --build-arg GITLAB_USER=${GITLAB_USER} --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} --destination $IMAGE_DESTINATION
     # Print the full registry path of the pushed image
     - echo "Image pushed successfully to ${IMAGE_DESTINATION}"
   interruptible: true
