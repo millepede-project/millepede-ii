@@ -18,8 +18,8 @@
 
 stages:          # List of stages for jobs, and their order of execution
   - build
-  # - test
-  # - deploy
+  - test
+  - deploy
 
 build-job:       # This job runs in the build stage, which runs first.
   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
@@ -36,50 +36,64 @@ build-job:       # This job runs in the build stage, which runs first.
     paths:
       - install/
 
-# doc-job:       # This job runs in the build stage, which runs first.
-#   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
-#   stage: build
-#   script:
-#     - git clone https://gitlab.desy.de/millepede/millepede-ii.git src
-#     - cd src 
-#     - doxygen pede.f90   
-#     - echo "Doc complete."
-#     - cd ..
-#     - mkdir public 
-#     - cp -r src/html/* public/ 
-#   artifacts: 
-#     name: "Doc"
-#     paths:
-#       - src/html/ 
-#       - src/latex/ 
-#       - public
-#     expose_as: "Documentation"
+doc-job:       # This job runs in the build stage, which runs first.
+  image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
+  stage: build
+  script:
+    - git clone https://gitlab.desy.de/millepede/millepede-ii.git src
+    - cd src 
+    - doxygen pede.f90   
+    - echo "Doc complete."
+    - cd ..
+    - mkdir public 
+    - cp -r src/html/* public/ 
+  artifacts: 
+    name: "Doc"
+    paths:
+      - src/html/ 
+      - src/latex/ 
+      - public
+    expose_as: "Documentation"
 
-# test-job: 
-#   stage: test
-#   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
-#   needs: 
-#     - build-job
-#   script: 
-#     - ls 
-#     - source install/mp2setup.sh
-#     - pede -t 
-
-runtime-image:
-  stage: build 
+test-job: 
+  stage: test
+  image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
   needs: 
     - build-job
+  script: 
+    - ls 
+    - source install/mp2setup.sh
+    - pede -t 
+
+runtime-image:
+  stage: deploy 
+  when: on_success
   image: 
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   variables:
-    IMAGE_DESTINATION: ${CI_REGISTRY_IMAGE}:mp2runtime
-    # all submodules will be cloned recursively upon start of CI job
-    GIT_SUBMODULE_STRATEGY: recursive
+    IMAGE_DESTINATION: ${CI_REGISTRY_IMAGE}/mp2runtime:${CI_COMMIT_REF_NAME}
     GIT_SSL_NO_VERIFY: "true"
   script:
     - echo  "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$GITLAB_USER\",\"password\":\"$GITLAB_TOKEN\"}}}" > /kaniko/.docker/config.json
-    # Build and push the image from the Dockerfile at the root of the project.
+    - ls 
+    - ls CI/runtime_image/
+    - /kaniko/executor --context CI/runtime_image/ --dockerfile Dockerfile --build-arg GITLAB_USER=${GITLAB_USER} --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} --destination $IMAGE_DESTINATION
+    # Print the full registry path of the pushed image
+    - echo "Image pushed successfully to ${IMAGE_DESTINATION}"
+  interruptible: true
+
+dev-image:
+  stage: deploy 
+  when: manual 
+  image: 
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  variables:
+    IMAGE_DESTINATION: ${CI_REGISTRY_IMAGE}/mp2runtime:${CI_COMMIT_REF_NAME}
+    GIT_SSL_NO_VERIFY: "true"
+  script:
+    - echo  "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$GITLAB_USER\",\"password\":\"$GITLAB_TOKEN\"}}}" > /kaniko/.docker/config.json
     - ls 
     - ls CI/runtime_image/
     - /kaniko/executor --context CI/runtime_image/ --dockerfile Dockerfile --build-arg GITLAB_USER=${GITLAB_USER} --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} --destination $IMAGE_DESTINATION
@@ -88,14 +102,15 @@ runtime-image:
   interruptible: true
 
 
-# pages:
-#   stage: deploy
-#   needs: 
-#     - doc-job
-#   script:
-#     - ls -l public
-#   artifacts:
-#     paths:
-#       - public
-#   only:
-#     - main
+
+pages:
+  stage: deploy
+  needs: 
+    - doc-job
+  script:
+    - ls -l public
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
