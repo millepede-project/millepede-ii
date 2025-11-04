@@ -40,8 +40,6 @@ doc-job:       # This job runs in the build stage, which runs first.
   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
   stage: build
   script:
-    - git clone https://gitlab.desy.de/millepede/millepede-ii.git src
-    - cd src 
     - doxygen pede.f90   
     - echo "Doc complete."
     - cd ..
