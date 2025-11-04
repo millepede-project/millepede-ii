@@ -3,12 +3,8 @@ WORKDIR /pede
 RUN git clone --recursive https://gitlab.desy.de/millepede/millepede-ii.git src 
 RUN pwd 
 RUN ls 
-RUN mkdir build install
+RUN mkdir build 
 WORKDIR /pede/build
-RUN cmake -DCMAKE_INSTALL_PREFIX=/pede/install ../src 
+RUN cmake ../src 
 RUN cmake --build . 
 RUN cmake --install .
-WORKDIR /pede
-RUN cp install/mp2setup.sh /pede/mp2setup.sh
-RUN echo "# setup MP2 env " >> /root/.bashrc
-RUN echo "source /pede/mp2setup.sh" >> /root/.bashrc
