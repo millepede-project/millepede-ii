@@ -36,6 +36,7 @@ build-job:       # This job runs in the build stage, which runs first.
     name: "pede_installation"
     paths:
       - install/
+      - src/ 
 
 # doc-job:       # This job runs in the build stage, which runs first.
 #   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
@@ -79,7 +80,6 @@ runtime-image:
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_SSL_NO_VERIFY: "true"
   script:
-    - git clone https://gitlab.desy.de/millepede/millepede-ii.git src
     - echo  "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$GITLAB_USER\",\"password\":\"$GITLAB_TOKEN\"}}}" > /kaniko/.docker/config.json
     # Build and push the image from the Dockerfile at the root of the project.
     - /kaniko/executor --context src/CI/millepede/runtime_image/ --dockerfile src/CI/millepede/runtime_image/Dockerfile --build-arg GITLAB_USER=${GITLAB_USER} --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} --destination $IMAGE_DESTINATION
