@@ -25,10 +25,9 @@ build-job:       # This job runs in the build stage, which runs first.
   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
   stage: build
   script:
-    - git clone https://gitlab.desy.de/millepede/millepede-ii.git src
     - mkdir build install
     - cd build  
-    - cmake -DCMAKE_INSTALL_PREFIX=../install ../src 
+    - cmake -DCMAKE_INSTALL_PREFIX=../install ../ 
     - make 
     - make install
     - echo "Compile complete."
@@ -36,7 +35,6 @@ build-job:       # This job runs in the build stage, which runs first.
     name: "pede_installation"
     paths:
       - install/
-      - src/ 
 
 # doc-job:       # This job runs in the build stage, which runs first.
 #   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
@@ -83,9 +81,8 @@ runtime-image:
     - echo  "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$GITLAB_USER\",\"password\":\"$GITLAB_TOKEN\"}}}" > /kaniko/.docker/config.json
     # Build and push the image from the Dockerfile at the root of the project.
     - ls 
-    - ls src/ 
-    - ls src/CI/runtime_image/
-    - /kaniko/executor --context src/CI/runtime_image/ --dockerfile Dockerfile --build-arg GITLAB_USER=${GITLAB_USER} --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} --destination $IMAGE_DESTINATION
+    - ls CI/runtime_image/
+    - /kaniko/executor --context CI/runtime_image/ --dockerfile Dockerfile --build-arg GITLAB_USER=${GITLAB_USER} --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} --destination $IMAGE_DESTINATION
     # Print the full registry path of the pushed image
     - echo "Image pushed successfully to ${IMAGE_DESTINATION}"
   interruptible: true
