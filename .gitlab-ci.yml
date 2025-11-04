@@ -42,15 +42,12 @@ doc-job:       # This job runs in the build stage, which runs first.
   script:
     - doxygen pede.f90   
     - echo "Doc complete."
-    - cd ..
-    - mkdir public 
-    - cp -r src/html/* public/ 
+    - cp -r html public
   artifacts: 
     name: "Doc"
     paths:
-      - src/html/ 
-      - src/latex/ 
-      - public
+      - latex/ 
+      - public/
     expose_as: "Documentation"
 
 test-job: 
