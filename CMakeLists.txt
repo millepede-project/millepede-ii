@@ -110,6 +110,15 @@ if (SUPPORT_READ_C)
         target_compile_definitions(readc PUBLIC USE_ZLIB)
         target_link_libraries(readc PUBLIC z)
     endif()
+    if (${ROOT_FOUND})
+        add_executable(cToRoot cToRoot.cc)
+        target_link_libraries(cToRoot PUBLIC readc ${ROOT_LIBRARIES})
+        target_include_directories(cToRoot PRIVATE ${ROOT_INCLUDE_DIRS})
+        install (
+            TARGETS cToRoot
+            DESTINATION bin
+        )
+    endif()
 endif()
 # ==== OpenMP ==== 
 if (SUPPORT_OPENMP)
