@@ -10,3 +10,5 @@ RUN cmake --build .
 RUN cmake --install .
 WORKDIR /pede
 RUN cp install/mp2setup.sh /pede/mp2setup.sh
+RUN echo "# setup MP2 env " >> /root/.bashrc
+RUN echo "source /pede/mp2setup.sh" >> /root/.bashrc
