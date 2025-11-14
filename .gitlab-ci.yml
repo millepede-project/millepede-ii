@@ -64,7 +64,7 @@ generate-ref:
   stage: test
   image: ${CI_REGISTRY_IMAGE}/mp2runtime:main
   script: 
-    - pede -tBRLF
+    - pede -t=BRLF
     - pede CI/mp2str.txt | tee ref.run.log
     - mv millepede.log ref.log 
     - mv millepede.res ref.res 
