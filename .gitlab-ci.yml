@@ -74,6 +74,21 @@ generate-ref:
       - millepede.* 
     expire_in: 1 hour
 
+test-align: 
+  stage: test
+  needs: 
+    - generate-ref
+    - build-job
+  image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
+  script: 
+    - mv millepede.log ref.log 
+    - mv millepede.res ref.res 
+    - mv millepede.mon ref.mon 
+    - mv millepede.his ref.his 
+    - pede mp2str.txt 
+    - diff millepede.log ref.log
+    
+
 runtime-image:
   stage: deploy 
   when: on_success
