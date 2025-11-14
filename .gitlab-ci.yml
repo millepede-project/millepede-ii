@@ -88,9 +88,9 @@ test-align:
   script: 
     - source install/mp2setup.sh
     - pede CI/mp2str.txt | tee test.run.log
-    - python3 CI/compareResult.py ref.res millepede.res 
-    - python3 CI/compareResult.py ref.log millepede.log 
-    - python3 CI/compareResult.py ref.mon millepede.mon 
+    - python3 CI/compareResults.py ref.res millepede.res 
+    - python3 CI/compareResults.py ref.log millepede.log 
+    - python3 CI/compareResults.py ref.mon millepede.mon 
   allow_failure:  
     exit_codes:
       - 99
