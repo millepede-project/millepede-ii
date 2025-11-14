@@ -638,7 +638,7 @@
 !! \subsection cmd-postprocessing postprocessing
 !! Define post processing *string*. Will be executed by system at end of **pede**.
 !! \subsection cmd-presigma presigma
-!! Set default pre-sigma \ref mpmod::regpre "regpre" to \a number1 [1].
+!! Set default pre-sigma \ref mpmod::defaultPreSigma "defaultPreSigma" to \a number1 [1].
 !! \subsection cmd-print print
 !! Set print level \ref mpmod::mprint "mprint" to \a number1 [1].
 !! \subsection cmd-printcounts printcounts
@@ -657,17 +657,17 @@
 !! \subsection cmd-regularisation regularisation
 !! Set flag \ref mpmod::nregul "nregul" for regularization to 1 (true),
 !! regularization parameter \ref mpmod::regula "regula" to \a number2,
-!! default pre-sigma \ref mpmod::regpre "regpre" to \a number3.
+!! default pre-sigma \ref mpmod::defaultPreSigma "defaultPreSigma" to \a number3.
 !! \subsection cmd-regularization regularization
 !! Set flag \ref mpmod::nregul "nregul" for regularization to 1 (true),
 !! regularization parameter \ref mpmod::regula "regula" to \a number2,
-!! default pre-sigma \ref mpmod::regpre "regpre" to \a number3.
+!! default pre-sigma \ref mpmod::defaultPreSigma "defaultPreSigma" to \a number3.
 !! \subsection cmd-resolveredundancycons resolveredundancycons
 !! Set flag \ref mpmod::irslvrc "irslvrc" to 1 (true).
 !! Redundancy constraints will be resolved 
 !! (parameters appearing in constraints will be fixed, constraints skipped).
 !! \subsection cmd-scaleerrors scaleerrors
-!! Set measurement scaling factors \ref mpmod::dscerr "dscerr"
+!! Set measurement scaling factors \ref mpmod::errorScaleFactor "errorScaleFactor"
 !! to \a number1 [1.] and \a number2 [\a number1].
 !! First value is for "global" measurements (with global derivatives),
 !! second for "local" measurements (without global derivatives).
@@ -678,9 +678,9 @@
 !! Set subito (no iterations) flag \ref mpmod::isubit "isubit" to 1 (true).
 !! Same as \ref opt-s "-s".
 !! \subsection cmd-threads threads
-!! Set number \ref mpmod::mthrd "mthrd" of OpenMP&tm; threads for processing
+!! Set number \ref mpmod::nOMPThreads "nOMPThreads" of OpenMP&tm; threads for processing
 !! to \a number1,
-!! number \ref mpmod::mthrdr "mthrdr" of threads for reading
+!! number \ref mpmod::numberOfReadingThreads "numberOfReadingThreads" of threads for reading
 !! binary files to \a number2 [\a number1].
 !! \subsection cmd-weightedcons weightedcons
 !! Set flag \ref mpmod::iwcons "iwcons" to \a number1 [1].
