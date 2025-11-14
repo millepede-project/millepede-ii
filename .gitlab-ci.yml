@@ -86,6 +86,7 @@ test-align:
     - build-job
   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
   script: 
+    - source install/mp2setup.sh
     - pede CI/mp2str.txt | tee test.run.log
     - diff millepede.log ref.log
     
