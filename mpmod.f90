@@ -70,7 +70,7 @@ MODULE mpmod
     INTEGER(mpi) :: iterat=0  !< iterations in solution
     INTEGER(mpi) :: nregul=0  !< regularization flag
     REAL(mps)    :: regula=1.0!< regularization parameter, add regula * norm(global par.) to objective function
-    REAL(mps)    :: regpre=0.0!< default presigma
+    REAL(mps)    :: defaultPreSigma=0.0!< default presigma
     INTEGER(mpi) :: matrit=0  !< matrix calculation up to iteration MATRIT
     INTEGER(mpi) :: icalcm=0  !< calculation mode (for \ref xloopn "XLOOPN") , >0: calculate matrix
     INTEGER(mpi), DIMENSION(2) :: nbndr =0  !< number of records with bordered band matrix for local fit (upper/left, lower/right)
@@ -82,15 +82,15 @@ MODULE mpmod
     INTEGER(mpi) :: mhispe=0  !< upper bound for pair entry histogrammimg
     INTEGER(mpi) :: msngpe=-1 !< upper bound for pair entry single precision storage
     INTEGER(mpi) :: mextnd=0  !< flag for extended storage (both 'halves' of sym. mat. for improved access patterns)
-    INTEGER(mpi) :: mthrd =1  !< number of (OpenMP) threads
+    INTEGER(mpi) :: nOMPThreads =1  !< number of (OpenMP) threads
     INTEGER(mpi) :: mxrec =0  !< max number of records
     INTEGER(mpi) :: matmon=0  !< record interval for monitoring of (sparse) matrix construction
     INTEGER(mpi) :: lfitnp=huge(lfitnp) !< local fit: number of iteration to calculate pulls
     INTEGER(mpi) :: lfitbb=1  !< local fit: check for bordered band matrix (if >0)
     INTEGER(mpi) :: mnrsel=0  !< number of MINRES error labels in LBMNRS (calc err, corr with SOLGLO)
-    INTEGER(mpi) :: ncache=-1 !< buffer size for caching (default 100MB per thread)
+    INTEGER(mpi) :: cacheBufferSize=-1 !< buffer size for caching (default 100MB per thread)
     REAL(mps), DIMENSION(3) :: fcache = (/ 0.8,  0., 0. /) !< read cache, average fill level; write cache; dynamic size
-    INTEGER(mpi) :: mthrdr=1  !< number of threads for reading binary files
+    INTEGER(mpi) :: numberOfReadingThreads=1  !< number of threads for reading binary files
     INTEGER(mpi) :: mnrsit=0  !< total number of MINRES internal iterations
     INTEGER(mpi) :: iforce=0  !< switch to SUBITO for (global) rank defects if zero
     INTEGER(mpi) :: igcorr=0  !< flag for output of global correlations for inversion, =0: none
@@ -109,8 +109,8 @@ MODULE mpmod
     INTEGER(mpi) :: imonit=0  !< flag for monitoring residuals per local fit cycle (=0: none, <0: all, bit 0: first, bit 1: last)
     INTEGER(mpi) :: measBins=100 !< number of bins per measurement for monitoring
     INTEGER(mpi) :: imonmd=0  !< monitoring mode: 0:residuals (normalized to average error), 1:pulls
-    INTEGER(mpi) :: iscerr=0  !< flag for scaling of errors
-    REAL(mpd), DIMENSION(2) :: dscerr = (/ 1.0, 1.0 /) !< scaling factors for errors of 'global' and 'local' measurement
+    INTEGER(mpi) :: scaleErrors=0  !< flag for scaling of errors
+    REAL(mpd), DIMENSION(2) :: errorScaleFactor = (/ 1.0, 1.0 /) !< scaling factors for errors of 'global' and 'local' measurement
     INTEGER(mpi) :: keepOpen=1 !< flag for keeping binary files open
     INTEGER(mpi) :: ireeof=0 !< flag for treating (binary file) read errors as end-of-file
     INTEGER(mpi) :: mcount=0 !< flag for grouping and counting global parameters on equlation (0) or record (1) level
@@ -128,31 +128,31 @@ MODULE mpmod
     INTEGER(mpi) :: lunmon !< unit for monitoring output file
     INTEGER(mpi) :: lunlog !< unit for logfile
     INTEGER(mpi) :: lvllog !< log level
-    INTEGER(mpi) :: ntgb !< total number of global parameters
-    INTEGER(mpi) :: nvgb !< number of variable global parameters
-    INTEGER(mpi) :: nagb !< number of all parameters (var. global par. + Lagrange mult.)
-    INTEGER(mpi) :: nfgb !< number of fit parameters
-    INTEGER(mpi) :: ncgb !< number of constraints
-    INTEGER(mpi) :: ncgbe !< number of empty constraints (no variable parameters)
-    INTEGER(mpi) :: ntpgrp !< number of parameter groups
-    INTEGER(mpi) :: nvpgrp !< number of variable parameter groups
-    INTEGER(mpi) :: napgrp !< number of all parameter groups (variable + Lagrange mult.)
-    INTEGER(mpi) :: npblck !< number of (disjoint) parameter blocks (>1: block diagonal storage)
-    INTEGER(mpi) :: ncgrp !< number of (disjoint) constraint groups
-    INTEGER(mpi) :: ncblck !< number of (non overlapping) constraint blocks
+    INTEGER(mpi) :: nTotalGlobalPar !< total number of global parameters
+    INTEGER(mpi) :: nVarGlobalPar !< number of variable global parameters
+    INTEGER(mpi) :: nAllActivePar !< number of all parameters (var. global par. + Lagrange mult.)
+    INTEGER(mpi) :: nFitPar !< number of fit parameters
+    INTEGER(mpi) :: nConstraints !< number of constraints
+    INTEGER(mpi) :: nEmptyConstraints !< number of empty constraints (no variable parameters)
+    INTEGER(mpi) :: nTotalParGroups !< number of parameter groups
+    INTEGER(mpi) :: nVarParGroups !< number of variable parameter groups
+    INTEGER(mpi) :: nAllActiveParGroups !< number of all parameter groups (variable + Lagrange mult.)
+    INTEGER(mpi) :: nParBlocks !< number of (disjoint) parameter blocks (>1: block diagonal storage)
+    INTEGER(mpi) :: nConstraintGroups !< number of (disjoint) constraint groups
+    INTEGER(mpi) :: nConstraintBlocks !< number of (non overlapping) constraint blocks
     INTEGER(mpl) :: mszcon !< (integrated block) matrix size for constraint matrix
     INTEGER(mpl) :: mszprd !< (integrated block) matrix size for (constraint) product matrix
     INTEGER(mpi), DIMENSION(3) :: nprecond !< number of constraints (blocks), matrix size for preconditioner
     INTEGER(mpl) :: mszpcc !< (integrated block) matrix size for constraint matrix for preconditioner
-    INTEGER(mpi) :: nagbn !< max number of global paramters per record
-    INTEGER(mpi) :: nalcn !< max number of local paramters per record
-    INTEGER(mpi) :: naeqn !< max number of equations (measurements) per record
+    INTEGER(mpi) :: nGlobalMaxPerRec !< max number of global paramters per record
+    INTEGER(mpi) :: nLocalMaxPerRec !< max number of local paramters per record
+    INTEGER(mpi) :: nEqMaxPerRec !< max number of equations (measurements) per record
     INTEGER(mpl) :: nrec  !< number of records read
     INTEGER(mpl) :: nrecd !< number of records read containing doubles
-    INTEGER(mpl) :: neqn  !< number of equations (measurements) read
-    INTEGER(mpl) :: negb  !< number of equations read with global parameters
-    INTEGER(mpl) :: ndgb  !< number of global derivatives read
-    INTEGER(mpl) :: nzgb  !< number of zero global derivatives read
+    INTEGER(mpl) :: nbEqRead  !< number of equations (measurements) read
+    INTEGER(mpl) :: nbEqWithGlobPar  !< number of equations read with global parameters
+    INTEGER(mpl) :: nbGlobDeriv  !< number of global derivatives read
+    INTEGER(mpl) :: nbZeroGlobDeriv  !< number of zero global derivatives read
     REAL(mps)    :: dflim !< convergence limit
     INTEGER(mpl), DIMENSION(6) :: nrejec !< rejected records
     REAL(mps), DIMENSION(0:8) :: times !< cpu time counters
@@ -186,7 +186,7 @@ MODULE mpmod
     INTEGER(mpi), DIMENSION(10) :: ipdbsz !< PARDISO, list of block sizes to be tried (by PBSBITS)
 
     ! each loop
-    INTEGER(mpi) :: numReadbuffer     !< number of buffers (records) in (read) block
+    INTEGER(mpi) :: nbReadRecords     !< number of buffers (records) in (read) block
     INTEGER(mpi) :: numBlocks         !< number of (read) blocks
     INTEGER(mpl) :: sumRecords        !< sum of records
     INTEGER(mpl) :: skippedRecords    !< number of skipped records (buffer too small)
@@ -257,7 +257,12 @@ MODULE mpmod
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: measHists !< measurement histograms (100 bins per thread)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: measRes !< average measurement error   
     ! global parameter mapping
-    INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: globalParLabelIndex !< global parameters label, total -> var. index, group infos
+    INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: globalParLabelIndex !< global parameters label, total -> var. index, group infos.
+                                                                    !!
+                                                                    !! 1 : global label \n
+                                                                    !! 2 : index in variable parameter list (negative if fixed)\n
+                                                                    !! 3 : label of par. group start \n
+                                                                    !! 4 : index of par. group 
     INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: globalParLabelCounter !< global parameters label counters
     INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: globalParLabelZeros   !< global parameters label with zero derivative counters
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalParHashTable    !< global parameters hash table
@@ -285,14 +290,39 @@ MODULE mpmod
     INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: csr3ColumnList !< list of columns for sparse matrix
     ! read buffer
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: readBufferInfo !< buffer management (per thread)
-    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: readBufferPointer !< pointer to used buffers
-    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: readBufferDataI !< integer data
+                                                            !! 1: file index \n
+                                                            !! 2: active thread number \n 
+                                                            !! 3: record to read \n
+                                                            !! 4: record counter  \n 
+                                                            !! 5: offset \n 
+                                                            !! 6: nb records cont. doubles
+
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: readBufferPointer !< pointer to used buffers. Stores pointer (=offset) to the first int/float read from file for a given record index
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: readBufferDataI !< integer data. In addition to file content, we inject two header words ahead of each record:
+    !! 1. local rec. number 
+    !! 2. pointer to *last* entry of record) \n
+    !! 
+    !! Pointers in readBufferPointer point to second field of header, 
+    !! before the data content
     REAL(mpr4), DIMENSION(:), ALLOCATABLE :: readBufferDataF !< float data
-    REAL(mpr8), DIMENSION(:), ALLOCATABLE :: readBufferDataD !< double data
+    REAL(mpr8), DIMENSION(:), ALLOCATABLE :: readBufferDataD !< double data. In addition to file content, we inject two header words ahead of each record:
+    !! 1. file number of this record (as double...)
+    !! 2. weight assigned to the input file
+    !! 
+    !! Pointers in readBufferPointer point to second field of header, 
+    !! before the data content
+
     ! global parameter usage in record
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalIndexUsage !< indices of global par in record
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: backIndexUsage   !< list of global par in record
-    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: appearanceCounter !< appearance statistics for global par (first/last file,record)
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: appearanceCounter !< appearance statistics for global par (first/last file,record). 5 sequential entries per par.
+    !< structure: 
+    !< 1) first file with record
+    !< 2) local record nb within file (1) 
+    !< 3) last file with record
+    !< 4) local record nb within file (3) 
+    !< 5) total appearance counter of parameter 
+
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: pairCounter !< number of paired parameters (in equations)
     ! global parameter usage from all records
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: globalIndexRanges   !< global par ranges
@@ -310,7 +340,7 @@ MODULE mpmod
     REAL(mpd), DIMENSION(:), ALLOCATABLE::vzru !< local fit 'border solution'
     REAL(mpd), DIMENSION(:), ALLOCATABLE::scdiag !< local fit workspace (D)
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE:: scflag         !< local fit workspace (I)
-    INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: localEquations !< indices (ISJAJB) for local equations (measurements)
+    INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: localEquations !< indices (decodeNextMeasurement) for local equations (measurements)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: localCorrections !< local fit corrections (to residuals)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: localGlobalMatrix !< matrix correlating local and global par, content
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: localGlobalMap !< matrix correlating local and global par, map (counts)
@@ -354,14 +384,14 @@ MODULE mpmod
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: mfd   !< file mode: cbinary =1, text =2, fbinary=3
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: lfd   !< length of file name
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: nfd   !< index (line) in (steering) file
-    INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: kfd !< (1,.)=  number of records in file, (2,..)= file order
-    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: ifd   !< file: integrated record numbers (=offset)
+    INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: recordNbInFile !< (1,.)=  number of records in file, (2,..)= file order
+    INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: integratedRecordNb   !< file: integrated record numbers (=offset)
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: jfd   !< file: number of accepted records
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: dfd   !< file: ndf sum
-    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: xfd   !< file: max. record size
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: maxRecPerFile   !< file: max. record size
     REAL(mps), DIMENSION(:), ALLOCATABLE :: cfd      !< file: chi2 sum
     REAL(mps), DIMENSION(:), ALLOCATABLE :: ofd      !< file: option
-    REAL(mps), DIMENSION(:), ALLOCATABLE :: wfd      !< binary file: weight
+    REAL(mps), DIMENSION(:), ALLOCATABLE :: fileLevelWeight      !< binary file: weight
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: sfd !< offset (1,..), length (2,..) of binary file name in tfd
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: yfd   !< binary file: modification date
     CHARACTER (LEN=1024) :: filnam !< name of steering file
@@ -369,10 +399,10 @@ MODULE mpmod
     CHARACTER, DIMENSION(:), ALLOCATABLE :: tfd !< file names (concatenation)
     INTEGER(mpi) :: ifile  !< current file (index)
     INTEGER(mpi) :: nfiles !< number of files
-    INTEGER(mpi) :: nfilb  !< number of binary files
+    INTEGER(mpi) :: nBinaryFiles  !< number of binary files
     INTEGER(mpi) :: nfilf  !< number of Fortran binary files
     INTEGER(mpi) :: nfilc  !< number of C binary files
     INTEGER(mpi) :: nfilw  !< number of weighted binary files
-    INTEGER(mpi) :: ndimbuf=10000 !< default read buffer size (I/F words, half record length)
+    INTEGER(mpi) :: readBufferSize=10000 !< default read buffer size (I/F words, half record length)
 
 END MODULE mpmod

@@ -121,7 +121,7 @@ SUBROUTINE sqminv(v,b,n,nrank,diag,next)   ! matrix inversion
     REAL(mpd) :: vjk
 
     !REAL(mpd), PARAMETER :: eps=1.0E-10_mpd
-    REAL(mpd) eps
+    REAL(mpd) :: eps
     !     ...
     eps = 16.0_mpd * epsilon(eps) ! 16 * precision(mpd)
 
@@ -2169,7 +2169,7 @@ SUBROUTINE lltdec(n,c,india,nrkd,iopt)
     INTEGER(mpi), INTENT(OUT)             :: nrkd
     INTEGER(mpi), INTENT(IN)              :: iopt
     REAL(mpd), INTENT(IN OUT) :: c(india(n))
-    REAL(mpd) eps
+    REAL(mpd) :: eps
     !     ...
     eps = 16.0_mpd * epsilon(eps) ! 16 * precision(mpd) 
       

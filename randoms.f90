@@ -46,86 +46,31 @@ MODULE mprand
     INTEGER(mpi) :: istart = 0
     INTEGER(mpi) :: iwarm = 10
 
-END MODULE mprand
+    contains 
 
-!> F.Gutbrod random number generator.
-!!
-!! Return N random numbers U(0,1) in array A(N).
-!! Initialization by entry GBRVIN.
-!!
-!! \param[in]   n  number of requested random number
-!! \param[out]  a  array of requested random number
+    !> F.Gutbrod random number generator.
+    !!
+    !! Return N random numbers U(0,1) in array A(N).
+    !! Initialization by entry GBRVIN.
+    !!
+    !! \param[in]   n  number of requested random number
+    !! \param[out]  a  array of requested random number
 
-SUBROUTINE gbrshi(n,a)
-    USE mprand
+    SUBROUTINE gbrshi(n,a)
 
-    IMPLICIT NONE
-    INTEGER(mpi) :: i
-    INTEGER(mpi) :: idum
-    INTEGER(mpi) :: it
-    INTEGER(mpi) :: j
-    INTEGER(mpi) :: k
+        IMPLICIT NONE
+        INTEGER(mpi) :: i
+        INTEGER(mpi) :: idum
+        INTEGER(mpi) :: it
+        INTEGER(mpi) :: j
+        INTEGER(mpi) :: k
 
-    INTEGER(mpi), INTENT(IN)                      :: n
-    REAL(mps), INTENT(OUT)                        :: a(*)
+        INTEGER(mpi), INTENT(IN)                      :: n
+        REAL(mps), INTENT(OUT)                        :: a(*)
 
-    IF(istart /= 0) GO TO 20
-    WRITE(*,*) ' Automatic GBRSHI initialization using:'
-    !     initialize buffer
-    idum=iseed+9876543          ! prevent damage, if iseed=0
-    WRITE(*,*) '           ISEED=',iseed,'   IWARM=',iwarm
-    DO j=0,nb+1                 ! fill buffer
-        k=idum/iq                  ! minimal standard generator
-        idum=ia*(idum-k*iq)-ir*k   !    with Schrages method
-        IF(idum < 0) idum=idum+im !
-        mbuff(j)=ishft(idum,1)     ! fill in leading bit
-    END DO
-    ian=IAND(ian,nb)            ! mask angle
-    ic=1                        ! set pointer
-    iboost=0
-    DO j=1,iwarm*nb             ! warm up a few times
-        it=mbuff(ian)              ! hit ball angle
-        mbuff(ian)=IEOR(ior(ishft(it,17),ishft(it,-15)),ic)  ! new spin
-        ic=it                      ! replace red spin
-        ian=IAND(it+iboost,nb)     ! boost and mask angle
-        iboost=iboost+1            ! increment boost
-    END DO
-    istart=1                    ! set done-flag
-    !     generate array of r.n.
- 20 CONTINUE
-    DO i=1,n
-        it=mbuff(ian)              ! hit ball angle
-        mbuff(ian)=IEOR(ior(ishft(it,17),ishft(it,-15)),ic)  ! new spin
-        ic=it                      ! replace red spin
-        ian=IAND(it+iboost,nb)     ! boost and mask angle
-        a(i)=REAL(ishft(it,-1),mps)*scalin+aeps ! avoid zero output
-        iboost=iboost+1            ! increment boost
-    END DO
-    iboost=IAND(iboost,nb)
-    RETURN
-END SUBROUTINE gbrshi
-
-!> initialize, but only once
-!! \param[in]   jseed   seed
-!! \param[in]   jwarm   warm-up
-SUBROUTINE gbrvin(jseed,jwarm)
-    USE mprand
-
-    IMPLICIT NONE
-    INTEGER(mpi) :: idum
-    INTEGER(mpi) :: it
-    INTEGER(mpi) :: j
-    INTEGER(mpi) :: k
-
-
-    INTEGER(mpi), INTENT(IN) :: jseed
-    INTEGER(mpi), INTENT(IN) :: jwarm
-
-    IF(istart == 0) THEN
-        WRITE(*,*) ' Gbrshi initialization by GBRVIN-call using:'
-        iseed=jseed              ! copy seed and
-        iwarm=jwarm              ! warm-up parameter
-        istart=-1                ! start flag
+        IF(istart /= 0) GO TO 20
+        WRITE(*,*) ' Automatic GBRSHI initialization using:'
+        !     initialize buffer
         idum=iseed+9876543          ! prevent damage, if iseed=0
         WRITE(*,*) '           ISEED=',iseed,'   IWARM=',iwarm
         DO j=0,nb+1                 ! fill buffer
@@ -144,86 +89,142 @@ SUBROUTINE gbrvin(jseed,jwarm)
             ian=IAND(it+iboost,nb)     ! boost and mask angle
             iboost=iboost+1            ! increment boost
         END DO
-    END IF
-END SUBROUTINE gbrvin
+        istart=1                    ! set done-flag
+        !     generate array of r.n.
+    20 CONTINUE
+        DO i=1,n
+            it=mbuff(ian)              ! hit ball angle
+            mbuff(ian)=IEOR(ior(ishft(it,17),ishft(it,-15)),ic)  ! new spin
+            ic=it                      ! replace red spin
+            ian=IAND(it+iboost,nb)     ! boost and mask angle
+            a(i)=REAL(ishft(it,-1),mps)*scalin+aeps ! avoid zero output
+            iboost=iboost+1            ! increment boost
+        END DO
+        iboost=IAND(iboost,nb)
+        RETURN
+    END SUBROUTINE gbrshi
 
-!> GBRSHI initialization using TIME().
-SUBROUTINE gbrtim
-    USE mpdef
+    !> initialize, but only once
+    !! \param[in]   jseed   seed
+    !! \param[in]   jwarm   warm-up
+    SUBROUTINE gbrvin(jseed,jwarm)
 
-    IMPLICIT NONE
-    INTEGER(mpi) :: jseed
-    REAL(mps) :: time
+        IMPLICIT NONE
+        INTEGER(mpi) :: idum
+        INTEGER(mpi) :: it
+        INTEGER(mpi) :: j
+        INTEGER(mpi) :: k
 
-    LOGICAL :: done
-    DATA    done/.FALSE./
-    IF(done) RETURN
-    jseed=time()
-    WRITE(*,*) ' Gbrshi initialialization using Time()'
-    CALL gbrvin(jseed,10)
-    done=.TRUE.
-END SUBROUTINE gbrtim
 
-!> Random number U(0,1) using RANSHI.
-!!
-!! \return   random number U(0,1)
+        INTEGER(mpi), INTENT(IN) :: jseed
+        INTEGER(mpi), INTENT(IN) :: jwarm
 
-REAL(mps) FUNCTION uran()     ! U(0,1)
-    USE mpdef
+        IF(istart == 0) THEN
+            WRITE(*,*) ' Gbrshi initialization by GBRVIN-call using:'
+            iseed=jseed              ! copy seed and
+            iwarm=jwarm              ! warm-up parameter
+            istart=-1                ! start flag
+            idum=iseed+9876543          ! prevent damage, if iseed=0
+            WRITE(*,*) '           ISEED=',iseed,'   IWARM=',iwarm
+            DO j=0,nb+1                 ! fill buffer
+                k=idum/iq                  ! minimal standard generator
+                idum=ia*(idum-k*iq)-ir*k   !    with Schrages method
+                IF(idum < 0) idum=idum+im !
+                mbuff(j)=ishft(idum,1)     ! fill in leading bit
+            END DO
+            ian=IAND(ian,nb)            ! mask angle
+            ic=1                        ! set pointer
+            iboost=0
+            DO j=1,iwarm*nb             ! warm up a few times
+                it=mbuff(ian)              ! hit ball angle
+                mbuff(ian)=IEOR(ior(ishft(it,17),ishft(it,-15)),ic)  ! new spin
+                ic=it                      ! replace red spin
+                ian=IAND(it+iboost,nb)     ! boost and mask angle
+                iboost=iboost+1            ! increment boost
+            END DO
+        END IF
+    END SUBROUTINE gbrvin
 
-    IMPLICIT NONE
-    INTEGER(mpi) :: indx
-    INTEGER(mpi) :: ndim
+    !> GBRSHI initialization using TIME().
+    SUBROUTINE gbrtim
+        USE mpdef
 
-    PARAMETER (ndim=100)
-    REAL(mps) :: buffer(ndim)
-    DATA indx/ndim/
-    SAVE indx,buffer
-    indx=MOD(indx,ndim)+1
-    IF(indx == 1) CALL gbrshi(ndim,buffer)
-    uran=buffer(indx)
-END FUNCTION uran
+        IMPLICIT NONE
+        INTEGER(mpi) :: jseed
+        REAL(mps) :: time
 
-!> Gauss random number.
-!!
-!! \return   random number N(0,1)
+        LOGICAL :: done
+        DATA    done/.FALSE./
+        IF(done) RETURN
+        jseed=time()
+        WRITE(*,*) ' Gbrshi initialialization using Time()'
+        CALL gbrvin(jseed,10)
+        done=.TRUE.
+    END SUBROUTINE gbrtim
 
-REAL(mps) FUNCTION gran()     ! N(0,1)
-    USE mpdef
+    !> Random number U(0,1) using RANSHI.
+    !!
+    !! \return   random number U(0,1)
 
-    IMPLICIT NONE
-    REAL(mps) :: al
-    REAL(mps) :: cs
-    INTEGER(mpi) :: indx
-    INTEGER(mpi) :: kn
-    INTEGER(mpi) :: ndim
-    REAL(mps) :: radsq
-    REAL(mps) :: rn1
-    REAL(mps) :: rn2
-    REAL(mps) :: sn
+    REAL(mps) FUNCTION uran()     ! U(0,1)
+        USE mpdef
 
-    PARAMETER (ndim=100)
-    REAL(mps) :: buffer(ndim)
-    DATA indx/ndim/,kn/1/
-    SAVE indx,buffer,kn,cs,al
-    !     ...
-    IF(kn <= 1) THEN
-        !        two U(-1,+1) random numbers
-10      indx=MOD(indx,ndim)+2
-        IF(indx == 2) CALL gbrshi(ndim,buffer)
-        rn1=buffer(indx-1)-1.0+buffer(indx-1)
-        rn2=buffer(indx  )-1.0+buffer(indx)
-        radsq=rn1*rn1+rn2*rn2
-        IF(radsq > 1.0) GO TO 10 ! test point inside circle?
-        !        sine and cosine for random phi
-        sn=rn1/SQRT(radsq)
-        cs=rn2/SQRT(radsq)
-        !        transform to gaussians
-        al=SQRT(-2.0*LOG(radsq))
-        kn =2
-        gran=sn*al
-    ELSE
-        kn =1
-        gran=cs*al
-    END IF
-END FUNCTION gran
+        IMPLICIT NONE
+        INTEGER(mpi) :: indx
+        INTEGER(mpi) :: ndim
+
+        PARAMETER (ndim=100)
+        REAL(mps) :: buffer(ndim)
+        DATA indx/ndim/
+        SAVE indx,buffer
+        indx=MOD(indx,ndim)+1
+        IF(indx == 1) CALL gbrshi(ndim,buffer)
+        uran=buffer(indx)
+    END FUNCTION uran
+
+    !> Gauss random number.
+    !!
+    !! \return   random number N(0,1)
+
+    REAL(mps) FUNCTION gran()     ! N(0,1)
+        USE mpdef
+
+        IMPLICIT NONE
+        REAL(mps) :: al
+        REAL(mps) :: cs
+        INTEGER(mpi) :: indx
+        INTEGER(mpi) :: kn
+        INTEGER(mpi) :: ndim
+        REAL(mps) :: radsq
+        REAL(mps) :: rn1
+        REAL(mps) :: rn2
+        REAL(mps) :: sn
+
+        PARAMETER (ndim=100)
+        REAL(mps) :: buffer(ndim)
+        DATA indx/ndim/,kn/1/
+        SAVE indx,buffer,kn,cs,al
+        !     ...
+        IF(kn <= 1) THEN
+            !        two U(-1,+1) random numbers
+    10      indx=MOD(indx,ndim)+2
+            IF(indx == 2) CALL gbrshi(ndim,buffer)
+            rn1=buffer(indx-1)-1.0+buffer(indx-1)
+            rn2=buffer(indx  )-1.0+buffer(indx)
+            radsq=rn1*rn1+rn2*rn2
+            IF(radsq > 1.0) GO TO 10 ! test point inside circle?
+            !        sine and cosine for random phi
+            sn=rn1/SQRT(radsq)
+            cs=rn2/SQRT(radsq)
+            !        transform to gaussians
+            al=SQRT(-2.0*LOG(radsq))
+            kn =2
+            gran=sn*al
+        ELSE
+            kn =1
+            gran=cs*al
+        END IF
+    END FUNCTION gran
+
+
+END MODULE mprand

@@ -34,6 +34,7 @@
 !> Parameters and data.
 MODULE mptest1
     USE mpdef
+    USE mprand, ONLY: uran,gran
 
     IMPLICIT NONE
     SAVE
@@ -85,7 +86,6 @@ SUBROUTINE mptest
     REAL(mps) :: drift
     REAL(mps) :: eps
     REAL(mps) :: eta
-    REAL(mps) :: gran
     REAL(mps) :: one
     REAL(mps) :: ww
     REAL(mps) :: x
@@ -307,8 +307,6 @@ SUBROUTINE genlin(ip)
 
     IMPLICIT NONE
     REAL(mps) :: gr
-    REAL(mps) :: gran
-    REAL(mps) :: uran
     REAL(mps) :: x
     REAL(mps) :: ybias
     REAL(mps) :: ydvds

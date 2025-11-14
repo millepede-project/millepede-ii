@@ -30,13 +30,13 @@
 !!
 !!         real array              integer array
 !!     1   0.0                     error count (this record)
-!!     2   RMEAS, measured value   0                            JA
+!!     2   RMEAS, measured value   0                            startLocal
 !!     3   local derivative        index of local derivative
 !!     4   local derivative        index of local derivative
 !!     5    ...
-!!     6   SIGMA, error (>0)       0                            JB
+!!     6   SIGMA, error (>0)       0                            startGlobal
 !!         global derivative       label of global derivative
-!!         global derivative       label of global derivative   IST
+!!         global derivative       label of global derivative   lastGlobal
 !!         RMEAS, measured value   0
 !!         local derivative        index of local derivative
 !!         local derivative        index of local derivative
