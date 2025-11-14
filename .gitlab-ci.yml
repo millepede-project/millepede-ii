@@ -72,6 +72,7 @@ generate-ref:
       - mp2str.txt
       - mp2con.txt 
       - millepede.* 
+    expire_in: 1 hour
 
 runtime-image:
   stage: deploy 
