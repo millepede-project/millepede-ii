@@ -65,11 +65,16 @@ generate-ref:
   image: ${CI_REGISTRY_IMAGE}/mp2runtime:main
   script: 
     - pede -tBRLF
+    - pede CI/mp2str.txt | tee ref.run.log
+    - mv millepede.log ref.log 
+    - mv millepede.res ref.res 
+    - mv millepede.mon ref.mon 
+    - mv millepede.his ref.his 
   artifacts:
     name: "RefOut"
     paths:
+      - ref.*
       - mp2tst.bin
-      - mp2str.txt
       - mp2con.txt 
       - millepede.* 
     expire_in: 1 hour
@@ -81,11 +86,7 @@ test-align:
     - build-job
   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
   script: 
-    - mv millepede.log ref.log 
-    - mv millepede.res ref.res 
-    - mv millepede.mon ref.mon 
-    - mv millepede.his ref.his 
-    - pede mp2str.txt 
+    - pede CI/mp2str.txt | tee test.run.log
     - diff millepede.log ref.log
     
 
