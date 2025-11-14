@@ -1,0 +1,40 @@
+*        *** Default test steering file ***
+ 
+*            Additinal files
+fortranfiles ! following bin files are fortran
+mp2con.txt   ! constraints text file 
+mp2tst.bin   ! binary data file
+Cfiles       ! following bin files are Cfiles
+ 
+*            Solution methods
+method fullMINRES       3 0.01 ! (approximate) MINRES, full storage
+method sparseMINRES     3 0.01 ! (approximate) MINRES, sparse storage
+*mrestol      1.0D-8           ! epsilon for MINRES convergence
+*bandwidth 0                   ! width of MINRES precond. band matrix
+method diagonalization 3 0.001 ! diagonalization (-> millepede.eve)
+method decomposition   3 0.001 ! Cholesky decomposition
+method inversion       3 0.001 ! Gauss matrix inversion
+method  fullLAPACK     3 0.8   ! inversion with LAPACK
+* last method is applied
+
+* Outlier treatment and other options 
+entries 50 10 2
+outlierdownweighting 3
+dwfractioncut 0.1
+compress
+threads 24
+matiter 1
+printcounts 2
+chisqcut  30.  6.
+bandwidth 6 1
+monitorresiduals
+skipemptycons
+countrecords
+resolveredundancycons
+maxlocalcond 11
+
+ 
+*            Additional output. monitoring
+printcounts           ! print number of entries
+ 
+end ! optional for end-of-data
