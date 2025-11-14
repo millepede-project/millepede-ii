@@ -50,7 +50,7 @@ doc-job:       # This job runs in the build stage, which runs first.
       - public/
     expose_as: "Documentation"
 
-test-job: 
+pede-runs: 
   stage: test
   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
   needs: 
@@ -59,6 +59,37 @@ test-job:
     - ls 
     - source install/mp2setup.sh
     - pede -t 
+
+generate-ref: 
+  stage: test
+  image: ${CI_REGISTRY_IMAGE}/mp2runtime:main
+  script: 
+    - pede -tBRLF
+    - pede CI/mp2str.txt | tee ref.run.log
+    - mv millepede.log ref.log 
+    - mv millepede.res ref.res 
+    - mv millepede.mon ref.mon 
+    - mv millepede.his ref.his 
+  artifacts:
+    name: "RefOut"
+    paths:
+      - ref.*
+      - mp2tst.bin
+      - mp2con.txt 
+      - millepede.* 
+    expire_in: 1 hour
+
+test-align: 
+  stage: test
+  needs: 
+    - generate-ref
+    - build-job
+  image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
+  script: 
+    - source install/mp2setup.sh
+    - pede CI/mp2str.txt | tee test.run.log
+    - diff millepede.log ref.log
+    
 
 runtime-image:
   stage: deploy 
