@@ -139,7 +139,7 @@ endif
 #
 USER_OBJ_PEDE = mpdef.o mpdalc.o mpmod.o mpmon.o mpbits.o mpqldec.o mptest1.o mptest2.o mille.o mpnum.o mptext.o mphistab.o \
 	minresDataModule.o minresModule.o minresqlpDataModule.o minresqlpBlasModule.o minresqlpModule.o \
-        randoms.o vertpr.o linesrch.o mppar.o Dbandmatrix.o pede.o
+        randoms.o vertpr.o linesrch.o mppar.o Dbandmatrix.o mplapack.o pede.o
 #
 # Chose flags/object files for C-binary support:
 #
@@ -193,8 +193,19 @@ mpbits.o:  mpdef.o mpdalc.o
 mpdalc.o:  mpdef.o
 mpmod.o:   mpdef.o
 mpnum.o:   mpdef.o
-mppar.o:   mpdef.o mpdalc.o
+mille.o:   mpdef.o
+mpmon.o:   mpdef.o
+mptext.o:  mpdef.o
+randoms.o: mpdef.o
+mppar.o:   mpdef.o mpmod.o mpdalc.o
 mpqldec.o: mpdef.o mpdalc.o
+minresDataModule.o: mpdef.o
+minresqlpBlasModule.o: minresqlpDataModule.o
+minresqlpModule.o: minresqlpBlasModule.o
+minresModule.o: mpdef.o
+mplapack.o: mpdef.o mpdalc.o mpmod.o
+mptest1.o: randoms.o
+mptest2.o: randoms.o
 pede.o:    mpdef.o mpmod.o mpdalc.o mptest1.o mptest2.o mptext.o
 # ##################################################################
 # END
