@@ -25,7 +25,6 @@ compress
 threads 24
 matiter 1
 printcounts 2
-chisqcut  30.  6.
 bandwidth 6 1
 monitorresiduals
 skipemptycons
