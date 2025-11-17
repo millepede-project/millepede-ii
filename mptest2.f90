@@ -107,8 +107,9 @@ MODULE mptest2
     !!           3: 'broken lines', fine
     !!           4: 'broken lines', coarse (stereo layers combined)
     !!
+    !! \param [in] nEvents Number of tracks to simulate
 
-    SUBROUTINE mptst2(imodel)         ! generate test files
+    SUBROUTINE mptst2(imodel,nEvents)         ! generate test files
         IMPLICIT NONE
         REAL(mps) :: cmbbrl
         REAL(mps) :: dispxm
@@ -146,6 +147,7 @@ MODULE mptest2
         INTEGER(mpi) :: nthits
 
         INTEGER(mpi), INTENT(IN)                      :: imodel
+        INTEGER(mpi), INTENT(IN)                      :: nEvents
 
         REAL(mps) :: derlc(nmlyr*2+3)
         REAL(mps) :: dergl(nmlyr*2+3)
@@ -306,7 +308,7 @@ MODULE mptest2
 
         !     record loop ------------------------------------------------------
 
-        ncount=100000
+        ncount=nEvents
         nthits=0
         nrecds=0
 

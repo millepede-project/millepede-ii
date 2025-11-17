@@ -9518,7 +9518,6 @@ SUBROUTINE filetc
             END IF
             it=INDEX(text(ia:ib),'t')
             IF(it /= 0) THEN
-                ictest=1  ! internal test files
                 ieq=INDEX(text(ia+it:ib),'=')+it
                 IF (it /= ieq) THEN
                     IF (INDEX(text(ia+ieq:ib),'SL0' ) /= 0) ictest=2
@@ -9526,6 +9525,15 @@ SUBROUTINE filetc
                     IF (INDEX(text(ia+ieq:ib),'BP'  ) /= 0) ictest=4
                     IF (INDEX(text(ia+ieq:ib),'BRLF') /= 0) ictest=5
                     IF (INDEX(text(ia+ieq:ib),'BRLC') /= 0) ictest=6
+                END IF
+            END IF
+            it=INDEX(text(ia:ib),'n')
+            IF(it /= 0) THEN
+                ictest=1  ! internal test files
+                ieq=INDEX(text(ia+it:ib),'=')+it
+                IF (it /= ieq) THEN
+                    CALL ratext(text(ia+ieq:nab),nums,dnum,mnum) ! translate text to DP numbers
+                    IF (nums > 0) ntestEvents=INT(dnum(1),mpi)
                 END IF
             END IF
             IF(INDEX(text(ia:ib),'s') /= 0) isubit=1  ! like "subito"
@@ -9542,9 +9550,9 @@ SUBROUTINE filetc
     IF(ictest >= 1) THEN
         WRITE(*,*) ' '
         IF (ictest == 1) THEN
-            CALL mptest ! 'wire chamber'
+            CALL mptest(ntestEvents) ! 'wire chamber'
         ELSE
-            CALL mptst2(ictest-2) ! 'silicon tracker'
+            CALL mptst2(ictest-2,ntestEvents) ! 'silicon tracker'
         END IF
         IF(filnam == ' ') filnam='mp2str.txt'
         WRITE(*,*) ' '
