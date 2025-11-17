@@ -31,6 +31,7 @@ MODULE mpmod
     SAVE
     ! steering parameters
     INTEGER(mpi) :: ictest=0  !< test mode '-t'
+    INTEGER(mpi) :: ntestEvents=10000  !< test stats '-n'
     INTEGER(mpi) :: metsol=0  !< solution method (1: inversion, 2: diagonalization, 3: decomposition, 4: MINRES, 5: \ref minresqlpmodule::minresqlp "MINRES-QLP", 7/8: LAPACK, 9: (Intel oneMKL) PARDISO)
     INTEGER(mpi) :: matsto=2  !< (global) matrix storage mode (0: unpacked, 1: full = packed, 2: sparse(custom), 3: sparse(CSR3, BSR3))
     INTEGER(mpi) :: matbsz=1  !< (global) matrix (fixed) block size, only used for BSR3 storage mode (Intel oneMKL PARDISO)

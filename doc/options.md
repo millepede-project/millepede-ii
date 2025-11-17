@@ -19,6 +19,8 @@
  Check input (binary files, constraints). No solution is determined. (\ref mpmod::icheck "icheck"=1)
  ## -C
  Check input (binary files, constraints, appearance). No solution is determined. (\ref mpmod::icheck "icheck"=2)
+ ## -n=[Nevents]
+ If running with one of the [-t](#-t) options, generate `Nevents` test records (default: 10000).  
 
  # Steering file commands:
  In general the commands are defined by a single line:

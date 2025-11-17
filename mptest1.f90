@@ -75,8 +75,10 @@ END MODULE mptest1
 !!      unit  9: textfile mp2con.txt   = constraint file
 !!      unit 51: binary file mp2test.bin, written using CALL MILLE(.)
 !!      existing file are removed
+!!      \param [in] nEvents Number of tracks to simulate
 
-SUBROUTINE mptest
+
+SUBROUTINE mptest(nEvents)
     USE mptest1
 
     IMPLICIT NONE
@@ -101,6 +103,7 @@ SUBROUTINE mptest
     INTEGER(mpi) :: ncount
     INTEGER(mpi) :: nrecds
     INTEGER(mpi) :: nthits
+    INTEGER(mpi), intent(in) :: nEvents 
 
     REAL(mpd) :: s1
     REAL(mpd) :: s2
@@ -244,7 +247,7 @@ SUBROUTINE mptest
 
     !     record loop ------------------------------------------------------
 
-    ncount=10000
+    ncount=nEvents
     nthits=0
     nrecds=0
 
