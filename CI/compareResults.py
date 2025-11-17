@@ -20,6 +20,8 @@ def parseResults(theFile, elements=-1):
                 entries = int(tokens[4])
             except ValueError:  # skip documentation lines
                 continue  
+            except IndexError: # malformed lines - happens for underconstrained par
+                 continue
             result[par]=(val,entries)
     return result
     
