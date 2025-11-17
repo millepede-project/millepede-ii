@@ -3,7 +3,12 @@
 # Full list of recent changes
 
 Changes are presented in reverse chronological order.
-
+-  2025-11-17: Moved documentation to dedicated markdown, refactored LAPACK-based solver methods to module. 
+-  2025-11-14: Add a CI test to monitor for changes in alignment results on test dataset
+-  2025-11-04: Docker runtime images are now provided
+-  2025-11-03: Temporarily block buggy "LAPACK-OpenBLAS-unpacked" solution method.
+-  2025-10-24: Added compiled version of readPedeHists, built in CMake path when ROOT is detected
+-  2025-10-21: Added CMake build path
 -  2025-10-13: New command [outlierfracwarnthreshold](option_page.html#outlierfracwarnthreshold) "outlierfracwarnthreshold" to set warning threshold for outlier fraction. readMilleBinary to py3, small cosmetic changes to readc.c 
 -  2025-08-19: Some optimizations for \c tinypede.jl tool.
 -  2025-03-06: Some tools have been reimplemented in \ref julia_sec.
