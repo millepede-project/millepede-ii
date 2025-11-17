@@ -22,7 +22,7 @@ stages:          # List of stages for jobs, and their order of execution
   - deploy
 
 build-job:       # This job runs in the build stage, which runs first.
-  image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
+  image: ${CI_REGISTRY_IMAGE}/mp2dev_base 
   stage: build
   script:
     - mkdir build install
@@ -37,7 +37,7 @@ build-job:       # This job runs in the build stage, which runs first.
       - install/
 
 doc-job:       # This job runs in the build stage, which runs first.
-  image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
+  image: ${CI_REGISTRY_IMAGE}/mp2dev_base 
   stage: build
   script:
     - doxygen Doxyfile   
@@ -53,7 +53,7 @@ doc-job:       # This job runs in the build stage, which runs first.
 
 pede-runs: 
   stage: test
-  image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
+  image: ${CI_REGISTRY_IMAGE}/mp2dev_base 
   needs: 
     - build-job
   script: 
@@ -85,7 +85,7 @@ test-align:
   needs: 
     - generate-ref
     - build-job
-  image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
+  image: ${CI_REGISTRY_IMAGE}/mp2dev_base 
   script: 
     - source install/mp2setup.sh
     - pede CI/mp2str.txt | tee test.run.log
