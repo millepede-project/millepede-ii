@@ -63,7 +63,7 @@ pede-runs:
 
 generate-ref: 
   stage: test
-  image: ${CI_REGISTRY_IMAGE}/mp2runtime:latest
+  image: ${CI_REGISTRY_IMAGE}/mp2runtime:main
   script: 
     - pede -t=BRLF -n=100000
     - pede CI/mp2str.txt | tee ref.run.log
