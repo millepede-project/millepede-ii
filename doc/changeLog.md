@@ -1,0 +1,71 @@
+\page changelog_page Recent Changes
+
+# Full list of recent changes
+
+Changes are presented in reverse chronological order.
+
+-  2025-10-13: New command [outlierfracwarnthreshold](option_page.html#outlierfracwarnthreshold) "outlierfracwarnthreshold" to set warning threshold for outlier fraction. readMilleBinary to py3, small cosmetic changes to readc.c 
+-  2025-08-19: Some optimizations for \c tinypede.jl tool.
+-  2025-03-06: Some tools have been reimplemented in \ref julia_sec.
+-  2024-12-05: Proper abort (message) in case of wrong binary file type (Fortranfiles or Cfiles).
+-  2024-09-18: Allow for post processing of results (option [postprocessing](option_page.html#postprocessing)).
+-  2024-07-31: For instrumentation and profiling with [Score-P](http:score-p.org) switched from POMP (<tt>scorep --pomp</tt>) (based on OPARI2, to be superseded by OMPT (OpenMP 5.0)) to user (<tt>scorep --user</tt>) regions.
+  from ompP to [Score-P](http:score-p.org) for profiling).
+-  2024-07-16: Modernisation of development environment (from EL7 to EL9 (gcc11.4),
+-  2024-07-08: Code complies the with fortran standard 2023 (<tt>gcc14 -std=f2023 -fall-intrinsics</tt>). Still GNU fortran extensions are used.
+-  2024-06-26: For local fits with bordered-band matrix structure use condition of diagonal matrix from root-free Cholesky decomposition (of band part) to optionally reject records (see [maxlocalcond](option_page.html#maxlocalcond) and internal histogram 16).
+-  2024-06-10: In first loop over binary files for counting and grouping of global labels ignore those with zero global derivative. (Option [printcounts](option_page.html#printcounts) "printcounts -1" will print their numbers.)
+-  2024-05-02: Added \ref Legacy "legacy" (Millepede-I) folder.
+-  2024-04-29: Added \c tinypede.py to tools.
+-  2024-04-12: Counters scaling with the number of records are now long (64bit) integers.
+-  2024-02-29: Summation of global Chi2 and NDF revised (no more 32bit variables, update per record).
+-  2024-02-27: Quick fix for possible integer overflow in summing up global Chi2 (ADDSUM). Needs careful revision.
+-  2024-02-14: Fix severe problem with external measurements depending on multiple global parameters.
+  using the Intel oneMKL PARDISO solver for sparse matrices.
+-  2023-12-18: New optional method \ref ch-pardiso "sparsePARDISO"
+-  2023-10-20: Define proper \ref par-linesearch "line search" parameters for LAPACK too.
+-  2023-08-22: Fix problem for block diagonal global matrix (keeping single block).
+-  2023-06-17: Fix problem with monitoring of residuals. Calculate *skyline* fraction for sparse matrices.
+-  2023-05-16: New command [checkparametergroups](option_page.html#checkparametergroups) to check (the rank (linear independency of global derivatives) for) (global) \ref ch-pargroup "parameter groups".
+-  2023-05-15: Check for redundancy constraints: Constraint groups defining linear transformation between two groups of equivalent global parameters. With the new command [resolveredundancycons](option_page.html#resolveredundancycons) they can be resolved (to save resources and burden on numerics). Optionally add (brief) \ref  ch-parcom "comments" for global parameters to annotate the results file.
+-  2023-05-02: Cleanup and fixes (constraint elimination with LAPACK using constraint groups, proper termination of file names for 'iso_c_binding')
+-  2023-03-22: Tool \c readMilleBinary.py now compatible with python3, updated CLI.
+-  2023-03-21: Fortran/C interoperability uses now 'iso_c_binding' (fortran 2003) instead of 'cfortran.h'.
+-  2023-02-01: Fix global parameter errors for solution by diagonalization using elimination of constraints.
+-  2022-12-12: Force \ref ch-checkinput "check input mode" (2) in case of accepted *empty* constraints (no variable parameters). No solution will be calculated.
+-  2022-11-22: Cleanup and documentation/exercises for \ref test_brlf_page "example" (internal test case -t=BRLF).
+-  2022-10-17: More code modernisation to comply the with fortran standard 2018 (<tt>gcc11 -std=f2018 -fall-intrinsics</tt>). Still some GNU fortran extensions are used: <tt>etime, fdate, getarg, getenv, iargc, stat, system, time</tt>
+-  2022-10-10: Fix (uninitialsed values) and cleanup for internal silicon strip tracker example.
+-  2022-08-17: Cleanup, (rare) problem with construction of \ref ch-pargroup "parameter groups" fixed (avoiding aborts with exit code 35).
+-  2022-06-16: Cleanup, test programs to print LAPACK (library) configuration added to \c tools directory.
+-  2021-12-22: Constraints groups included in [checkinput](option_page.html#checkinput). Documentation for \ref ch-checkinput and \ref troubleshooting_page added.
+-  2021-12-10: Further exploration of sparsity of constraints matrix (C). First the constraints are now split into disjoint *groups* for on optimized check of the rank of the product matrix (C*C^t). The groups are then combined into non overlapping *blocks* for an efficient QL decompsition in case of elimination of constraints. For solution by "unpackedLAPACK" the QL decomposition is now using the internal sparsity-aware code as default. To use LAPACK routines for this the new command [withlapackelimination](option_page.html#withlapackelimination) has to be used.
+-  2021-11-01: Migration from DESY \c svn to \c gitlab server (includes wiki).
+-  2021-10-22: Fortran code modernized further (assumed-size array arguments replaced).
+-  2021-10-08: Fortran code modernized (EQUIVALENCE and ENTRY statements replaced) and checked (compiling with '-fcheck=all').
+-  2021-07-28: Exploit decomposition of constraints matrix into disjoint blocks for all solution methods (e.g. QL decomposition, MINRES preconditioner).
+-  2021-03-01: New solution methods \ref ch-lapack "fullLAPACK" and \ref ch-lapack "unpackedLAPACK" (matrix factorization) based on [LAPACK](http://www.netlib.org/lapack/) can be included optionally (at compile time, <tt>-DLAPACK64=..</tt>).
+-  2020-12-14: New command [monitorprogress](option_page.html#monitorprogress) to monitor progress in operations on global and constraints matrices.
+-  2020-10-27: New solution method \ref ch-mchdec "decomposition" implemented.
+-  2020-07-16: The counting of the appearance of global parameters in the binary files can now be done on record (e.g. track) level instead of equation (e.g. measurement) level. This is enabled with the new command [countrecords](option_page.html#countrecords) and makes the iteration of the first data loop (by [iterateentries](option_page.html#iterateentries)) obsolete.
+-  2020-07-01: Implementation of \ref ch-pargroup "parameter groups" (sets of adjacent global parameters (labels) appearing in the binary files *always* together). Used to speed up construction of global matrix. Similarity operations are now aware of sparse (rectangular) matrices.
+-  2020-04-29: Modifications for compilation with PGI compiler (make -f Makefile_pgi).
+-  2019-10-04: Checking global parameters for disjoint blocks. In case of solution by inversion (optionally with constraints handled by elimination) switch to \ref mpmod::npblck "block diagonal" storage mode.
+-  2019-04-30: Update of (approximate) string matching for keyword detection. Matching is now symmetric in pattern and text. Previously e.g. a binary file with the letters from '<tt>Cfiles</tt>' in the name in that order was treated as that keyword and not as a binary file.
+-  2019-04-12: Cleanup of operations (open, close, rewind) on binary files. New command [closeandreopen](option_page.html#closeandreopen) to enable closing and reopening of binary files to limit the number of concurrently open files. The modification dates of the files are monitored to ensure data integrity.
+-  2019-03-19: Constraints are now sorted and split into disjoint blocks to speed up calculation of rank and QL decomposition by block matrix algebra. This works best if the label sets of the involved alignable objects are disjoint too.
+-  2018-08-15: Some minor fixes, additional level of detail (appearance range of global parameters in binary files) for [checkinput](option_page.html#checkinput) mode.
+-  2018-05-25: Some fixes: Proper handling of special (debug) data blocks in binary files, proper exit code (3) for 'function not decreasing'.
+-  2017-08-31: More debug information for problems with reading Cfiles. Don't stop after read error for [checkinput](option_page.html#checkinput) mode.
+-  2017-05-02: Monitoring of pulls per local fit cycle is selected by [monitorpulls](option_page.html#monitorpulls). The scaling of measurement errors is enabled by [scaleerrors](option_page.html#scaleerrors). Pede will abort now for constraints with a singular QL decomposition of the constraints matrix (solution by elemination). This problem is usually caused by *empty* constraints (see [skipemptycons](option_page.html#skipemptycons)).
+-  2015-09-25: Monitoring of residuals per local fit cycle is selected by [monitorresiduals](option_page.html#monitorresiduals). The normalized residuals are grouped by the first global label and the median and the RMS (from the median of the absolute deviations) per group are written to <tt>millepede.mon</tt>.
+-  2015-09-01: Preconditioning for MINRES with skyline matrix (avoiding rank deficits of band matrix) added (selected by second argument in [bandwidth](option_page.html#bandwidth) >0).
+-  2015-04-20: Skipping of empty constraints has to be enabled by new command [skipemptycons](option_page.html#skipemptycons).
+-  2015-02-26: Iteration of entries cut with new command [iterateentries](option_page.html#iterateentries).   In the second iteration measurements with any parameters fixed by the previous entries cut are skipped. Useful if parameters of measurements have different number of entries. 
+-  2015-02-18: Skipping *empty* constraints (without variable parameters).   With new command [checkinput](option_page.html#checkinput) detailed check of input data (binary files,   constraints) is performed, but no solution will be determined.   Some input statistics is available in the output file <tt>millepede.res</tt>.
+-  2015-02-10: Solution by elimination for problems with linear equality constraints   has been implemented (as default, new command [withelimination](option_page.html#withelimination)) in addition to the   Lagrange multiplier method (new command [withmultipliers](option_page.html#withmultipliers)).
+-  2014-11-26: Weighted constraints implemented (with new command [weightedcons](option_page.html#weightedcons)).
+-  2014-11-25: Dynamic entries (from accepted local fits) check implemented.   (Rejection of local fits may lead to the loss of degrees of freedom.)   Printout of global parameter counters with new command [printcounts](option_page.html#printcounts).
+-  2014-10-20: Storage of values read from text files as *doubles* implemented.
+-  2014-02-26: Reading of C binary files containing *doubles* implemented.
+-  2013-10-08: New solution method \ref ch-minresqlp "MINRES-QLP" [ref 9](index.html#references) implemented.

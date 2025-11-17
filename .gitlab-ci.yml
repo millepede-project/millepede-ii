@@ -40,9 +40,10 @@ doc-job:       # This job runs in the build stage, which runs first.
   image: gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base 
   stage: build
   script:
-    - doxygen pede.f90   
+    - doxygen Doxyfile   
     - echo "Doc complete."
-    - cp -r html public
+    - cp -r buildDoc/html public
+    - cp -r buildDoc/latex latex
   artifacts: 
     name: "Doc"
     paths:

@@ -24,7 +24,6 @@
 !! details); if not, write to the Free Software Foundation, Inc.,
 !! 675 Mass Ave, Cambridge, MA 02139, USA.
 !!
-#include "pedeDoc.f90"
 
 #ifdef SCOREP_USER_ENABLE
 #include "scorep/SCOREP_User.inc"
