@@ -72,7 +72,7 @@ target_sources(pede
   PUBLIC
     mpdef.f90 mpdalc.f90 mpmon.f90 mpbits.f90 mpqldec.f90 mptest1.f90 mptest2.f90 mille.f90 mpnum.f90 mptext.f90 mphistab.f90 
 	minresDataModule.f90 minresModule.f90 minresqlpDataModule.f90 minresqlpBlasModule.f90 minresqlpModule.f90 
-    randoms.f90 vertpr.f90 linesrch.f90 Dbandmatrix.f90 mpmod.f90 mppar.f90 pede.f90
+    randoms.f90  vertpr.f90 linesrch.f90 Dbandmatrix.f90 mpmod.f90 mppar.f90 mplapack.f90 pede.f90
 )
 target_link_libraries(pede PUBLIC gfortran m )
 
