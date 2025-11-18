@@ -1,0 +1,42 @@
+\documentclass{article}
+\begin{document}
+
+\begin{figure}[h]
+    \begin{center}
+    \unitlength1.0cm
+    \begin{picture}(13.0,5.5)
+    \linethickness{0.4mm}
+    \put(0.0,2.0){\framebox(4.0,1.5){User program}}
+    \put(4.5,2.25){\framebox(2.5,1.0){\sc Mille}}
+    \thicklines
+    \put(4.0,2.75){\line(1,0){0.5}}
+    \put(4.0,2.75){\vector(1,0){0.35}}
+    \put(5.5,2.25){\line(0,-1){1.15}}
+    \put(5.5,2.25){\vector(0,-1){0.6}}
+    \put(5.5,0.75){\oval(1.7,0.7)}
+    \put(5.0,0.25){\makebox(1.0,1.0){data files}}
+    \linethickness{0.4mm}
+    \put(9.0,2.0){\framebox(4.0,1.5){{\sc Pede} program}}
+    \thicklines
+    \put(10.0,4.65){\line(0,-1){1.15}}
+    \put(12.0,4.65){\line(0,-1){1.15}}
+    \put(11.0,2.0){\line(0,-1){1.15}}
+    \put(10.0,4.5){\vector(0,-1){0.6}}
+    \put(12.0,4.5){\vector(0,-1){0.6}}
+    \put(11.0,2.0){\vector(0,-1){0.6}}
+    \put(10.0,5.0){\oval(1.7,0.7)}
+    \put(12.0,5.0){\oval(1.7,0.7)}
+    \put(11.0,0.5){\oval(1.7,0.7)}
+    \put(9.5,4.5){\makebox(1.0,1.0){text files}}
+    \put(11.5,4.5){\makebox(1.0,1.0){data files}}
+    \put(10.5,0.0){\makebox(1.0,1.0){text files}}
+    \end{picture}
+    \caption{The subprogram {\sc Mille} (left), called inside the
+    \label{fig:milped}
+    user program,  and the stand-alone
+    program {\sc Pede} (right), with the data flow from  text and
+    data files to text files.}
+    \end{center}
+\end{figure}
+
+\end{document}

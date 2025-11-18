@@ -946,7 +946,7 @@ WARN_LOGFILE           =
 INPUT                  = . \
                          doc/ \
                          doc/*.f90 \
-                         doc/mp2main.md
+                         doc/mp2main.md \
                          tools/readMilleBinary.py \
                          tools/compareResults.py \
                          tools/tinypede.py \
@@ -1101,7 +1101,7 @@ EXAMPLE_RECURSIVE      = NO
 # that contain images that are to be included in the documentation (see the
 # \image command).
 
-IMAGE_PATH             =
+IMAGE_PATH             = doc/
 
 # The INPUT_FILTER tag can be used to specify a program that doxygen should
 # invoke to filter for each input file. Doxygen will invoke the filter program
@@ -1826,7 +1826,7 @@ MATHJAX_RELPATH        = https://cdn.jsdelivr.net/npm/mathjax@2
 # MATHJAX_EXTENSIONS = ams
 # This tag requires that the tag USE_MATHJAX is set to YES.
 
-MATHJAX_EXTENSIONS     =
+MATHJAX_EXTENSIONS     = TeX/AMSmath TeX/AMSsymbols
 
 # The MATHJAX_CODEFILE tag can be used to specify a file with javascript pieces
 # of code that will be used on startup of the MathJax code. See the MathJax site
