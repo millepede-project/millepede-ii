@@ -863,7 +863,8 @@ programs to write data files for **Millepede II**. The second part,
 **Pede**, is a stand-alone program, which requires data files
 and text files for the steering of the solution. The result is written
 to text files.
-![MP2 logic flow](doc/fig_1.jpg)
+\htmlonly <style>div.image img[src="fig_1.svg"]{width:600px;}</style> \endhtmlonly 
+\image html fig_1.svg 
 
 
 \subsubsection ssec_code Program code and makefile
