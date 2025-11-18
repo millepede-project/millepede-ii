@@ -220,11 +220,11 @@ a parameter vector \f$\vec{p}\f$, is approximated by a quadratic model
 \f{equation*}{ \label{eq:qapp}
 \tilde{F}_k \left( \vec{p}_k + \vec{d} \right)
 = F_k + \vec{g}^{\top}  \vec{d} + \tfrac{1}{2}
-\vec{d}^{\top} \vec{C}  \vec{d}
+\vec{d}^{\top} \mathbf{C}  \vec{d}
 \f}
 where \f$\vec{p}_k\f$ is the vector \f$\vec{p}\f$ in the \f$k\f$-th iteration and
 where the vector \f$\vec{g}\f$ is the gradient of the objective function;
-the matrix \f$\vec{C}\f$ is the Hessian (second derivative matrix) of the
+the matrix \f$\mathbf{C}\f$ is the Hessian (second derivative matrix) of the
 objective function \f$F(\vec{p})\f$ or an approximation of the Hessian.
 The minimum of the quadratic approximation requires the gradient
 to be equal to zero.
@@ -233,29 +233,29 @@ matrix equation, obtained from the derivative of the quadratic model:
 
 \anchor eq-cdmg (1)
 \f{equation*}{  \label{eq:cdmg}
-                \vec{C} \, \vec{d} = - \vec{g} \, .
+                \mathbf{C} \, \vec{d} = - \vec{g} \, .
 \f}
 With the correction vector \f$\vec{d}\f$ the new value \f$\vec{p}_{k+1} =
 \vec{p}_k + \vec{d}\f$ for the next iteration is obtained. The
-matrix \f$\vec{C}\f$ is a constant in a *linear least squares* problem
+matrix \f$\mathbf{C}\f$ is a constant in a *linear least squares* problem
 and the minimum is determined in a single step (no iteration necessary).
 
 \subsubsection sssec_par Partitioning of matrices
 
-The special structure of the matrix \f$\vec{C}\f$ in a matrix equation
-\f$\vec{C} \vec{d} = - \vec{g}\f$
+The special structure of the matrix \f$\mathbf{C}\f$ in a matrix equation
+\f$\mathbf{C} \vec{d} = - \vec{g}\f$
 may allow a significant simplification of the solution.
-Below the symmetric matrix \f$\vec{C}\f$  is partitioned
+Below the symmetric matrix \f$\mathbf{C}\f$  is partitioned
 into submatrices, and
-the vectors \f$\vec{d}$ and $\vec{g}\f$  are partitioned into two subvectors;
+the vectors \f$\vec{d}\f$ and \f$\vec{g}\f$  are partitioned into two subvectors;
 then the matrix equation can be written in the form
 \f{equation*}{
 \left(
     \begin{array}{ccc|c}
 &           & &         \\
-&    \vec{C}_{11} & & \vec{C}_{21}^{\top}  \\
+&    \mathbf{C}_{11} & & \mathbf{C}_{21}^{\top}  \\
 &           & &         \\   \hline
-&     \vec{C}_{21} & & \vec{C}_{22}
+&     \mathbf{C}_{21} & & \mathbf{C}_{22}
     \end{array}
     \right)
 \left( \begin{array}{c}
@@ -265,36 +265,36 @@ then the matrix equation can be written in the form
 ~\\   \vec{g_1}  \\  ~\\  \hline  \vec{g_2}
         \end{array} \right)  \; ,
 \f}
-where the submatrix \f$\vec{C}_{11}\f$ is a
+where the submatrix \f$\mathbf{C}_{11}\f$ is a
 \f$p\f$-by-\f$p\f$ square
-matrix and the submatrix \f$\vec{C}_{22}\f$ is a \f$q\f$-by-\f$q\f$
-square matrix, with \f$p+q=n\f$, and \f$\vec{C}_{21}\f$ is a \f$q\f$-by-\f$p\f$ matrix.
+matrix and the submatrix \f$\mathbf{C}_{22}\f$ is a \f$q\f$-by-\f$q\f$
+square matrix, with \f$p+q=n\f$, and \f$\mathbf{C}_{21}\f$ is a \f$q\f$-by-\f$p\f$ matrix.
 Now it is assumed that the inverse of the \f$q\f$-by-\f$q\f$
-sub-matrix \f$\vec{C}_{22}\f$ is available. In certain problems this
-may be easily calculated, for example if \f$\vec{C}_{22}\f$ is diagonal.
+sub-matrix \f$\mathbf{C}_{22}\f$ is available. In certain problems this
+may be easily calculated, for example if \f$\mathbf{C}_{22}\f$ is diagonal.
 
 If the sub-vector \f$\vec{d}_1\f$ would not exist, the solution for the
 sub-vector \f$\vec{d}_2\f$ would be defined by the matrix equation
-\f$\vec{C}_{22} \; \vec{d}_2^{*} = - \vec{g}_2\f$,
+\f$\mathbf{C}_{22} \; \vec{d}_2^{*} = - \vec{g}_2\f$,
 where the star indicates the special character of this solution, which is
 
 \anchor eq-spa2 (2)
 \f{equation*}{ \label{eq:spa2}
-            \vec{d_2}^{*} = -  \vec{C}_{22}^{-1} \;  \vec{g_2}  \; .
+            \vec{d_2}^{*} = -  \mathbf{C}_{22}^{-1} \;  \vec{g_2}  \; .
 \f}
 
-Now, having the inverse sub-matrix \f$\vec{C}_{22}^{-1}\f$, the submatrix
-of the complete inverse matrix \f$\vec{C}\f$ correponding to the upper left
-part \f$\vec{C}_{11}\f$ is the inverse of the
+Now, having the inverse sub-matrix \f$\mathbf{C}_{22}^{-1}\f$, the submatrix
+of the complete inverse matrix \f$\mathbf{C}\f$ correponding to the upper left
+part \f$\mathbf{C}_{11}\f$ is the inverse of the
 symmetric \f$p\f$-by-\f$p\f$ matrix
 
 \anchor eq-Schur (3)
 \f{equation*}{ \label{eq:Schur}
-\vec{S} =   \vec{C}_{11} - \vec{C}_{21}^{\top} \vec{C}_{22}^{-1}
-    \vec{C}_{21}     \; ,
+\mathbf{S} =   \mathbf{C}_{11} - \mathbf{C}_{21}^{\top} \mathbf{C}_{22}^{-1}
+    \mathbf{C}_{21}     \; ,
 \f}
 the so-called *Schur complement*.
-With this matrix \f$\vec{S}\f$ the solution of the whole matrix equation can
+With this matrix \f$\mathbf{S}\f$ the solution of the whole matrix equation can
 be written in the form
 \f{equation*}{  \label{eq:solvea1}
 \left( \begin{array}{c}
@@ -303,12 +303,12 @@ be written in the form
 \left(
     \begin{array}{ccc|c}
 &           & &         \\
-&    \vec{S}^{-1} &  & - \vec{S}^{-1} \vec{C}_{21}^{\top}
-            \vec{C}_{22}^{-1}  \\
+&    \mathbf{S}^{-1} &  & - \mathbf{S}^{-1} \mathbf{C}_{21}^{\top}
+            \mathbf{C}_{22}^{-1}  \\
 &           & &         \\   \hline
-&   - \vec{C}_{22}^{-1} \vec{C}_{21} \vec{S}^{-1}
-& & \vec{C}_{22}^{-1} - \vec{C}_{22}^{-1}
-\vec{C}_{21} \vec{S}^{-1} \vec{C}_{21}^{\top} \vec{C}_{22}^{-1}
+&   - \mathbf{C}_{22}^{-1} \mathbf{C}_{21} \mathbf{S}^{-1}
+& & \mathbf{C}_{22}^{-1} - \mathbf{C}_{22}^{-1}
+\mathbf{C}_{21} \mathbf{S}^{-1} \mathbf{C}_{21}^{\top} \mathbf{C}_{22}^{-1}
     \end{array}
     \right)
 \left( \begin{array}{c}
@@ -323,18 +323,18 @@ matrix equation
 \f{equation*}{ \label{eq:solvea2}
 \left(
     \begin{array}{ccc}
-& & \\ &  \vec{C}_{11} - \vec{C}_{21}^{\top} \vec{C}_{22}^{-1}
-    \vec{C}_{21} \\
+& & \\ &  \mathbf{C}_{11} - \mathbf{C}_{21}^{\top} \mathbf{C}_{22}^{-1}
+    \mathbf{C}_{21} \\
 & & \end{array} \right)
 \left( \begin{array}{c}
 ~\\   \vec{d_1}  \\  ~\\
         \end{array} \right) = -
 \left( \begin{array}{c}
-~\\   \vec{g_1} -  \vec{C}_{21}^{\top} \vec{C}_{22}^{-1} \vec{g}_2   \\  ~\\
+~\\   \vec{g_1} -  \mathbf{C}_{21}^{\top} \mathbf{C}_{22}^{-1} \vec{g}_2   \\  ~\\
         \end{array} \right)
 =-
 \left( \begin{array}{c}
-~\\   \vec{g_1} -  \vec{C}_{21}^{\top}  \vec{d_2}^*   \\
+~\\   \vec{g_1} -  \mathbf{C}_{21}^{\top}  \vec{d_2}^*   \\
 ~\\
         \end{array} \right)
 \f}
@@ -348,12 +348,12 @@ only, while
 the sub-vector \f$\vec{d_2}\f$ is not needed, then only the  equation
 \ref eq-solvea2 "(4)" has to be solved after calculation of
 the special solution \f$\vec{d_2}^*\f$ (equation \ref eq-spa2 "(2)") and the Schur
-complement \f$\vec{S}\f$ (equation \ref eq-Schur "(3)").
+complement \f$\mathbf{S}\f$ (equation \ref eq-Schur "(3)").
 Some computer time can be saved by this
-method, especially if the matrix \f$\vec{C}_{22}^{-1}\f$ is easily calculated
-or already known before; note that the matrix \f$\vec{C}_{22}\f$ does not
+method, especially if the matrix \f$\mathbf{C}_{22}^{-1}\f$ is easily calculated
+or already known before; note that the matrix \f$\mathbf{C}_{22}\f$ does not
 appear directly in the solution, only the inverse
-\f$\vec{C}_{22}^{-1}\f$.
+\f$\mathbf{C}_{22}^{-1}\f$.
 
 This method  of removing unnecessary parameters
 was already known in the nineteenth century.
@@ -484,7 +484,7 @@ equations. The second contribution is the symmetric matrix
 which gives a contribution to the big matrix on the
 diagonal and is depending only on the \f$j\f$-th local measurement and the
 (local) derivatives \f$\partial f/\partial q_j\f$.
-The third (mixed) contribution is a rectangular matrix \f$\vec{G}_j\f$, with
+The third (mixed) contribution is a rectangular matrix \f$\mathbf{G}_j\f$, with
 a row number of \f$n\f$ (global) and a column number of \f$\nu\f$ (local).
 There are two contributions to the vector of the normal equations (gradient),
 \f$\vec{g_1}_j\f$ for the global and \f$\vec{\beta}_j\f$ for the local parameters.
@@ -495,12 +495,12 @@ The complete matrix equation is given by
 \left(
     \begin{array}{ccc||ccc|c|ccc}
 &           & &  & & & & & &         \\
-&   \sum \vec{C_1}_j  & &  & \cdots & &  \vec{G}_j & & \cdots &  \\
+&   \sum \vec{C_1}_j  & &  & \cdots & &  \mathbf{G}_j & & \cdots &  \\
 &           & &  & & & & & &        \\   \hline \hline
 &   & &  &  & & & & & \\
 &  \vdots & & & \ddots & & 0 & & 0 & \\
 &   & & & &  & & & & \\  \hline
-&    \vec{G}^{\top}_j &  &  & 0 & & \vec{\Gamma}_j & &0 &  \\ \hline
+&    \mathbf{G}^{\top}_j &  &  & 0 & & \vec{\Gamma}_j & &0 &  \\ \hline
 &   & & & & & &  & & \\
 &  \vdots & & & 0 & & 0 & & \ddots & \\
 &   & & & & & & & &  \\
@@ -521,7 +521,7 @@ The complete matrix equation is given by
         \end{array} \right)
 \f}
 In this matrix equation the matrices  \f$\vec{C_1}_j\f$,
-\f$\vec{\Gamma}_j\f$, \f$\vec{G}_j\f$
+\f$\vec{\Gamma}_j\f$, \f$\mathbf{G}_j\f$
 and the vectors  \f$\vec{g_1}_j\f$ and \f$\vec{\beta}_j\f$
 contain contributions from the \f$j\f$-th local measurement.
 Ignoring the global parameters (i.e. keeping them constant)
@@ -534,7 +534,7 @@ for each local measurement separately by
 The complete system of normal equations has a special structure, with many
 vanishing sub-matrices. The only connection between the local parameters of
 different partial measurements is given by the sub-matrices
-\f$\vec{G}_j\f$ und \f$\vec{C_1}_j\f$,
+\f$\mathbf{G}_j\f$ und \f$\vec{C_1}_j\f$,
 
 \subsubsection sssec_redsize Reduction of matrix size
 
@@ -553,7 +553,7 @@ By this procedure the \f$n\f$ normal equations
 \left(
     \begin{array}{ccc}
 &           &      \\
-&    \vec{C}  &  \\
+&    \mathbf{C}  &  \\
 &           &      \\
     \end{array}
     \right)
@@ -566,22 +566,22 @@ By this procedure the \f$n\f$ normal equations
         \end{array} \right)   \; ,
 \f}
 are obtained, which only contain the global parameters, with a
-modified matrix \f$\vec{C}\f$ and a modified vector \f$\vec{g}\f$,
+modified matrix \f$\mathbf{C}\f$ and a modified vector \f$\vec{g}\f$,
 \f{equation*}{  \label{eq:nsc}
-\vec{C} =  \sum_j \vec{C_1}_j + \sum_j \vec{C_2}_j
+\mathbf{C} =  \sum_j \vec{C_1}_j + \sum_j \vec{C_2}_j
 \quad \quad  \quad \quad
 \vec{g} =    \sum_j \vec{g_1}_j + \sum_j  \vec{g_2}_j
 \f}
-with the following local contributions to  \f$\vec{C}\f$ and  \f$\vec{g}\f$
+with the following local contributions to  \f$\mathbf{C}\f$ and  \f$\vec{g}\f$
 from the \f$j\f$-th local fit:
 
 \anchor eq-nsc2 (9)
 \f{equation*}{  \label{eq:nsc2}
-\vec{C_2}_j =  - \vec{G}_j \vec{\Gamma}_j^{-1} \vec{G}_j^{\top}
+\vec{C_2}_j =  - \mathbf{G}_j \vec{\Gamma}_j^{-1} \mathbf{G}_j^{\top}
 \quad \quad \quad \quad
 \vec{g_2}_j =
-- \vec{G}_j \left( \vec{\Gamma}_j^{-1} \vec{\beta}_j\right)
-= - \vec{G}_j \vec{\Delta q}_j^*   \; .
+- \mathbf{G}_j \left( \vec{\Gamma}_j^{-1} \vec{\beta}_j\right)
+= - \mathbf{G}_j \vec{\Delta q}_j^*   \; .
 \f}
 The set of normal equations \ref eq-nsb "(8)" contains explicitly only the global
 parameters; implicitly it contains, through the correction matrices,
@@ -591,10 +591,10 @@ represents the solution for the local parameters, ignoring the global
 parameters.
 The solution
 \f{equation*}{ \label{eq:ared}
-\vec{d} = - \vec{C}^{-1}\,  \vec{g}
+\vec{d} = - \mathbf{C}^{-1}\,  \vec{g}
 \f}
 represents the solution vector \f$\vec{d}\f$ with covariance matrix
-\f$\vec{C}^{-1}\f$.
+\f$\mathbf{C}^{-1}\f$.
 The solution is direct, no iterations or approximations are required.
 The dimension of the matrix to compute \f$\vec{d}\f$ from equation
 \ref eq-cdmg "(1)" is reduced from  \f$(n+N\cdot\nu)\f$ to \f$n\f$. The vector
@@ -729,15 +729,15 @@ minimization of a non-linear function \f$F(\vec{p})\f$ subject to a set of
 linear constraints:
 \f{equation*}{  \label{eq:cproblem}
 \min F(\vec{p}) \quad \quad \quad
-\textrm{subject to} \; \vec{A} \vec{p} = \vec{c} \; ,
+\textrm{subject to} \; \mathbf{A} \vec{p} = \vec{c} \; ,
 \f}
-where \f$\vec{A}\f$ is a \f$m\f$-by-\f$n\f$ matrix and \f$\vec{c}\f$ is a \f$m\f$-vector
+where \f$\mathbf{A}\f$ is a \f$m\f$-by-\f$n\f$ matrix and \f$\vec{c}\f$ is a \f$m\f$-vector
 with  \f$m \le n\f$.
 In iterative methods the parameter vector \f$\vec{p}\f$ is expressed by
 \f$\vec{p} = \vec{p}_k + \vec{d}\f$ with the correction \f$\vec{d}\f$
 to \f$\vec{p}_k\f$ in the \f$k\f$-th iteration, satisfying the equation
 \f{equation*}{
-            \vec{A} \left( \vec{p}_k + \vec{d} \right) = \vec{c}
+            \mathbf{A} \left( \vec{p}_k + \vec{d} \right) = \vec{c}
 \f}
 with \f$\vec{p}_{k+1} = \vec{p}_k +  \vec{d}\f$.
 
@@ -761,15 +761,15 @@ and the constraints is added to the function  \f$F(\vec{p})\f$, resulting
 in the Lagrange function
 \f{equation*}
 \mathcal{L}(\vec{p},\vec{\lambda}) = F(\vec{p}) + \vec{\lambda}
-\left(  \vec{A} \vec{p} - \vec{c} \right)
+\left(  \mathbf{A} \vec{p} - \vec{c} \right)
 \f}
 Using as before a quadratic model for the function \f$F(\vec{p})\f$ and taking
 derivatives w.r.t. the parameters \f$\vec{p}\f$ and the Lagrange multipliers
 \f$\vec{\lambda}\f$, the two equations
 \f{alignat*}{{2}
-\vec{C} & \vec{d} +  \vec{A}^{\top} & \vec{\lambda} & = - \vec{g} \\
-\vec{A} &  \vec{d}  &                                 & =
-\vec{c} - \vec{A} \vec{p}_k
+\mathbf{C} & \vec{d} +  \mathbf{A}^{\top} & \vec{\lambda} & = - \vec{g} \\
+\mathbf{A} &  \vec{d}  &                                 & =
+\vec{c} - \mathbf{A} \vec{p}_k
 \f}
 are obtained; the second of these equations is the constraint equation.
 This system of two equations can be combined into one matrix equation
@@ -779,16 +779,16 @@ This system of two equations can be combined into one matrix equation
 \left(
     \begin{array}{ccc|c}
 &           & &         \\
-&    \vec{C} & & \vec{A}^{\top}  \\
+&    \mathbf{C} & & \mathbf{A}^{\top}  \\
 &           & &         \\   \hline
-&     \vec{A} & & \vec{0}
+&     \mathbf{A} & & \mathbf{0}
     \end{array}
     \right)
 \left( \begin{array}{c}
-~\\   \vec{d}  \\  ~\\  \hline \lambda
+~\\   \vec{d}  \\  ~\\  \hline \vec{\lambda}
         \end{array} \right)  =
 \left( \begin{array}{c}
-~\\  - \vec{g}  \\  ~\\  \hline   \vec{c} - \vec{A} \vec{p}_k
+~\\  - \vec{g}  \\  ~\\  \hline   \vec{c} - \mathbf{A} \vec{p}_k
         \end{array} \right)  \; .
 \f}
 The matrix on the left hand side is still symmetric.
@@ -798,7 +798,7 @@ the need for initial values of the parameters.
 
 The matrix in equation \ref eq-lageq0 "(10)" is indefinite, with positive and
 negative eigenvalues. A solution can be found even if the submatrix
-\f$\vec{S}\f$ is singular, if the  matrix \f$\vec{A}\f$ of the constraints
+\f$\mathbf{S}\f$ is singular, if the  matrix \f$\mathbf{A}\f$ of the constraints
 supplies sufficient
 information. Because of the different signs of the eigenvalues the
 stationary solution is not a minimum of the function
@@ -811,25 +811,25 @@ A particular value for the correction \f$\vec{d}\f$ can be  calculated by
 
 \anchor eq-parsol (11)
 \f{equation*}{ \label{eq:parsol}
-\vec{d} =  \vec{A}^{\top} \left( \vec{A} \vec{A}^{\top} \right)^{-1}
-\left(  \vec{c} - \vec{A} \vec{p}_k \right) \; ,
+\vec{d} =  \mathbf{A}^{\top} \left( \mathbf{A} \mathbf{A}^{\top} \right)^{-1}
+\left(  \vec{c} - \mathbf{A} \vec{p}_k \right) \; ,
 \f}
 which is the *minimum-norm solution* of the constraint equation,
 that is, the  solution of
 \f{equation*}{
-\min \; \left\| \vec{A} \left( \vec{p}_k + \Delta \vec{p} \right)
+\min \; \left\| \mathbf{A} \left( \vec{p}_k + \Delta \vec{p} \right)
 - \vec{c}  \right\|_2   \; ,
 \f}
 which is zero here.
-The matrix \f$\vec{A}\f$ is a \f$m\f$-by-\f$n\f$ matrix for \f$m\f$ constraints and
-the product \f$\vec{A} \vec{A}^{\top}\f$ is a square \f$m\f$-by-\f$m\f$ matrix,
+The matrix \f$\mathbf{A}\f$ is a \f$m\f$-by-\f$n\f$ matrix for \f$m\f$ constraints and
+the product \f$\mathbf{A} \mathbf{A}^{\top}\f$ is a square \f$m\f$-by-\f$m\f$ matrix,
 which has to be inverted in equation \ref eq-parsol "(11)", which
 allows to obtain a correction such that the linear constraints are satisfied.
 Parameter vectors \f$\vec{p}\f$, satisfying the linear constraint
-equations \f$\vec{A} \vec{p} = \vec{c}\f$, are called *feasible*.
+equations \f$\mathbf{A} \vec{p} = \vec{c}\f$, are called *feasible*.
 If the vector \f$\vec{p}_k\f$ in the \f$k\f$-th iteration already
 satisfies the linear constraint equations, then the correction
-\f$\vec{d}\f$ has to have the property \f$\vec{A} \,\vec{d} = \vec{0}\f$.
+\f$\vec{d}\f$ has to have the property \f$\mathbf{A} \,\vec{d} = \vec{0}\f$.
 
 \section sec_man The Manual
 
@@ -2174,26 +2174,26 @@ objective function.
 
 The second contribution is, according to the **Millepede** principle,
 a mixed contribution from first order global and local derivatives.
-After the local fit the matrix \f$\vec{G}\f$ is formed, which has a number of
+After the local fit the matrix \f$\mathbf{G}\f$ is formed, which has a number of
 columns equal to the number of local parameters, and a number of rows
 equal to the number of global parameters.
 The elements are
 \f{equation*}{
-\left(\vec{G}\right)_{jk} =
+\left(\mathbf{G}\right)_{jk} =
 \sum_i \left( \frac{\partial f_i}{\partial p_j} \right)
         \left( \frac{\partial f_i}{\partial q_k} \right)
             \frac{1}{\sigma_i^2}    \; .
 \f}
-The second contribution to the global matrix \f$\vec{C}\f$ is then
+The second contribution to the global matrix \f$\mathbf{C}\f$ is then
 
 \anchor eq-c2 (16)
 \f{equation*}{ \label{eq:c2}
-\vec{\Delta C_2} = - \vec{G} \vec{\Gamma}^{-1} \vec{G}^{\top}
+\vec{\Delta C_2} = - \mathbf{G} \vec{\Gamma}^{-1} \mathbf{G}^{\top}
 \f}
-with the matrices \f$\vec{G}\f$ and \f$\vec{\Gamma}\f$ from a local fit.
-Because of the dimension of matrices \f$\vec{G}\f$ and  \f$\vec{\Delta C}\f$
+with the matrices \f$\mathbf{G}\f$ and \f$\vec{\Gamma}\f$ from a local fit.
+Because of the dimension of matrices \f$\mathbf{G}\f$ and  \f$\vec{\Delta C}\f$
 the calculation would require a large number of operations. However
-only a small number of rows of matrix \f$\vec{G}\f$ is not equal to zero
+only a small number of rows of matrix \f$\mathbf{G}\f$ is not equal to zero
 and the calculation can be restricted, with the help of pointers,
 to the non-zero part and in addition one can use the fact that the
 result is a symmetric matrix. With this code, which may appear
@@ -2201,21 +2201,21 @@ somewhat complicated in comparison to the standard matrix multiplication,
 the computation time is small. Note that no extra contribution to the
 gradient vector \f$\vec{g}\f$ is necessary because the residual \f$z_i^{''}\f$
 used above already includes the local fit result.
-The sum \f$\vec{C}\f$
+The sum \f$\mathbf{C}\f$
 of the two contributions,  \f$\vec{\Delta C}_1\f$ from equation \ref eq-c1 "(15)", and
 \f$\vec{\Delta C}_2\f$ from equation \ref eq-c2 "(16)", summed over all
 local fit-objects, is the final matrix of the least squares
-normal equations. Element \f$(\vec{C})_{jk}\f$ is related
+normal equations. Element \f$(\mathbf{C})_{jk}\f$ is related
 to the global parameters
 with indices \f$j\f$ and \f$k\f$.
-The matrix \f$\vec{C}\f$ corresponds to a simultaneous fit of the global
+The matrix \f$\mathbf{C}\f$ corresponds to a simultaneous fit of the global
 *and* local parameters of all local-fit objects. The first term
 \ref eq-c1 "(15)"
 alone corresponds to the fit, when the local parameters are assumed
-to be fixed; only those elements \f$(\vec{C})_{jk}\f$ of the matrix \f$\vec{C}\f$ are
+to be fixed; only those elements \f$(\mathbf{C})_{jk}\f$ of the matrix \f$\mathbf{C}\f$ are
 non-zero, where the two global parameters with indices \f$j\f$ and \f$k\f$
 appear in the same measurement \f$y_i\f$. In contrast, in the second term
-\ref eq-c2 "(16)" those elements \f$(\vec{C})_{jk}\f$ of the matrix \f$\vec{C}\f$ are
+\ref eq-c2 "(16)" those elements \f$(\mathbf{C})_{jk}\f$ of the matrix \f$\mathbf{C}\f$ are
 non-zero, where the two global parameters with indices \f$j\f$ and \f$k\f$
 appear in the same local fit.
 
@@ -2256,12 +2256,12 @@ A quadrative model function \f$\widetilde{F}(\vec{p} + \vec{d})\f$
 \anchor eq-quadapp (17)
 \f{equation*}{ \label{eq:quadapp}
 \widetilde{F}(\vec{p}_k + \vec{d}  ) = F_k + \vec{g}^{\top} \vec{d} +
-        \tfrac{1}{2} \vec{d}^{\top}  \vec{C} \vec{d}
+        \tfrac{1}{2} \vec{d}^{\top}  \mathbf{C} \vec{d}
 \f}
 is defined with a vector \f$\vec{d}\f$.
 The step vector \f$\vec{d}\f$ is determined as solution of the linear system
 \f{equation*}{ \label{eq:stepd}
-                \vec{C} \vec{d} = - \vec{g} \; .
+                \mathbf{C} \vec{d} = - \vec{g} \; .
 \f}
 The step \f$\vec{d}\f$ will  minimize the quadratic function
 \f$\widetilde{F}(\vec{p} + \vec{d})\f$ of equation \ref eq-quadapp "(17)",
@@ -2317,7 +2317,7 @@ rounding errors for the large number of parameters.
 
 <b>Iteration 0.</b> The first data loop is called iteration 0. The
 function value, the first derivative vector \f$\vec{g}\f$ and the second
-derivative matrix \f$\vec{C}\f$ or an approximation to it are calculated.
+derivative matrix \f$\mathbf{C}\f$ or an approximation to it are calculated.
 They allow to calculate the first step \f$\vec{\Delta p}= \vec{d}\f$.
 
 <b>Iteration \f$\ge 1\f$.</b> In all further iterations a line search
@@ -2346,17 +2346,17 @@ in the Lagrange function
 \f{equation*}{
 \mathcal{L}(\vec{p},\vec{\lambda}) =
 F_k + \vec{g}^{\top} \vec{d} +
-        \tfrac{1}{2} \vec{d}^{\top}  \vec{C} \vec{d}
+        \tfrac{1}{2} \vec{d}^{\top}  \mathbf{C} \vec{d}
 + \vec{\lambda}
-\left(  \vec{A} \left( \vec{p}_k + \vec{d}\right) - \vec{c} \right)
+\left(  \mathbf{A} \left( \vec{p}_k + \vec{d}\right) - \vec{c} \right)
 \f}
 Using as before a quadratic model for the function \f$F(\vec{p})\f$ and taking
 derivatives w.r.t. the parameters \f$\vec{p}\f$ and the Lagrange multipliers
 \f$\vec{\lambda}\f$, the two equations
 \f{alignat*}{{2}
-\vec{C} \; & \vec{d} +  \vec{A}^{\top} & \vec{\lambda} & = - \vec{g} \\
-\vec{A} \; &  \vec{d}  &                                 & =
-\vec{c} - \vec{A} \vec{p}_k
+\mathbf{C} \; & \vec{d} +  \mathbf{A}^{\top} & \vec{\lambda} & = - \vec{g} \\
+\mathbf{A} \; &  \vec{d}  &                                 & =
+\vec{c} - \mathbf{A} \vec{p}_k
 \f}
 are obtained; the second of these equations is the constraint equation.
 This system of two equations can be combined into one matrix equation
@@ -2364,16 +2364,16 @@ This system of two equations can be combined into one matrix equation
 \left(
     \begin{array}{ccc|c}
 &           & &         \\
-&    \vec{C} & & \vec{A}^{\top}  \\
+&    \mathbf{C} & & \mathbf{A}^{\top}  \\
 &           & &         \\   \hline
-&     \vec{A} & & \vec{0}
+&     \mathbf{A} & & \vec{0}
     \end{array}
     \right)
 \left( \begin{array}{c}
 ~\\   \vec{d}  \\  ~\\  \hline \lambda
         \end{array} \right)  =
 \left( \begin{array}{c}
-~\\  -  \vec{g}  \\  ~\\  \hline   \vec{c} - \vec{A} \vec{p}_k
+~\\  -  \vec{g}  \\  ~\\  \hline   \vec{c} - \mathbf{A} \vec{p}_k
         \end{array} \right)  \; .
 \f}
 The matrix on the left hand side is still symmetric.
@@ -2500,7 +2500,7 @@ precise and the \f$v\f$-axis is along the coarse coordinate, and the
 \f$w\f$-axis is normal to the sensor. The transformation from the
 global to the local system is given by
 \f{equation*}{
-\vec{q} = \vec{R} \left( \vec{r} - \vec{r}_0 \right)
+\vec{q} = \mathbf{R} \left( \vec{r} - \vec{r}_0 \right)
 \f}
 with the definitions
 \f{equation*}{
@@ -2513,12 +2513,12 @@ x \\ y \\ z \end{array} \right)
 \vec{r}_0 =  \left( \begin{array}{c}
 x_0 \\ y_0 \\ z_0 \end{array} \right)  \; .
 \f}
-The nominal position \f$\vec{r}_0\f$ and the  rotation matrix \f$\vec{R}\f$
+The nominal position \f$\vec{r}_0\f$ and the  rotation matrix \f$\mathbf{R}\f$
 are determined by detector assembly and survey information. The convention
 is to use the three Euler angles \f$\vartheta\f$, \f$\psi\f$ and \f$\varphi\f$ to
-determine the nominal rotation matrix \f$\vec{R}\f$:
+determine the nominal rotation matrix \f$\mathbf{R}\f$:
 \f{equation*}{
-\vec{R} =
+\mathbf{R} =
 \left( \begin{array}{ccc}
 \cos \psi \, \cos \varphi - \cos \vartheta \, \sin \psi \, \sin \varphi &
 - \cos \psi \, \sin \varphi - \cos \vartheta \, \sin \psi \, \cos \varphi &
@@ -2533,7 +2533,7 @@ determine the nominal rotation matrix \f$\vec{R}\f$:
 \f}
 or
 \f{equation*}{
-\vec{R} =
+\mathbf{R} =
 \left( \begin{array}{ccc}
 \cos \psi \, \cos \varphi - \cos \vartheta \, \sin \psi \, \sin \varphi &
 \sin \psi \, \cos \varphi  + \cos \vartheta \,
@@ -2553,11 +2553,11 @@ The ranges of the angles are:\f$0 \le \vartheta < \pi\f$,
 
 A different convention is to parametrize the rotation by
 Euler angles \f$\varphi\f$, \f$\vartheta\f$ and \f$\psi\f$ with the rotation
-\f$\vec{R} = \vec{R}_3(\varphi)  \vec{R}_2(\vartheta)  \vec{R}_3(\psi)\f$,
+\f$\mathbf{R} = \mathbf{R}_3(\varphi)  \mathbf{R}_2(\vartheta)  \mathbf{R}_3(\psi)\f$,
 where \f$R_i(\delta)\f$ is a rotation by an angle \f$\delta\f$ about the axis
 \f$\vec{n}_i\f$. The rotation is
 \f{equation*}{
-\vec{R} =
+\mathbf{R} =
 \left( \begin{array}{ccc}
 \cos \varphi \cos \vartheta \cos \psi - \sin \varphi \sin \psi &
 -\sin \varphi \cos \psi - \cos \varphi \cos \vartheta \sin \psi &
@@ -2575,17 +2575,17 @@ The ranges of the angles are: \f$0 \le \phi < 2 \pi\f$,
 
 <b>Alignment correction to the transformation.</b>
 The alignment procedure determines a correction to the nominal transformation
-by an incremental rotation \f$\Delta \vec{R}\f$ and a translation \f$\Delta \vec{r}_0\f$.
+by an incremental rotation \f$\Delta \mathbf{R}\f$ and a translation \f$\Delta \vec{r}_0\f$.
 The combined translation and rotation becomes
 \f{align*}{
         \vec{r}_0 &\to \vec{r}_0 + \Delta \vec{r} \\
-        \vec{R}   &\to \Delta \vec{R} \vec{R}  \; .
+        \mathbf{R}   &\to \Delta \mathbf{R} \mathbf{R}  \; .
 \f}
-The correction matrix \f$\Delta \vec{R}\f$ is given by small rotations by
+The correction matrix \f$\Delta \mathbf{R}\f$ is given by small rotations by
 \f$\Delta \alpha\f$, \,\f$\Delta \beta\f$ and \f$\Delta \gamma\f$ around the \f$u\f$-axis, the
 (new)  \f$v\f$-axis and the (new)  \f$w\f$-axis:
 \f{equation*}{
-\Delta  \vec{R} =  \vec{R}_{\alpha}  \vec{R}_{\beta}  \vec{R}_{\gamma}
+\Delta  \mathbf{R} =  \mathbf{R}_{\alpha}  \mathbf{R}_{\beta}  \mathbf{R}_{\gamma}
 \approx \left(
 \begin{array}{ccc}
 1 & \Delta \gamma &  - \Delta \beta \\
@@ -2597,7 +2597,7 @@ where the approximation has sufficient accuracy for small angles
 \f$\Delta \alpha\f$, \,\f$\Delta \beta\f$ and \f$\Delta \gamma\f$. The position correction
 \f$\Delta \vec{r}\f$ transforms to the local system as
 \f{equation*}{
-\Delta \vec{q} = \Delta \vec{R} \, \vec{R} \, \Delta \vec{r} \quad \quad \quad
+\Delta \vec{q} = \Delta \mathbf{R} \, \mathbf{R} \, \Delta \vec{r} \quad \quad \quad
 \textrm{with} \quad
 \Delta \vec{q} =
 \left( \begin{array}{c}
@@ -2610,13 +2610,13 @@ where the approximation has sufficient accuracy for small angles
 These corrections define the corrected (aligned) transformation
 from global to local coordinates:
 \f{equation*}{
-    \vec{q}^{\textrm{aligned}} = \Delta \vec{R} \, \vec{R}
+    \vec{q}^{\textrm{aligned}} = \Delta \mathbf{R} \, \mathbf{R}
             \left( \vec{r} - \vec{r}_0 \right)
 - \Delta \vec{q}  \; .
 \f}
 The task of the alignment by tracks is to determine the correction
 angles \f$\Delta \alpha\f$, \f$\Delta \beta\f$ and \f$\Delta \gamma\f$ (and thus the
-rotation matrix \f$\Delta \vec{R}\f$) and the translation vector \f$\Delta \vec{r}\f$
+rotation matrix \f$\Delta \mathbf{R}\f$) and the translation vector \f$\Delta \vec{r}\f$
 or vector \f$\Delta \vec{q}\f$ for each individual detector element.
 
 \subsection ssec-ackn Acknowledgement
