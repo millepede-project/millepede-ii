@@ -219,8 +219,8 @@ a parameter vector \f$\vec{p}\f$, is approximated by a quadratic model
 \f$\tilde{F}(\vec{p})\f$
 \f{equation*}{ \label{eq:qapp}
 \tilde{F}_k \left( \vec{p}_k + \vec{d} \right)
-= F_k + \vec{g}\trans  \vec{d} + \tfrac{1}{2}
-\vec{d}\trans \vec{C}  \vec{d}
+= F_k + \vec{g}^{\top}  \vec{d} + \tfrac{1}{2}
+\vec{d}^{\top} \vec{C}  \vec{d}
 \f}
 where \f$\vec{p}_k\f$ is the vector \f$\vec{p}\f$ in the \f$k\f$-th iteration and
 where the vector \f$\vec{g}\f$ is the gradient of the objective function;
@@ -253,7 +253,7 @@ then the matrix equation can be written in the form
 \left(
     \begin{array}{ccc|c}
 &           & &         \\
-&    \vec{C}_{11} & & \vec{C}_{21}\trans  \\
+&    \vec{C}_{11} & & \vec{C}_{21}^{\top}  \\
 &           & &         \\   \hline
 &     \vec{C}_{21} & & \vec{C}_{22}
     \end{array}
@@ -290,7 +290,7 @@ symmetric \f$p\f$-by-\f$p\f$ matrix
 
 \anchor eq-Schur (3)
 \f{equation*}{ \label{eq:Schur}
-\vec{S} =   \vec{C}_{11} - \vec{C}_{21}\trans \vec{C}_{22}^{-1}
+\vec{S} =   \vec{C}_{11} - \vec{C}_{21}^{\top} \vec{C}_{22}^{-1}
     \vec{C}_{21}     \; ,
 \f}
 the so-called *Schur complement*.
@@ -303,12 +303,12 @@ be written in the form
 \left(
     \begin{array}{ccc|c}
 &           & &         \\
-&    \vec{S}^{-1} &  & - \vec{S}^{-1} \vec{C}_{21}\trans
+&    \vec{S}^{-1} &  & - \vec{S}^{-1} \vec{C}_{21}^{\top}
             \vec{C}_{22}^{-1}  \\
 &           & &         \\   \hline
 &   - \vec{C}_{22}^{-1} \vec{C}_{21} \vec{S}^{-1}
 & & \vec{C}_{22}^{-1} - \vec{C}_{22}^{-1}
-\vec{C}_{21} \vec{S}^{-1} \vec{C}_{21}\trans \vec{C}_{22}^{-1}
+\vec{C}_{21} \vec{S}^{-1} \vec{C}_{21}^{\top} \vec{C}_{22}^{-1}
     \end{array}
     \right)
 \left( \begin{array}{c}
@@ -323,18 +323,18 @@ matrix equation
 \f{equation*}{ \label{eq:solvea2}
 \left(
     \begin{array}{ccc}
-& & \\ &  \vec{C}_{11} - \vec{C}_{21}\trans \vec{C}_{22}^{-1}
+& & \\ &  \vec{C}_{11} - \vec{C}_{21}^{\top} \vec{C}_{22}^{-1}
     \vec{C}_{21} \\
 & & \end{array} \right)
 \left( \begin{array}{c}
 ~\\   \vec{d_1}  \\  ~\\
         \end{array} \right) = -
 \left( \begin{array}{c}
-~\\   \vec{g_1} -  \vec{C}_{21}\trans \vec{C}_{22}^{-1} \vec{g}_2   \\  ~\\
+~\\   \vec{g_1} -  \vec{C}_{21}^{\top} \vec{C}_{22}^{-1} \vec{g}_2   \\  ~\\
         \end{array} \right)
 =-
 \left( \begin{array}{c}
-~\\   \vec{g_1} -  \vec{C}_{21}\trans  \vec{d_2}^*   \\
+~\\   \vec{g_1} -  \vec{C}_{21}^{\top}  \vec{d_2}^*   \\
 ~\\
         \end{array} \right)
 \f}
@@ -392,14 +392,14 @@ If the function
 is linearized, i.e. the *first* derivatives of the function
 \f$f(x_i,\vec{q})\f$ with respect to the local parameters \f$\vec{q}\f$
 are calculated. The function is thus expressed as a linear function of local
-parameter corrections \f$\vec{\D q}\f$ at some reference value \f$\vec{q}_k\f$:
+parameter corrections \f$\vec{\Delta q}\f$ at some reference value \f$\vec{q}_k\f$:
 
 \anchor eq-ydeff (5)
 \f{equation*}{ \label{eq:ydeff}
-        f(x_i,\vec{q}_k +\vec{\D q})  =
+        f(x_i,\vec{q}_k +\vec{\Delta q})  =
         f(x_i,\vec{q}_k) +
-        \frac{\partial f}{\partial q_1} \D q_1
-    + \frac{\partial f}{\partial q_2} \D q_2 + \ldots  \; ,
+        \frac{\partial f}{\partial q_1} \Delta q_1
+    + \frac{\partial f}{\partial q_2} \Delta q_2 + \ldots  \; ,
 \f}
 where the derivatives are calculated for \f$ \vec{q} \equiv \vec{q}_k\f$.
 For each single measured value,
@@ -409,7 +409,7 @@ z_i \equiv  y_i - f(x_i,\vec{q}_k)
 \f}
 is calculated.
 For each iteration a linear system of equations (normal equations of least
-squares) has to be solved for the parameter corrections \f$\vec{\D q}\f$
+squares) has to be solved for the parameter corrections \f$\vec{\Delta q}\f$
 with a matrix \f$\vec{\Gamma}\f$ and a gradient
 vector \f$\vec{g}\f$ with elements
 
@@ -424,14 +424,14 @@ vector \f$\vec{g}\f$ with elements
 \; ,
 \f}
 where the sum is over all measurements \f$y_i\f$ of the local-fit object.
-Corrections \f$\vec{\D q}\f$ are determined by the solution of the
+Corrections \f$\vec{\Delta q}\f$ are determined by the solution of the
 matrix equation
 \f{equation*}{
-            \vec{\Gamma} \vec{\D q} = - \vec{\beta} \; ,
+            \vec{\Gamma} \vec{\Delta q} = - \vec{\beta} \; ,
 \f}
 and a new reference value is obtained by
 \f{equation*}{
-        \vec{q}_{k+1} = \vec{q}_k + \vec{\D q}
+        \vec{q}_{k+1} = \vec{q}_k + \vec{\Delta q}
 \f}
 and then, with \f$k\f$ increased by 1, this is repeated until convergence
 is reached.
@@ -450,9 +450,9 @@ becomes
 
 \f{equation*}{ \label{eq:zdefey}
         z_i = y_i - f(x_i,\vec{q},\vec{p}) =
-\sum_{j=1}^{\nu} \left( \frac{\partial f}{\partial q_j} \right)  \D q_j
+\sum_{j=1}^{\nu} \left( \frac{\partial f}{\partial q_j} \right)  \Delta q_j
 + \sum_{\ell \in \Omega}
-\left( \frac{\partial f}{\partial p_{\ell}} \right) \D p_{\ell}  \; .
+\left( \frac{\partial f}{\partial p_{\ell}} \right) \Delta p_{\ell}  \; .
 \f}
 
 
@@ -500,7 +500,7 @@ The complete matrix equation is given by
 &   & &  &  & & & & & \\
 &  \vdots & & & \ddots & & 0 & & 0 & \\
 &   & & & &  & & & & \\  \hline
-&    \vec{G}\trans_j &  &  & 0 & & \vec{\Gamma}_j & &0 &  \\ \hline
+&    \vec{G}^{\top}_j &  &  & 0 & & \vec{\Gamma}_j & &0 &  \\ \hline
 &   & & & & & &  & & \\
 &  \vdots & & & 0 & & 0 & & \ddots & \\
 &   & & & & & & & &  \\
@@ -509,7 +509,7 @@ The complete matrix equation is given by
 . \left( \begin{array}{c}
 \\  \vec{d} \\  \\  \hline  \hline
 \\ \vdots \\  \\  \hline
-\vec{\D q}_j \\ \hline
+\vec{\Delta q}_j \\ \hline
 \\ \vdots \\  \\
         \end{array} \right)
 =
@@ -526,10 +526,10 @@ and the vectors  \f$\vec{g_1}_j\f$ and \f$\vec{\beta}_j\f$
 contain contributions from the \f$j\f$-th local measurement.
 Ignoring the global parameters (i.e. keeping them constant)
 one could solve the normal equations
-\f$ \vec{\Gamma}_j \vec{\D q}_j^* = - \vec{\beta}_j\f$
+\f$ \vec{\Gamma}_j \vec{\Delta q}_j^* = - \vec{\beta}_j\f$
 for each local measurement separately by
 \f{equation*}{  \label{eq:ignore}
-\vec{\D q}_j^* = - \vec{\Gamma}_j^{-1} \vec{\beta}_j \, .
+\vec{\Delta q}_j^* = - \vec{\Gamma}_j^{-1} \vec{\beta}_j \, .
 \f}
 The complete system of normal equations has a special structure, with many
 vanishing sub-matrices. The only connection between the local parameters of
@@ -577,11 +577,11 @@ from the \f$j\f$-th local fit:
 
 \anchor eq-nsc2 (9)
 \f{equation*}{  \label{eq:nsc2}
-\vec{C_2}_j =  - \vec{G}_j \vec{\Gamma}_j^{-1} \vec{G}_j\trans
+\vec{C_2}_j =  - \vec{G}_j \vec{\Gamma}_j^{-1} \vec{G}_j^{\top}
 \quad \quad \quad \quad
 \vec{g_2}_j =
 - \vec{G}_j \left( \vec{\Gamma}_j^{-1} \vec{\beta}_j\right)
-= - \vec{G}_j \vec{\D q}_j^*   \; .
+= - \vec{G}_j \vec{\Delta q}_j^*   \; .
 \f}
 The set of normal equations \ref eq-nsb "(8)" contains explicitly only the global
 parameters; implicitly it contains, through the correction matrices,
@@ -652,7 +652,7 @@ From the probability density function \f$\textrm{pdf}(\zeta)\f$
 a *influence function* \f$\psi(\zeta)\f$
 is defined
 \f{equation*}{
-\textrm{influence function} \; \psi(\zeta) = \dd  \rho(\zeta)/\dd \zeta
+\textrm{influence function} \; \psi(\zeta) = \text{d} \rho(\zeta)/\text{d}\zeta
         \quad \quad \quad \quad
 \textrm{additional weight factor} \; \omega(\zeta) =  \psi(\zeta)/\zeta
 \f}
@@ -767,7 +767,7 @@ Using as before a quadratic model for the function \f$F(\vec{p})\f$ and taking
 derivatives w.r.t. the parameters \f$\vec{p}\f$ and the Lagrange multipliers
 \f$\vec{\lambda}\f$, the two equations
 \f{alignat*}{{2}
-\vec{C} & \vec{d} +  \vec{A}\trans & \vec{\lambda} & = - \vec{g} \\
+\vec{C} & \vec{d} +  \vec{A}^{\top} & \vec{\lambda} & = - \vec{g} \\
 \vec{A} &  \vec{d}  &                                 & =
 \vec{c} - \vec{A} \vec{p}_k
 \f}
@@ -779,7 +779,7 @@ This system of two equations can be combined into one matrix equation
 \left(
     \begin{array}{ccc|c}
 &           & &         \\
-&    \vec{C} & & \vec{A}\trans  \\
+&    \vec{C} & & \vec{A}^{\top}  \\
 &           & &         \\   \hline
 &     \vec{A} & & \vec{0}
     \end{array}
@@ -811,18 +811,18 @@ A particular value for the correction \f$\vec{d}\f$ can be  calculated by
 
 \anchor eq-parsol (11)
 \f{equation*}{ \label{eq:parsol}
-\vec{d} =  \vec{A}\trans \left( \vec{A} \vec{A}\trans \right)^{-1}
+\vec{d} =  \vec{A}^{\top} \left( \vec{A} \vec{A}^{\top} \right)^{-1}
 \left(  \vec{c} - \vec{A} \vec{p}_k \right) \; ,
 \f}
 which is the *minimum-norm solution* of the constraint equation,
 that is, the  solution of
 \f{equation*}{
-\min \; \left\| \vec{A} \left( \vec{p}_k + \D \vec{p} \right)
+\min \; \left\| \vec{A} \left( \vec{p}_k + \Delta \vec{p} \right)
 - \vec{c}  \right\|_2   \; ,
 \f}
 which is zero here.
 The matrix \f$\vec{A}\f$ is a \f$m\f$-by-\f$n\f$ matrix for \f$m\f$ constraints and
-the product \f$\vec{A} \vec{A}\trans\f$ is a square \f$m\f$-by-\f$m\f$ matrix,
+the product \f$\vec{A} \vec{A}^{\top}\f$ is a square \f$m\f$-by-\f$m\f$ matrix,
 which has to be inverted in equation \ref eq-parsol "(11)", which
 allows to obtain a correction such that the linear constraints are satisfied.
 Parameter vectors \f$\vec{p}\f$, satisfying the linear constraint
@@ -856,51 +856,15 @@ The structure of the second version **Millepede II** can be visualized
 as the *decay* of the single program **Millepede** into two
 parts, a part <b>%Mille</b> and a part **Pede** (Figure \ref fig-milped "1"):
 \f{equation*}{
-\textsc{Millepede} \; \Rightarrow \; \textsc{Mille} \; + \; \textsc{Pede} \; .
+\rm{M}\small{ILLEPEDE} \; \Rightarrow \; \rm{M}\small{ILLE} \; + \; \rm{P}\small{EDE} \; .
 \f}
 The first part, <b>%Mille</b>, is a short subroutine, which is called in user
 programs to write data files for **Millepede II**. The second part,
 **Pede**, is a stand-alone program, which requires data files
 and text files for the steering of the solution. The result is written
 to text files.
+![MP2 logic flow](doc/fig_1.jpg)
 
-\anchor fig-milped Figure 1
-\f{figure}{[h]
-\begin{center}
-\unitlength1.0cm
-\begin{picture}(13.0,5.5)
-\linethickness{0.4mm}
-\put(0.0,2.0){\framebox(4.0,1.5){User program}}
-\put(4.5,2.25){\framebox(2.5,1.0){\sc Mille}}
-\thicklines
-\put(4.0,2.75){\line(1,0){0.5}}
-\put(4.0,2.75){\vector(1,0){0.35}}
-\put(5.5,2.25){\line(0,-1){1.15}}
-\put(5.5,2.25){\vector(0,-1){0.6}}
-\put(5.5,0.75){\oval(1.7,0.7)}
-\put(5.0,0.25){\makebox(1.0,1.0){data files}}
-\linethickness{0.4mm}
-\put(9.0,2.0){\framebox(4.0,1.5){{\sc Pede} program}}
-\thicklines
-\put(10.0,4.65){\line(0,-1){1.15}}
-\put(12.0,4.65){\line(0,-1){1.15}}
-\put(11.0,2.0){\line(0,-1){1.15}}
-\put(10.0,4.5){\vector(0,-1){0.6}}
-\put(12.0,4.5){\vector(0,-1){0.6}}
-\put(11.0,2.0){\vector(0,-1){0.6}}
-\put(10.0,5.0){\oval(1.7,0.7)}
-\put(12.0,5.0){\oval(1.7,0.7)}
-\put(11.0,0.5){\oval(1.7,0.7)}
-\put(9.5,4.5){\makebox(1.0,1.0){text files}}
-\put(11.5,4.5){\makebox(1.0,1.0){data files}}
-\put(10.5,0.0){\makebox(1.0,1.0){text files}}
-\end{picture}
-\caption*{Figure 1: The subprogram {\sc Mille} (left), called inside the
-\label{fig:milped}
-user program,  and the stand-alone
-program {\sc Pede} (right), with the data flow from  text and
-data files to text files.}
-\end{center}\f}
 
 \subsubsection ssec_code Program code and makefile
 
@@ -1050,23 +1014,23 @@ If the function
 is linearized, i.e. the *first* derivatives of the function
 \f$f(x_i,\vec{q},\vec{p})\f$ with respect to the local parameters \f$\vec{q}\f$
 are calculated. Then the function is expressed as a linear function of local
-parameter corrections \f$\vec{\D q}\f$ at some reference value \f$\vec{q}_k\f$:
+parameter corrections \f$\vec{\Delta q}\f$ at some reference value \f$\vec{q}_k\f$:
 \f{equation*}{
-        f(x_i,\vec{q}_k +\vec{\D q},\vec{p})  =
+        f(x_i,\vec{q}_k +\vec{\Delta q},\vec{p})  =
         f(x_i,\vec{q}_k,\vec{p}) +
-        \frac{\partial f}{\partial q_1} \D q_1
-    + \frac{\partial f}{\partial q_2} \D q_2 + \ldots  \; ,
+        \frac{\partial f}{\partial q_1} \Delta q_1
+    + \frac{\partial f}{\partial q_2} \Delta q_2 + \ldots  \; ,
 \f}
 where the derivatives are calculated for \f$ \vec{q} \equiv \vec{q}_k\f$.
 The corrections are determined by the linear least squares method,
 a new reference value is obtained by
 \f{equation*}{
-        \vec{q}_{k+1} = \vec{q}_k + \vec{\D q}
+        \vec{q}_{k+1} = \vec{q}_k + \vec{\Delta q}
 \f}
 and then, with \f$k\f$ increased by 1, this is repeated until convergence
 is reached, i.e. until the corrections become essentially zero.
 For each iteration a linear system of equations (normal equations of least
-squares) has to be solved for the parameter corrections \f$\vec{\D q}\f$
+squares) has to be solved for the parameter corrections \f$\vec{\Delta q}\f$
 with a right-hand side vector \f$\vec{b}\f$ with components
 \f{equation*}{
         b_j= \sum_i \left( \frac{\partial f_i}{\partial q_j} \right)
@@ -1080,8 +1044,8 @@ After convergence the equation \ref eq-measy "(12)" can be expressed with
 the fitted parameters \f$\vec{q}\f$ in the form
 \f{equation*}{
 y_i = f(x_i,\vec{q},\vec{p}) +
-        \frac{\partial f}{\partial q_1} \D q_1
-    + \frac{\partial f}{\partial q_2} \D q_2 + \ldots
+        \frac{\partial f}{\partial q_1} \Delta q_1
+    + \frac{\partial f}{\partial q_2} \Delta q_2 + \ldots
 + \varepsilon_i  \; .
 \f}
 The difference \f$z_i = y_i - f(x_i,\vec{q},\vec{p})\f$ is called the residual
@@ -1091,12 +1055,12 @@ residual measurement \f$z_i\f$ as
 \anchor eq-zdef (13)
 \f{equation*}{ \label{eq:zdef}
 z_i \equiv  y_i - f(x_i,\vec{q},\vec{p}) =
-\left(  \frac{\partial f}{\partial q_1} \right) \D q_1
-+  \left(  \frac{\partial f}{\partial q_2} \right)  \D q_2 + \ldots
+\left(  \frac{\partial f}{\partial q_1} \right) \Delta q_1
++  \left(  \frac{\partial f}{\partial q_2} \right)  \Delta q_2 + \ldots
 + \varepsilon_i  \; .
 \f}
 After convergence of the local fit all corrections
-\f$\D q_1, \, \D q_2, \ldots\f$ are zero, and the residuals \f$z_i\f$ are small
+\f$\Delta q_1, \, \Delta q_2, \ldots\f$ are zero, and the residuals \f$z_i\f$ are small
 and can be called the *measurement error*. As mentioned above the
 model function \f$f(x_i,\vec{q},\vec{p})\f$ may be a linear or a non-linear
 function of the local parameters. The fit procedure in the users code
@@ -1107,7 +1071,7 @@ be *small* residuals \f$z_i\f$, and it should also be possible to
 define the derivatives  \f${\partial f}/{\partial q_j}\f$ and
 \f${\partial f}/{\partial p_{\ell}}\f$; these derivatives should express the
 *change* of the residual \f$z_i\f$, if the local parameter \f$q_j\f$ or
-the global parameter \f$p_{\ell}\f$ is changed by  \f$\D q_j\f$ or \f$\D p_{\ell}\f$.
+the global parameter \f$p_{\ell}\f$ is changed by  \f$\Delta q_j\f$ or \f$\Delta p_{\ell}\f$.
 In a track fit with strong multiple scattering the derivatives will become
 rather small with increasing track length, because the information
 content is reduced due to the multiple scattering.
@@ -1130,7 +1094,7 @@ of the residuals \f$z_i = y_i - f(x_i,\vec{q},\vec{p})\f$ depends on the global
 parameters \f$\vec{p}\f$ (valid for *all* local-fit objects).
 This dependence can be considered in two ways. As expressed above,
 the *parametrization* \f$f(x_i,\vec{q},\vec{p})\f$ depends on the global
-parameters \f$\vec{p}\f$ and on corrections  \f$\vec{\D p}\f$ of the global
+parameters \f$\vec{p}\f$ and on corrections  \f$\vec{\Delta p}\f$ of the global
 parameters (this case is assumed below in the sign of the derivatives with
 respect to the global parameters). Technically equivalent is the case, where
 the *measured* value \f$y_i\f$ is calculated from a raw measured value,
@@ -1138,7 +1102,7 @@ using global parameter values; in this case the residual could be
 written in the form \f$z_i = y_i(\vec{p}) - f(x_i,\vec{q})\f$.
 It is assumed that reasonable values are already assigned to the
 global parameters \f$\vec{p}\f$ and the task is to find (small) corrections
-\f$\vec{\D p}\f$ to these initial values.
+\f$\vec{\Delta p}\f$ to these initial values.
 
 Equation \ref eq-zdef "(13)" is extended to include corrections for
 global parameters. Usually only few of the global parameters
@@ -1152,15 +1116,15 @@ becomes
 \anchor eq-zdefex (14)
 \f{equation*}{ \label{eq:zdefex}
         z_i = y_i - f(x_i,\vec{q},\vec{p}) =
-\sum_{j=1}^{\nu} \left( \frac{\partial f}{\partial q_j} \right)  \D q_j
+\sum_{j=1}^{\nu} \left( \frac{\partial f}{\partial q_j} \right)  \Delta q_j
 + \sum_{\ell \in \Omega}
-\left( \frac{\partial f}{\partial p_{\ell}} \right) \D p_{\ell}  \; .
+\left( \frac{\partial f}{\partial p_{\ell}} \right) \Delta p_{\ell}  \; .
 \f}
 **Millepede** essentially performs a fit to all single measurements
 for all groups of measurements simultaneously for all sets of local
 parameters and for all
 global parameters. The result of this simultaneous fit are optimal
-corrections \f$\vec{\D p}\f$ for all global parameters; there are no
+corrections \f$\vec{\Delta p}\f$ for all global parameters; there are no
 limitations in the number of local parameters sets. Within this global
 fit the local fits (or better: the last iteration of the local fit) has
 to be repeated for each local-fit object.
@@ -1307,10 +1271,10 @@ available. Nevertheless derivatives as required in equation
 \ref eq-zdefex "(14)" are still well-defined and can be calculated. Assuming
 that the (local) track parameters refer to the starting point of the track,
 for each point along the track the derivative
-\f$(\partial f/\partial q_j)\f$ has to be equal to \f$\D z_i/\D q_j\f$, if the
-local parameter \f$q_j\f$ if changed by \f$\D q_j\f$, and the
+\f$(\partial f/\partial q_j)\f$ has to be equal to \f$\Delta z_i/\Delta q_j\f$, if the
+local parameter \f$q_j\f$ if changed by \f$\Delta q_j\f$, and the
 corresponding change of the
-residual \f$z\f$ is \f$\D z_i\f$. This derivative could be calculated numerically.
+residual \f$z\f$ is \f$\Delta z_i\f$. This derivative could be calculated numerically.
 
 For low-momentum tracks the multiple-scattering effects are large.
 Thus the derivative above will tend to small values for measured points
@@ -1560,7 +1524,7 @@ a slighly different accuracy. The statement to select a method are:
 
 The two numbers are:
 * \a number1 = number of iterations
-* \a number2 = limit for \f$\D F\f$ (convergence recognition).
+* \a number2 = limit for \f$\Delta F\f$ (convergence recognition).
 
 For preconditioning in the GMRES methods a band matrix is used.
 The width of the variable-band matrix is defined by
@@ -1610,7 +1574,7 @@ loop may be necessary.
 At present the iterations end, when the number specified with the method
 is reached. For each loop, the expected objective-function decrease and the
 actual decrease are compared. If the two values are below the limit
-for \f$\D F\f$ specified with the method, the program will end earlier.
+for \f$\Delta F\f$ specified with the method, the program will end earlier.
 
 <b>Memory space requirements.</b>
 The most important consumer of space is the symmetric matrix of the
@@ -2097,7 +2061,7 @@ z_i \equiv  y_i - f(x_i,\vec{q},\vec{p})
 \f}
 (see equation \ref eq-zdef "(13)")
 has to be corrected for the actual global parameters corrections
-\f$\vec{\D p}\f$ using the first global parameter derivatives (see equation
+\f$\vec{\Delta p}\f$ using the first global parameter derivatives (see equation
 \ref eq-zdefex "(14)").
 The corrected residual \f$z_i'\f$ is then used in the accumulation of the
 matrix and vector:
@@ -2109,19 +2073,19 @@ matrix and vector:
         \beta_j=  \sum_i \left( \frac{\partial f_i}{\partial q_j} \right)
 \,  \frac{z_i'}{\sigma_i^2}  \; .
 \f}
-Corrections \f$\vec{\D q}\f$ are determined by the solution of the
+Corrections \f$\vec{\Delta q}\f$ are determined by the solution of the
 matrix equation
 \f{equation*}{
-            \vec{\Gamma} \vec{\D q} = - \vec{\beta} \; ,
+            \vec{\Gamma} \vec{\Delta q} = - \vec{\beta} \; ,
 \f}
 which is determined using matrix inversion
-\f$\vec{\D q} =  - \vec{\Gamma}^{-1} \vec{b}\f$, because the inverse matrix
+\f$\vec{\Delta q} =  - \vec{\Gamma}^{-1} \vec{b}\f$, because the inverse matrix
 \f$\vec{\Gamma}^{-1}\f$ (the covariance matrix)
 is necessary for the contribution to
 the matrix of the global normal equations. The residual \f$z_i'\f$ are then
 corrected for the local parameter corrections:
 \f{equation*}{
-z_i^{''} = z_i^{'} - \sum_j \frac{\partial f_i}{\partial q_j} \D q_j
+z_i^{''} = z_i^{'} - \sum_j \frac{\partial f_i}{\partial q_j} \Delta q_j
 \f}
 and the new residuals \f$z_i^{''}\f$ are used to calculate the
 \f$\chi^2\f$ value \f$S\f$ of the local fit
@@ -2195,12 +2159,12 @@ to the global parameters:
 
 \anchor eq-c1 (15)
 \f{equation*}{  \label{eq:c1}
-\left(\vec{\D C}_1\right)_{jk} =
+\left(\vec{\Delta C}_1\right)_{jk} =
 \sum_i \left( \frac{\partial f_i}{\partial p_j} \right)
         \left( \frac{\partial f_i}{\partial p_k} \right)
             \frac{1}{\sigma_i^2}
             \quad \quad \quad \quad
-    \D  g_j=  \sum_i \left( \frac{\partial f_i}{\partial p_j} \right)
+    \Delta  g_j=  \sum_i \left( \frac{\partial f_i}{\partial p_j} \right)
 \,  \frac{z_i^{''}}{\sigma_i^2}  \; .
 \f}
 Note that in the \f$g_j\f$-term the residual is already corrected for the
@@ -2223,10 +2187,10 @@ The second contribution to the global matrix \f$\vec{C}\f$ is then
 
 \anchor eq-c2 (16)
 \f{equation*}{ \label{eq:c2}
-\vec{\D C_2} = - \vec{G} \vec{\Gamma}^{-1} \vec{G}\trans
+\vec{\Delta C_2} = - \vec{G} \vec{\Gamma}^{-1} \vec{G}^{\top}
 \f}
 with the matrices \f$\vec{G}\f$ and \f$\vec{\Gamma}\f$ from a local fit.
-Because of the dimension of matrices \f$\vec{G}\f$ and  \f$\vec{\D C}\f$
+Because of the dimension of matrices \f$\vec{G}\f$ and  \f$\vec{\Delta C}\f$
 the calculation would require a large number of operations. However
 only a small number of rows of matrix \f$\vec{G}\f$ is not equal to zero
 and the calculation can be restricted, with the help of pointers,
@@ -2237,8 +2201,8 @@ the computation time is small. Note that no extra contribution to the
 gradient vector \f$\vec{g}\f$ is necessary because the residual \f$z_i^{''}\f$
 used above already includes the local fit result.
 The sum \f$\vec{C}\f$
-of the two contributions,  \f$\vec{\D C}_1\f$ from equation \ref eq-c1 "(15)", and
-\f$\vec{\D C}_2\f$ from equation \ref eq-c2 "(16)", summed over all
+of the two contributions,  \f$\vec{\Delta C}_1\f$ from equation \ref eq-c1 "(15)", and
+\f$\vec{\Delta C}_2\f$ from equation \ref eq-c2 "(16)", summed over all
 local fit-objects, is the final matrix of the least squares
 normal equations. Element \f$(\vec{C})_{jk}\f$ is related
 to the global parameters
@@ -2283,15 +2247,15 @@ two functions).
 
 \paragraph par-glonocon Global fit without constraints
 
-The aim is to find a step vector \f$\vec{\D p}\f$, which minimizes the
-objective function: \f$F(\vec{p} + \vec{\D p}) = \f$ minimum.
+The aim is to find a step vector \f$\vec{\Delta p}\f$, which minimizes the
+objective function: \f$F(\vec{p} + \vec{\Delta p}) = \f$ minimum.
 In the \f$k\f$-th iteration the approximate solution is \f$\vec{p}_k\f$.
 A quadrative model function \f$\widetilde{F}(\vec{p} + \vec{d})\f$
 
 \anchor eq-quadapp (17)
 \f{equation*}{ \label{eq:quadapp}
-\widetilde{F}(\vec{p}_k + \vec{d}  ) = F_k + \vec{g}\trans \vec{d} +
-        \tfrac{1}{2} \vec{d}\trans  \vec{C} \vec{d}
+\widetilde{F}(\vec{p}_k + \vec{d}  ) = F_k + \vec{g}^{\top} \vec{d} +
+        \tfrac{1}{2} \vec{d}^{\top}  \vec{C} \vec{d}
 \f}
 is defined with a vector \f$\vec{d}\f$.
 The step vector \f$\vec{d}\f$ is determined as solution of the linear system
@@ -2303,12 +2267,12 @@ The step \f$\vec{d}\f$ will  minimize the quadratic function
 unless there is some inaccuracy due to rounding errors and other
 approximations of the matrix or the solution method. In order
 to get a *sufficient* decrease of the objective function
-\f$F(\vec{p} + \vec{\D p})\f$ a line search algorithm is used.
+\f$F(\vec{p} + \vec{\Delta p})\f$ a line search algorithm is used.
 
 \paragraph par-linesearch Line search
 
 In the line search algorithm a search is made for the minimum of the
-function \f$F(\vec{p} + \vec{\D p})\f$ along a line
+function \f$F(\vec{p} + \vec{\Delta p})\f$ along a line
 \f$\vec{p} + \alpha \cdot \vec{d}\f$ in the parameter space, where \f$\alpha\f$
 is a factor to be determined. A function \f$\Phi(\alpha)\f$ of this factor,
 \f{equation*}{
@@ -2323,9 +2287,9 @@ already a sufficiently accurate minimum. In the line search algorithm
 the so-called strong Wolfe conditions are used; these are
 \f{align*}{
         F( \vec{p} + \alpha \cdot \vec{d}) & \le F( \vec{p})
-                + C_1 \alpha \nabla F\trans \vec{d} \\
-    \left| \nabla F(\vec{p} + \alpha \cdot \vec{d})\trans \vec{d}   \right|
-        & \le C_2 \left| \nabla F\trans \vec{d} \right|
+                + C_1 \alpha \nabla F^{\top} \vec{d} \\
+    \left| \nabla F(\vec{p} + \alpha \cdot \vec{d})^{\top} \vec{d}   \right|
+        & \le C_2 \left| \nabla F^{\top} \vec{d} \right|
 \f}
 with \f$0 < C_1 < C_2 < 1\f$. The first condition requires a sufficient decrease
 of the function. The second condition, called curvature condition, ensures
@@ -2340,9 +2304,9 @@ should never be higher than the start value.
 
 \paragraph par-iter Iterations
 
-The global fit can be performed with a result \f$\vec{\D p}\f$ in one step,
+The global fit can be performed with a result \f$\vec{\Delta p}\f$ in one step,
 if the matrix equation is accurately solved and if there are no outliers.
-The result \f$\vec{\D p}\f$ calculated in the first data loop is usually
+The result \f$\vec{\Delta p}\f$ calculated in the first data loop is usually
 already close to the final solution; it gives the largest reduction
 of the objective function. Outliers introduce some non-linearity into
 the problem and require iterations with repeated data loops.
@@ -2353,19 +2317,19 @@ rounding errors for the large number of parameters.
 <b>Iteration 0.</b> The first data loop is called iteration 0. The
 function value, the first derivative vector \f$\vec{g}\f$ and the second
 derivative matrix \f$\vec{C}\f$ or an approximation to it are calculated.
-They allow to calculate the first step \f$\vec{\D p}= \vec{d}\f$.
+They allow to calculate the first step \f$\vec{\Delta p}= \vec{d}\f$.
 
 <b>Iteration \f$\ge 1\f$.</b> In all further iterations a line search
 is performed. Starting value is the point in parameter space, obtained
 in the previous iteration. Each function evaluation requires a data loop
-with local fits. The expected decrease \f$\D F\f$ in an iteration can be
+with local fits. The expected decrease \f$\Delta F\f$ in an iteration can be
 estimated by
 \f{equation*}{
-            \D F_{\textrm{estimate}} = - \vec{g}\trans \vec{d} \; .
+            \Delta F_{\textrm{estimate}} = - \vec{g}^{\top} \vec{d} \; .
 \f}
 This can be compared with the actual decrease
 \f{equation*}{
-            \D F_{\textrm{actual}} = F(\vec{p}) - F(\vec{p}+ \alpha \vec{d})
+            \Delta F_{\textrm{actual}} = F(\vec{p}) - F(\vec{p}+ \alpha \vec{d})
 \f}
 at the end of the iteration. Both  values should become smaller during
 the iterations; convergence can be assumed
@@ -2380,8 +2344,8 @@ and the constraints is added to the objective function, resulting
 in the Lagrange function
 \f{equation*}{
 \mathcal{L}(\vec{p},\vec{\lambda}) =
-F_k + \vec{g}\trans \vec{d} +
-        \tfrac{1}{2} \vec{d}\trans  \vec{C} \vec{d}
+F_k + \vec{g}^{\top} \vec{d} +
+        \tfrac{1}{2} \vec{d}^{\top}  \vec{C} \vec{d}
 + \vec{\lambda}
 \left(  \vec{A} \left( \vec{p}_k + \vec{d}\right) - \vec{c} \right)
 \f}
@@ -2389,7 +2353,7 @@ Using as before a quadratic model for the function \f$F(\vec{p})\f$ and taking
 derivatives w.r.t. the parameters \f$\vec{p}\f$ and the Lagrange multipliers
 \f$\vec{\lambda}\f$, the two equations
 \f{alignat*}{{2}
-\vec{C} \; & \vec{d} +  \vec{A}\trans & \vec{\lambda} & = - \vec{g} \\
+\vec{C} \; & \vec{d} +  \vec{A}^{\top} & \vec{\lambda} & = - \vec{g} \\
 \vec{A} \; &  \vec{d}  &                                 & =
 \vec{c} - \vec{A} \vec{p}_k
 \f}
@@ -2399,7 +2363,7 @@ This system of two equations can be combined into one matrix equation
 \left(
     \begin{array}{ccc|c}
 &           & &         \\
-&    \vec{C} & & \vec{A}\trans  \\
+&    \vec{C} & & \vec{A}^{\top}  \\
 &           & &         \\   \hline
 &     \vec{A} & & \vec{0}
     \end{array}
@@ -2610,49 +2574,49 @@ The ranges of the angles are: \f$0 \le \phi < 2 \pi\f$,
 
 <b>Alignment correction to the transformation.</b>
 The alignment procedure determines a correction to the nominal transformation
-by an incremental rotation \f$\D \vec{R}\f$ and a translation \f$\D \vec{r}_0\f$.
+by an incremental rotation \f$\Delta \vec{R}\f$ and a translation \f$\Delta \vec{r}_0\f$.
 The combined translation and rotation becomes
 \f{align*}{
-        \vec{r}_0 &\to \vec{r}_0 + \D \vec{r} \\
-        \vec{R}   &\to \D \vec{R} \vec{R}  \; .
+        \vec{r}_0 &\to \vec{r}_0 + \Delta \vec{r} \\
+        \vec{R}   &\to \Delta \vec{R} \vec{R}  \; .
 \f}
-The correction matrix \f$\D \vec{R}\f$ is given by small rotations by
-\f$\D \alpha\f$, \,\f$\D \beta\f$ and \f$\D \gamma\f$ around the \f$u\f$-axis, the
+The correction matrix \f$\Delta \vec{R}\f$ is given by small rotations by
+\f$\Delta \alpha\f$, \,\f$\Delta \beta\f$ and \f$\Delta \gamma\f$ around the \f$u\f$-axis, the
 (new)  \f$v\f$-axis and the (new)  \f$w\f$-axis:
 \f{equation*}{
-\D  \vec{R} =  \vec{R}_{\alpha}  \vec{R}_{\beta}  \vec{R}_{\gamma}
+\Delta  \vec{R} =  \vec{R}_{\alpha}  \vec{R}_{\beta}  \vec{R}_{\gamma}
 \approx \left(
 \begin{array}{ccc}
-1 & \D \gamma &  - \D \beta \\
-- \D \gamma &       1    &  \D \alpha \\
-    \D \beta & - \D\alpha & 1
+1 & \Delta \gamma &  - \Delta \beta \\
+- \Delta \gamma &       1    &  \Delta \alpha \\
+    \Delta \beta & - \Delta\alpha & 1
 \end{array}  \right) \; ,
 \f}
 where the approximation has sufficient accuracy for small angles
-\f$\D \alpha\f$, \,\f$\D \beta\f$ and \f$\D \gamma\f$. The position correction
-\f$\D \vec{r}\f$ transforms to the local system as
+\f$\Delta \alpha\f$, \,\f$\Delta \beta\f$ and \f$\Delta \gamma\f$. The position correction
+\f$\Delta \vec{r}\f$ transforms to the local system as
 \f{equation*}{
-\D \vec{q} = \D \vec{R} \, \vec{R} \, \D \vec{r} \quad \quad \quad
+\Delta \vec{q} = \Delta \vec{R} \, \vec{R} \, \Delta \vec{r} \quad \quad \quad
 \textrm{with} \quad
-\D \vec{q} =
+\Delta \vec{q} =
 \left( \begin{array}{c}
-\D u \\ \D v \\ \D w \end{array} \right)
+\Delta u \\ \Delta v \\ \Delta w \end{array} \right)
 \quad \quad \quad
-\D \vec{r} =
+\Delta \vec{r} =
 \left( \begin{array}{c}
-\D x \\ \D y \\ \D z\end{array} \right)
+\Delta x \\ \Delta y \\ \Delta z\end{array} \right)
 \f}
 These corrections define the corrected (aligned) transformation
 from global to local coordinates:
 \f{equation*}{
-    \vec{q}^{\textrm{aligned}} = \D \vec{R} \, \vec{R}
+    \vec{q}^{\textrm{aligned}} = \Delta \vec{R} \, \vec{R}
             \left( \vec{r} - \vec{r}_0 \right)
-- \D \vec{q}  \; .
+- \Delta \vec{q}  \; .
 \f}
 The task of the alignment by tracks is to determine the correction
-angles \f$\D \alpha\f$, \f$\D \beta\f$ and \f$\D \gamma\f$ (and thus the
-rotation matrix \f$\D \vec{R}\f$) and the translation vector \f$\D \vec{r}\f$
-or vector \f$\D \vec{q}\f$ for each individual detector element.
+angles \f$\Delta \alpha\f$, \f$\Delta \beta\f$ and \f$\Delta \gamma\f$ (and thus the
+rotation matrix \f$\Delta \vec{R}\f$) and the translation vector \f$\Delta \vec{r}\f$
+or vector \f$\Delta \vec{q}\f$ for each individual detector element.
 
 \subsection ssec-ackn Acknowledgement
 
