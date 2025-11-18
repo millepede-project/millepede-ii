@@ -13,3 +13,6 @@ bin
 
 # ignore editor backups
 *.bck
+
+# ignore documentation build dir 
+buildDoc
