@@ -2366,11 +2366,11 @@ This system of two equations can be combined into one matrix equation
 &           & &         \\
 &    \mathbf{C} & & \mathbf{A}^{\top}  \\
 &           & &         \\   \hline
-&     \mathbf{A} & & \vec{0}
+&     \mathbf{A} & & \mathbf{0}
     \end{array}
     \right)
 \left( \begin{array}{c}
-~\\   \vec{d}  \\  ~\\  \hline \lambda
+~\\   \vec{d}  \\  ~\\  \hline \vec{\lambda}
         \end{array} \right)  =
 \left( \begin{array}{c}
 ~\\  -  \vec{g}  \\  ~\\  \hline   \vec{c} - \mathbf{A} \vec{p}_k
