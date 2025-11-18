@@ -5,7 +5,7 @@
  \author Volker Blobel, University Hamburg, 2005-2009 (initial Fortran77 version)
  \author Gero Flucke, University Hamburg (support of C-type binary files)
  \author Claus Kleinwort, DESY (maintenance and developement)
- \author Maximilian Golbirsch-Kolb, DESY (maintenance and developement)
+ \author Maximilian Goblirsch-Kolb, DESY (maintenance and developement)
 
  \copyright
  Copyright (c) 2009 - 2025 Deutsches Elektronen-Synchroton,
