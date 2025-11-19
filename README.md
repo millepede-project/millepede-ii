@@ -25,6 +25,7 @@ The software can be freely used for research and education. We expect that all p
 
 For information exchange the **Millepede** mailing list
 anacentre-millepede2 < at > desy.de should be used.
+You can subscribe under this [link](https://lists.desy.de/sympa/info/anacentre-millepede2)
 
 ## References
 - A New Method for the High-Precision Alignment of Track Detectors, Volker Blobel and 
