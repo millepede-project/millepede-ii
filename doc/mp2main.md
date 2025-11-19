@@ -32,11 +32,13 @@
  Local parameters are those parameters which are present only in subsets of the
  data. Detector alignment and calibration based on track fits is one of the problems,
  where the interest is only in optimal values of the global parameters, the
- alignment parameters. The method, called Millepede, to solve the linear least
+ alignment parameters. 
+ 
+ The method, called Millepede, to solve the linear least
  squares problem with a simultaneous fit of all global and local parameters,
- irrespectively of the number of local parameters, is described in the draft manual.
- (Correlated measurements need to be transformed into independent measurements
- by diagonalization of their covariance matrix.)
+ irrespectively of the number of local parameters, is described in the [draft manual](draftman_page).
+ Correlated measurements need to be transformed into independent measurements
+ by diagonalization of their covariance matrix.
 
  The Millepede method and the initial implementation has been
  developed by [V. Blobel](http://www.desy.de/~blobel) from he University of Hamburg.
@@ -144,6 +146,10 @@ This allows to run the program in a containerised environment if desired.
  \subpage troubleshooting_page
 
  \subpage test_brlf_page "Example"
+
+ \subpage users_page 
+
+ \subpage limits_page
 
  # Contact
 
