@@ -30,18 +30,21 @@
  In certain least squares fit problems with a very large number of parameters
  the set of parameters can be divided into two classes, global and local parameters.
  Local parameters are those parameters which are present only in subsets of the
- data. Detector alignment and calibration based on track fits is one of the problems,
- where the interest is only in optimal values of the global parameters, the
- alignment parameters. 
+ data, and not directly of interest the user. 
  
- The method, called Millepede, to solve the linear least
- squares problem with a simultaneous fit of all global and local parameters,
- irrespectively of the number of local parameters, is described in the [draft manual](draftman_page).
+ Detector alignment and calibration based on track fits is one of the problems,
+ where the interest is only in optimal values of the alignment parameters, which are 
+ global parameters, but not in the track parameters of the individual tracks, 
+ which represent local parameters. 
+ 
+ The method implemented in this package, called Millepede, is described in the [draft manual](draftman_page).
+ It solves the linear least squares problem with a simultaneous fit of all global and local parameters,
+ irrespectively of the number of local parameters.
  Correlated measurements need to be transformed into independent measurements
  by diagonalization of their covariance matrix.
 
  The Millepede method and the initial implementation has been
- developed by [V. Blobel](http://www.desy.de/~blobel) from he University of Hamburg.
+ developed by [V. Blobel](http://www.desy.de/~blobel) from the University of Hamburg.
  Meanwhile the code is maintained at DESY by the statistics tools group of the
  analysis center of the Helmholtz [Terascale](https://terascale.de) alliance
  using [GitLab](https://about.gitlab.com) ([code and wiki](https://gitlab.desy.de)).
@@ -49,71 +52,38 @@
  The Millepede II software is provided by DESY under the terms of the
  [LGPLv2 license](http://www.gnu.org/licenses/old-licenses/lgpl-2.0-standalone.html).
 
-# Installation
- To install **Millepede** (on a linux system):
-1. Download the software package from the DESY \c gitlab server to
-    \a target directory, e.g. (shallow clone):
+ # Contact
 
-         git clone --depth 1 --branch V04-17-07 \
-             https://gitlab.desy.de/millepede/millepede-ii.git target
+ For information exchange the **Millepede** mailing list
+ anacentre-millepede2@desy.de should be used.
 
-2. Then either: 
- ## Classical Makefile
-Directly invoke `make` to create the **Pede** executable (in \a target directory):
-```
-            make pede
-```
-   In this workflow, you can configure the build by directly editing the `Makefile` 
+ # Getting started 
 
-## CMake-based build
-Alternatively, you can build the package using `CMake`.
-In this setup, automatic dependency detection will be attempted. 
-- Create a `build` folder, outside the source folder
-- navigate into `build` and invoke `cmake <path_to_source>`   
-- then compile the sources by calling `make` followed by `make install`. 
+ \subpage installation_page
 
-### Configuring the CMake build
-You can pass additional options / flags to CMake: 
-- `-DCMAKE_INSTALL_PREFIX=<...>`: Set the install location for the binaries. This is needed if you have no root permissions, as the default is a system-wide installation. 
-- `-DDEBUG=on`: Enable debug build 
-- `-DLAPACK_OPENBLAS=off`: Disable (default: on) LAPACK support using OpenBLAS 
-- `-DLAPACK_MKL=on`: Enable (default: off) LAPACK support using Intel MKL. Disables OpenBLAS if set. If you have a nonstandard installation, set `MKL_DIR` to point to your MKL installation (the standard intel oneAPI setup scripts will do this for you). 
-- `-DPARDISO=on`: Enable (default: off) support for Intel PARDISO. 
-- `-DSCOREP=on`: Enable (default: off) instrumentation for profiling with SCORE_P. If you have a nonstandard installation, set `SCOREP_DIR` to point to your Score-P installation. 
-- `-DSUPPORT_OPENMP=off`: Disable (default: on) support for parallelisation with OpenMP.
-- `-DSUPPORT_ZLIB=off`: Disable (default: on) support for lib-z compression for C-binaries. 
-- `-DSUPPORT_READ_C=off`: Disable (default: on) support for reading C-files. 
-- `-DSUPPORT_C_RFIO=on`: Enable (default: off) use of C RFIO for binary reading. 
+ \subpage option_page 
 
-### Bonus: Setup script
-The build will place a `mp2setup.sh` script in your chosen installation folder.
-If this is not a folder on the default path, you can call this script to place `pede` and the standalone programs on your `PATH`, and to make the libraries visible. 
-This removes the need to point by hand to the `pede` location. 
+ \subpage test_brlf_page "Hands-on Example"
 
+ # News 
 
+ \subpage changelog_page 
 
-## Testing your build
+ \subpage release_page
 
- Optionally check the installation by running the simple test case:
+ \subpage users_page 
 
-         ./pede -t
+ # Detailed instructions
 
-    This will create (and use) the necessary text and binary files.
+ \subpage draftman_page - extensive draft manual and method documentation by V.Blobel
 
- Alternatively tarballs can be found [here](http://www.desy.de/~kleinwrt/MP2/tar). 
+ \subpage changes_page - documentation of new features added after the draft manual.
 
-# Docker images 
+ \subpage exit_code_page
 
-- A pre-made docker image containing the standard (LAPACK-OpenBLAS, OpenMP) version of `pede` built on a minimal `EL9` stack is available under the DESY docker image registry: ```
-docker pull gitlab.desy.de:5555/millepede/millepede-ii/mp2runtime:latest
-```  
-This allows to run the program in a containerised environment if desired. 
+ \subpage troubleshooting_page
 
-- A second image, `gitlab.desy.de:5555/millepede/millepede-ii/mp2dev_base:latest` provides a development environment for building and testing millepede-II in its default configuration. 
-
-# News
-
-\subpage changelog_page
+ \subpage limits_page
 
 # Tools
  The subdirectory \c tools contains some useful scripts:
@@ -130,31 +100,6 @@ This allows to run the program in a containerised environment if desired.
  The subdirectory \c julia contains some of the above tools reimplemented in [Julia](https://julialang.org):
  * \c readMilleBinary.jl
  * \c tinypede.jl
-
- # Details
-
- Detailed information is available at:
-
- \subpage draftman_page
-
- \subpage changes_page - documentation of new features added after the draft manual.
-
- \subpage option_page 
-
- \subpage exit_code_page
-
- \subpage troubleshooting_page
-
- \subpage test_brlf_page "Example"
-
- \subpage users_page 
-
- \subpage limits_page
-
- # Contact
-
- For information exchange the **Millepede** mailing list
- anacentre-millepede2@desy.de should be used.
 
 # Legacy
  The subdirectory \c legacy contains the original \ref millepede1.f90
@@ -199,7 +144,3 @@ This allows to run the program in a containerised environment if desired.
     symmetric systems, SIAM Journal of Scientific Computing 33:4, 1810-1836, 2011,
     [doi:10.1137/100787921](http://dx.doi.org/10.1137/100787921)
 
-
- \subpage exit_code_page
- 
- \subpage troubleshooting_page

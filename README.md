@@ -20,7 +20,7 @@ For development, please clone the repository:
 
 `git clone https://gitlab.desy.de/millepede/millepede-ii.git MillepedeII`
 
-Please see the [documentation](https://millepede.pages.desy.de/millepede-ii/index.html#Installation) for compilation instructions.  
+Please see the [documentation](https://millepede.pages.desy.de/millepede-ii/installation_page.html) for compilation instructions.  
 
 In addition, docker images are available under `gitlab.desy.de:5555/millepede/millepede-ii/mp2runtime` 
 
