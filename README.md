@@ -45,6 +45,8 @@ The following links point to the documentation pages:
 
 [General information](http://millepede.pages.desy.de/millepede-ii/index.html)
 
+[Workflow summary](https://millepede.pages.desy.de/millepede-ii/summary_page.html)
+
 [Installation and compilation](https://millepede.pages.desy.de/millepede-ii/installation_page.html)
 
 [List of options and commands](https://millepede.pages.desy.de/millepede-ii/option_page.html) 
