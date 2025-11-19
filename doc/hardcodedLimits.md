@@ -10,7 +10,7 @@ global parameters or number of (C) binary files.
 For the internal monitoring some arrays still have fixed size:
 - Maximum number of points for xy-scatter data (e.g. used for chi^2/ndf per file plots): 
   200 (500 since rev92) (`JFLC(5,IG) = 200` in 'mphistab.F', take care that 
-  `NARR = NUMGXY * "desiredValue""` - if more points requested, points are averaged).
+  `NARR = NUMGXY * "desiredValue"` - if more points requested, points are averaged).
   
 Since version V04-09-03 the memory allocation for internal histograms is now dynamic 
 in terms of number of binary files.
