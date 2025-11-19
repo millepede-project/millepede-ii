@@ -58,7 +58,7 @@
 
  For information exchange the **Millepede** mailing list
  anacentre-millepede2@desy.de should be used.
- 
+ You can subscribe under this [link](https://lists.desy.de/sympa/info/anacentre-millepede2)
 
  # Getting started 
 
