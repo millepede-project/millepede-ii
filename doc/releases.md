@@ -4,9 +4,9 @@
 
 ### Version V04-18-00 (new)
 
-CMake-based build option, revised documentation. 
+New CMake-based build, revised documentation, option to set number of records in internal test. 
 
-(Clone Id: XXX)
+(Clone Id: 685557b74073e7efc2b280d883640d7f58fc4ebe)
 
 ### Version V04-17-07
 
