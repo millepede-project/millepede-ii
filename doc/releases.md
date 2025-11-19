@@ -2,7 +2,13 @@
  
 ## Version history
 
-### Version V04-17-07 (new)
+### Version V04-18-00 (new)
+
+CMake-based build option, revised documentation. 
+
+(Clone Id: XXX)
+
+### Version V04-17-07
 
 Configurable warning threshold for outlier fraction (`outlierfracwarnthreshold`)
 
