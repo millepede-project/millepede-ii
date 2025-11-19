@@ -62,6 +62,8 @@
 
  # Getting started 
 
+ \subpage summary_page
+
  \subpage installation_page
 
  \subpage option_page 
