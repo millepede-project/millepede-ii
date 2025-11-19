@@ -15,7 +15,7 @@ The latest release recommended for use is `V04-18-00`.
 Please see the [documentation](https://millepede.pages.desy.de/millepede-ii/installation_page.html) for compilation / installation instructions.  
 
 In addition, docker images are available under `gitlab.desy.de:5555/millepede/millepede-ii/mp2runtime` 
-
+The `latest` image represents the current `main` branch, and for tags starting with `V04-18-00`, images are also stored for each released stable version. 
 
 The software can be freely used for research and education. We expect that all publications describing work using this software quote at least one reference (see [here](http://www.desy.de/~blobel/mptalks.html) or [references](references)).
 
