@@ -27,17 +27,17 @@
  \mainpage Overview
 
 # Introduction
- In certain least squares fit problems with a very large number of parameters
- the set of parameters can be divided into two classes, global and local parameters.
- Local parameters are those parameters which are present only in subsets of the
- data, and not directly of interest the user. 
- 
- Detector alignment and calibration based on track fits is one of the problems,
- where the interest is only in optimal values of the alignment parameters, which are 
- global parameters, but not in the track parameters of the individual tracks, 
+ The **Millepede** method is able to solve least squares fit problems with a very large number of parameters.
+ It targets problems for which the set of parameters can be divided into two classes, *global* and *local* parameters.
+ - *Global* parameters affect the majority of the data, and are of direct interest to the user. 
+ - *Local* parameters are present only in subsets of the data, and possibly not directly of interest to the user. 
+
+ Detector alignment and calibration based on track fits is one main application of the method. 
+ Here, the interest is only in optimal values of the alignment parameters, which are 
+ global parameters, but not in the track parameters of the (possibly billions of) individual tracks, 
  which represent local parameters. 
  
- The method implemented in this package, called Millepede, is described in the [draft manual](draftman_page).
+ The method is described in the [draft manual](draftman_page).
  It solves the linear least squares problem with a simultaneous fit of all global and local parameters,
  irrespectively of the number of local parameters.
  Correlated measurements need to be transformed into independent measurements
@@ -52,10 +52,13 @@
  The Millepede II software is provided by DESY under the terms of the
  [LGPLv2 license](http://www.gnu.org/licenses/old-licenses/lgpl-2.0-standalone.html).
 
+ \subpage history_page
+
  # Contact
 
  For information exchange the **Millepede** mailing list
  anacentre-millepede2@desy.de should be used.
+ 
 
  # Getting started 
 
