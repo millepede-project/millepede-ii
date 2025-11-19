@@ -37,7 +37,7 @@
  global parameters, but not in the track parameters of the (possibly billions of) individual tracks, 
  which represent local parameters. 
  
- The method is described in the [draft manual](draftman_page).
+ The method is described in the \subpage draftman_page.
  It solves the linear least squares problem with a simultaneous fit of all global and local parameters,
  irrespectively of the number of local parameters.
  Correlated measurements need to be transformed into independent measurements
