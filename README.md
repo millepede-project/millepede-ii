@@ -45,6 +45,10 @@ Optionally, the package can be compiled to use
 
 Instrumentation for profiling using [SCORE-P](https://www.vi-hps.org/projects/score-p/overview/overview.html) is implemented and can also be enabled during the build if desired. 
 
+### Documentation
+
+The documentation needs `doxygen` version 1.9.8 or later to correctly generate internal links between the pages.  
+
 ## History 
 
 Millepede II is the successor of Millepede, a package for linear least squares fits with a large number of parameters. 
