@@ -3,6 +3,8 @@
 # Full list of recent changes
 
 Changes are presented in reverse chronological order.
+
+-  2025-11-19: Reorganised documentation, added workflow summary.  
 -  2025-11-17: Moved documentation to dedicated markdown, refactored LAPACK-based solver methods to module. 
 -  2025-11-14: Add a CI test to monitor for changes in alignment results on test dataset
 -  2025-11-04: Docker runtime images are now provided
