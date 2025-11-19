@@ -113,6 +113,23 @@ runtime-image:
   only:
     - main
 
+versioned-image-tag:
+  stage: deploy 
+  when: on_success
+  image: 
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  variables:
+    IMAGE_DESTINATION: ${CI_REGISTRY_IMAGE}/mp2runtime
+    GIT_SSL_NO_VERIFY: "true"
+  script:
+    - echo  "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$GITLAB_USER\",\"password\":\"$GITLAB_TOKEN\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --context CI/runtime_image/ --dockerfile Dockerfile --build-arg GITLAB_USER=${GITLAB_USER} --build-arg GITLAB_TOKEN=${GITLAB_TOKEN} --destination ${IMAGE_DESTINATION}:${CI_COMMIT_TAG} 
+    - echo "Image pushed successfully to ${IMAGE_DESTINATION}"
+  interruptible: true
+  only:
+    - tags
+
 dev-image:
   stage: deploy 
   when: manual 
