@@ -103,7 +103,7 @@ if (SUPPORT_READ_C)
     add_library(readc )
     target_sources(readc PUBLIC readc.c)
     target_compile_definitions(pede PUBLIC READ_C_FILES)
-    target_link_libraries(pede PUBLIC readc)
+    # target_link_libraries(pede PUBLIC readc)
     # ===== LibZ for file compression ===== 
     if (SUPPORT_ZLIB)
         message ("Building with libz support")
@@ -124,6 +124,7 @@ if (SUPPORT_READ_C)
         target_sources(readROOT PUBLIC readROOT.cc)
         target_link_libraries(readROOT PUBLIC ${ROOT_LIBRARIES})
         target_include_directories(readROOT PUBLIC ${ROOT_INCLUDE_DIRS})
+        target_link_libraries(pede PUBLIC readROOT)
         install (
             TARGETS readROOT
             DESTINATION bin

@@ -35,21 +35,19 @@
 
 class fileHandler{
     public:
-    fileHandler( const std::string & f){
+    fileHandler( const std::string & f=""){
         file_.reset(TFile::Open(f.c_str(),"READ")); 
 		if (!file_ || !file_->IsOpen()){
             throw std::runtime_error("could not open file "+f);
 		}
     };
 	bool connect(){
-		TTree* t = nullptr; 
-		file_->GetObject<TTree>("MilleRecords",t);
-		if (!t){
+		file_->GetObject<TTree>("MilleRecords",tree_);
+		if (!tree_){
             throw std::runtime_error("could not read tree from file "+std::string(file_->GetName()));
 			return false; 
 		}
 		else {
-			tree_.reset(t); 
 			tree_->SetBranchAddress("doubles",&doubles_); 
 			tree_->SetBranchAddress("ints",	  &ints_); 
 			tree_->SetCacheSize(100000000);	// 100 MB
@@ -80,13 +78,26 @@ class fileHandler{
 		return entrySize; 
 	}
 	void rewind(){
-		--entryNumber_;
+		entryNumber_ = 0;
 	}
-
+	void close(){
+		file_->Close(); 
+		tree_ = nullptr;
+	}
+	~fileHandler(){
+		std::cout <<__LINE__<<std::endl;
+		file_.release(); 
+		std::cout <<__LINE__<<std::endl;
+		std::cout <<__LINE__<<std::endl;
+		doubles_ = nullptr;
+		std::cout <<__LINE__<<std::endl;
+		ints_ = nullptr;
+		std::cout <<__LINE__<<std::endl;
+	}
 
     private:
 	std::unique_ptr<TFile> file_ = nullptr;
-	std::unique_ptr<TTree> tree_ = nullptr;
+	TTree* tree_ = nullptr;
 	Long64_t entryNumber_ = 0; 
 	Long64_t nentries_ = 0; 
 	std::vector<double>* doubles_ = nullptr; 
@@ -95,7 +106,7 @@ class fileHandler{
 
 /* ________ global variables used for file handling __________ */
 
-std::vector<fileHandler> files_;   ///< pointer to list of pointers to opened binary files
+std::vector<std::unique_ptr<fileHandler>> files_;   ///< pointer to list of pointers to opened binary files
 
 /*______________________________________________________________*/
 /// Initialises the 'global' variables used for file handling.
@@ -120,8 +131,15 @@ void openc(const char *fileName, int lengthFileName, int nFileIn, int *errorFlag
  *      * 3: if file opened, but with error (can that happen?)
  */
 {
-	files_.push_back(fileHandler(fileName)); 
-	files_.back().connect();
+
+	std::string fname = fileName;
+	fname = fname.substr(0,lengthFileName); 
+	fname[lengthFileName] = '\0';
+	int fileIndex = nFileIn - 1; /* index of specific file */
+	if (fileIndex < 0) fileIndex = files_.size(); /* next one */
+	if (files_.size() <= fileIndex) files_.resize(fileIndex+1); 
+	files_.at(fileIndex) = std::move(std::make_unique<fileHandler>(fname.c_str())); 
+	files_.at(fileIndex)->connect();
 }
 
 /*______________________________________________________________*/
@@ -130,6 +148,7 @@ void openc(const char *fileName, int lengthFileName, int nFileIn, int *errorFlag
  * \param[in]  nFileIn  File number (1 .. maxNumFiles)
  */
 void closec(int nFileIn) {
+	files_.at(nFileIn-1)->close();
 }
 
 /*______________________________________________________________*/
@@ -138,7 +157,7 @@ void closec(int nFileIn) {
  * \param[in]  nFileIn  File number (1 .. maxNumFiles)
  */
 void resetc(int nFileIn) {
-	files_.at(nFileIn-1).rewind(); 
+	files_.at(nFileIn-1)->rewind(); 
 }
 
 /*______________________________________________________________*/
@@ -173,13 +192,13 @@ void readc(double *bufferDouble, float *bufferFloat, int *bufferInt,
 		std::cerr <<" Requested file " <<nFileIn<<" out of " <<files_.size()<<std::endl; 
 		return; 
 	}
-	fileHandler& fH = files_.at(nFileIn-1); 
+	auto fH = files_.at(nFileIn-1).get(); 
 	*errorFlag = 0;
 	if (!bufferFloat || !bufferInt || !lengthBuffers) {
 		*errorFlag = -1;
 		return;
 	}
-	int nRead = fH.readNext(bufferDouble, bufferInt, *lengthBuffers); 
+	int nRead = fH->readNext(bufferDouble, bufferInt, *lengthBuffers); 
 	if (nRead < 0){
 		printf("readC: given buffers too short (%d, need > %d)\n", *lengthBuffers,
 		 -nRead); 
