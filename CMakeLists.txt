@@ -118,6 +118,24 @@ if (SUPPORT_READ_C)
             TARGETS cToRoot
             DESTINATION bin
         )
+
+        # Read ROOT files
+        add_library(readROOT)
+        target_sources(readROOT PUBLIC readROOT.cc)
+        target_link_libraries(readROOT PUBLIC ${ROOT_LIBRARIES})
+        target_include_directories(readROOT PUBLIC ${ROOT_INCLUDE_DIRS})
+        install (
+            TARGETS readROOT
+            DESTINATION bin
+        )
+
+        add_executable(rootToRoot cToRoot.cc)
+        target_link_libraries(rootToRoot PUBLIC readROOT ${ROOT_LIBRARIES})
+        target_include_directories(rootToRoot PRIVATE ${ROOT_INCLUDE_DIRS})
+        install (
+            TARGETS rootToRoot
+            DESTINATION bin
+        )
     endif()
 endif()
 # ==== OpenMP ==== 
