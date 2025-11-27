@@ -1825,7 +1825,7 @@ SUBROUTINE readFromBinary(more)
     !$OMP  PARALLEL &
     !$OMP  DEFAULT(PRIVATE) &
     !$OMP  SHARED(readBufferInfo,readBufferPointer,readBufferDataI,readBufferDataD, &
-    !$OMP  readBufferDataF,nPointer,nData,skippedRecords,readBufferSize,NTHR,nFortranFiles,FLOOP, &
+    !$OMP  readBufferDataF,nPointer,nData,skippedRecords,readBufferSize,NTHR,nFortranFiles,nCFiles,nROOTFiles,FLOOP, &
     !$OMP  integratedRecordNb,recordNbInFile,IFILE,nBinaryFiles, & 
     !$OMP  fileLevelWeight,maxRecPerFile,icheck,keepOpen,ireeof,nrderr) NUM_THREADS(NTHR)
     ! NUM_THREADS(NTHR) moved to previuos line to make OPARI2 used by scorep-8.4. happy
@@ -1861,38 +1861,40 @@ SUBROUTINE readFromBinary(more)
                 END IF
                 ! IF (ierrf < 0) REWIND lun ! end-of-file ! CHK use binrwd()
                 eof=(ierrf /= 0)
-            ELSEIF(kFile <= nFortranFiles+nCFiles) THEN         ! C file
-                lun=kfile-nFortranFiles
-                IF (keepOpen < 1) lun=ithr
-#ifdef READ_C_FILES
-                ! can use threadBufferOffset for float as no header written there
-                CALL readc(readBufferDataD(recordDataOffset+1), &
-                readBufferDataF(threadBufferOffset+1),&
-                readBufferDataI(recordDataOffset+1),nr,lun,ierrc)
-                ! nr gets filled with the number of ints / floats read.
-                ! n is the total size of the record 
-                n=nr+nr
-                ! ierrc > 4: real part uses double precision
-                IF (ierrc > 4) readBufferInfo(6,ithr)=readBufferInfo(6,ithr)+1
-#else
-                ierrc=0
-#endif
             ELSE 
-                lun=kfile-nFortranFiles
-                IF (keepOpen < 1) lun=ithr
-#ifdef READ_ROOT_FILES 
-                ! can use threadBufferOffset for float as no header written there
-                CALL readroot(readBufferDataD(recordDataOffset+1), &
-                readBufferDataF(threadBufferOffset+1),&
-                readBufferDataI(recordDataOffset+1),nr,lun,ierrc)
-                ! nr gets filled with the number of ints / floats read.
-                ! n is the total size of the record 
-                n=nr+nr
-                ! ierrc > 4: real part uses double precision
-                IF (ierrc > 4) readBufferInfo(6,ithr)=readBufferInfo(6,ithr)+1
+                IF(kfile <= nFortranFiles+nCFiles) THEN         ! C file
+                    lun=kfile-nFortranFiles
+                    IF (keepOpen < 1) lun=ithr
+#ifdef READ_C_FILES
+                    ! can use threadBufferOffset for float as no header written there
+                    CALL readc(readBufferDataD(recordDataOffset+1), &
+                    readBufferDataF(threadBufferOffset+1),&
+                    readBufferDataI(recordDataOffset+1),nr,lun,ierrc)
+                    ! nr gets filled with the number of ints / floats read.
+                    ! n is the total size of the record 
+                    n=nr+nr
+                    ! ierrc > 4: real part uses double precision
 #else
-                ierrc=0
+                    ierrc=0
 #endif
+                ELSE        ! ROOT file 
+                    lun=kfile-nFortranFiles
+                    IF (keepOpen < 1) lun=ithr
+#ifdef READ_ROOT_FILES 
+                    ! can use threadBufferOffset for float as no header written there
+                    CALL readroot(readBufferDataD(recordDataOffset+1), &
+                    readBufferDataF(threadBufferOffset+1),&
+                    readBufferDataI(recordDataOffset+1),nr,lun,ierrc)
+                    ! nr gets filled with the number of ints / floats read.
+                    ! n is the total size of the record 
+                    n=nr+nr
+                    ! ierrc > 4: real part uses double precision
+#else
+                    ierrc=0
+#endif
+                END IF
+                ! common part for C and ROOT reading
+                IF (ierrc > 4) readBufferInfo(6,ithr)=readBufferInfo(6,ithr)+1
                 eof=(ierrc <= 0.AND.ierrc /= -4) ! allow buffer overruns -> skip record
                 ! we caught a genuine error state
                 IF(eof.AND.ierrc < 0) THEN
@@ -10964,6 +10966,10 @@ SUBROUTINE intext(text,nline)
         IF(mat == max(npat,ntext)) RETURN
   
         keystx='Cfiles'
+        mat=matint(text(ia:ib),keystx,npat,ntext) ! comparison
+        IF(mat == max(npat,ntext)) RETURN
+
+        keystx='ROOTFiles'
         mat=matint(text(ia:ib),keystx,npat,ntext) ! comparison
         IF(mat == max(npat,ntext)) RETURN
 
