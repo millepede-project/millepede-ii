@@ -4,12 +4,11 @@ PROJECT(millepedeII LANGUAGES Fortran C CXX)
 
 set(CMAKE_Fortran_COMPILER gcc)
 
-# check for ROOT 
-find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO QUIET )
 
 # Arguments for CMake
 option(DEBUG "Debug" OFF)
 option(SUPPORT_READ_C "read C files" ON)
+option(SUPPORT_ROOT "build ROOT file I/O and root plotting scripts" ON)
 option(SUPPORT_ZLIB "support Z lib for file compression" ON)
 option(SUPPORT_C_RFIO "Use C RFIO" OFF)
 option(SUPPORT_OPENMP "Support OPENMP" ON)
@@ -31,6 +30,20 @@ set(useLP_OPENBLAS false)
 if (LAPACK_OPENBLAS)
     find_package( LAPACK REQUIRED )
     set(useLP_OPENBLAS true)
+endif()
+
+set(build_ROOT_comps false)
+if(SUPPORT_ROOT)
+    # check for ROOT 
+    find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO QUIET )
+    if (${ROOT_FOUND})
+        set(build_ROOT_comps true)
+    endif()
+endif()
+
+set(build_CTOROOT false)
+if (build_ROOT_comps AND SUPPORT_READ_C)
+    set(build_CTOROOT true)
 endif()
 
 if (LAPACK_MKL)
@@ -102,6 +115,7 @@ if (SUPPORT_READ_C)
     message ("Building with C-file support")
     add_library(readc )
     target_sources(readc PUBLIC readc.c)
+    target_link_libraries(pede PUBLIC readc)
     target_compile_definitions(pede PUBLIC READ_C_FILES)
     # target_link_libraries(pede PUBLIC readc)
     # ===== LibZ for file compression ===== 
@@ -110,7 +124,36 @@ if (SUPPORT_READ_C)
         target_compile_definitions(readc PUBLIC USE_ZLIB)
         target_link_libraries(readc PUBLIC z)
     endif()
-    if (${ROOT_FOUND})
+endif()
+
+if (build_ROOT_comps)
+    message ("Found ROOT - will build histogram reader and ROOT I/O lib") 
+
+    set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
+
+    # Read ROOT files
+    add_library(readROOT)
+    target_sources(readROOT PUBLIC readROOT.cc)
+    target_link_libraries(readROOT PUBLIC ${ROOT_LIBRARIES})
+    target_include_directories(readROOT PUBLIC ${ROOT_INCLUDE_DIRS})
+    target_compile_definitions(pede PUBLIC READ_ROOT_FILES)
+    target_link_libraries(pede PUBLIC readROOT)
+    install (
+        TARGETS readROOT
+        DESTINATION bin
+    )
+
+    # histogrammer 
+    add_executable(readPedeHists readPedeHists.cpp)
+    target_link_libraries(readPedeHists PRIVATE ${ROOT_LIBRARIES})
+    target_include_directories(readPedeHists PRIVATE ${ROOT_INCLUDE_DIRS})
+    install (
+        TARGETS readPedeHists
+        DESTINATION bin
+    )
+
+    # C-to-ROOT conversion 
+    if (build_CTOROOT)
         add_executable(cToRoot cToRoot.cc)
         target_link_libraries(cToRoot PUBLIC readc ${ROOT_LIBRARIES})
         target_include_directories(cToRoot PRIVATE ${ROOT_INCLUDE_DIRS})
@@ -118,27 +161,9 @@ if (SUPPORT_READ_C)
             TARGETS cToRoot
             DESTINATION bin
         )
-
-        # Read ROOT files
-        add_library(readROOT)
-        target_sources(readROOT PUBLIC readROOT.cc)
-        target_link_libraries(readROOT PUBLIC ${ROOT_LIBRARIES})
-        target_include_directories(readROOT PUBLIC ${ROOT_INCLUDE_DIRS})
-        target_link_libraries(pede PUBLIC readROOT)
-        install (
-            TARGETS readROOT
-            DESTINATION bin
-        )
-
-        add_executable(rootToRoot cToRoot.cc)
-        target_link_libraries(rootToRoot PUBLIC readROOT ${ROOT_LIBRARIES})
-        target_include_directories(rootToRoot PRIVATE ${ROOT_INCLUDE_DIRS})
-        install (
-            TARGETS rootToRoot
-            DESTINATION bin
-        )
     endif()
 endif()
+
 # ==== OpenMP ==== 
 if (SUPPORT_OPENMP)
     message ("Building with openMP support")
@@ -187,20 +212,6 @@ install(
   TARGETS pede
   DESTINATION bin
 )
-
-# Standalone histogrammer (if we have ROOT)
-if (${ROOT_FOUND})
-    set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
-    message ("Found ROOT - will build histogram reader") 
-    add_executable(readPedeHists readPedeHists.cpp)
-    target_link_libraries(readPedeHists PRIVATE ${ROOT_LIBRARIES})
-    target_include_directories(readPedeHists PRIVATE ${ROOT_INCLUDE_DIRS})
-    install (
-        TARGETS readPedeHists
-        DESTINATION bin
-    )
-endif()
-
 # finally, prepare a setup script for the user 
 # to get pede into their environment 
 configure_file(

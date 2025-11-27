@@ -25,6 +25,7 @@ int main(int argc, char** argv){
 
     auto tree = std::make_unique<TTree>("MilleRecords","MilleRecords"); 
     std::vector<double> doubles;
+    std::vector<float> floats;
     std::vector<int> ints; 
 
     double residual; 
@@ -32,6 +33,7 @@ int main(int argc, char** argv){
     int trackIndex = 0; 
     tree->Branch("doubles",&doubles); 
     tree->Branch("ints",&ints); 
+    tree->Branch("floats",&floats); 
 
     // read from C-files
     int err = 0; 
@@ -56,9 +58,12 @@ int main(int argc, char** argv){
                 std::cout << " We are done! " <<std::endl;
                 break; 
             }
-            // doubles.reserve(lBuffers); 
-            // ints.reserve(lBuffers);
-            doubles.assign(doubleBuffer.begin(),doubleBuffer.begin()+lBuffers); 
+            if (err == 4){
+                floats.assign(floatBuffer.begin(),floatBuffer.begin()+lBuffers); 
+            }
+            else if (err == 8){
+                doubles.assign(doubleBuffer.begin(),doubleBuffer.begin()+lBuffers); 
+            }
             ints.assign(intBuffer.begin(),intBuffer.begin()+lBuffers); 
             tree->Fill(); 
             if (++trackIndex % 1000 == 0) std::cout << " done with record "<<trackIndex<<std::endl; 
