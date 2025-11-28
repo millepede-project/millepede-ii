@@ -1,9 +1,16 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.26.5)
 
+# discover the compilers from PATH (when system install is overridden)
+find_program(gf_loc gfortran)
+find_program(gcc_loc gcc)
+find_program(gpp_loc g++)
+
+set(CMAKE_Fortran_COMPILER ${gf_loc})
+set(CMAKE_C_COMPILER ${gcc_loc})
+set(CMAKE_CXX_COMPILER ${gpp_loc})
+
+
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
-
-set(CMAKE_Fortran_COMPILER gcc)
-
 
 # Arguments for CMake
 option(DEBUG "Debug" OFF)
@@ -35,7 +42,12 @@ endif()
 set(build_ROOT_comps false)
 if(SUPPORT_ROOT)
     # check for ROOT 
-    find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO QUIET )
+    if (DEFINED ENV{ROOTSYS})
+        # follow ROOTSYS if it has been defined 
+        set (ROOT_DIR $ENV{ROOTSYS}/cmake) 
+        message ("Taking ROOT from ROOTSYS: $ENV{ROOTSYS}")
+    endif()
+    find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO Net QUIET PATHS ${ROOT_DIR} )
     if (${ROOT_FOUND})
         set(build_ROOT_comps true)
     endif()
@@ -114,7 +126,7 @@ endif()
 if (SUPPORT_READ_C)
     message ("Building with C-file support")
     add_library(readc )
-    target_sources(readc PUBLIC readc.c)
+    target_sources(readc PRIVATE readc.c)
     target_link_libraries(pede PUBLIC readc)
     target_compile_definitions(pede PUBLIC READ_C_FILES)
     # target_link_libraries(pede PUBLIC readc)
@@ -133,7 +145,7 @@ if (build_ROOT_comps)
 
     # Read ROOT files
     add_library(readROOT)
-    target_sources(readROOT PUBLIC readROOT.cc)
+    target_sources(readROOT PRIVATE readROOT.cc)
     target_link_libraries(readROOT PUBLIC ${ROOT_LIBRARIES})
     target_include_directories(readROOT PUBLIC ${ROOT_INCLUDE_DIRS})
     target_compile_definitions(pede PUBLIC READ_ROOT_FILES)
