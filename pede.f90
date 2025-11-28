@@ -9885,6 +9885,18 @@ SUBROUTINE filetc
             ! next file name
             sfd(1,nBinaryFiles)=ioff
             sfd(2,nBinaryFiles)=lfd(i)
+
+            ! for ROOT, check the file name for XRD network files
+            ! If we find one, we enforce 'closeandreload' 
+            ! to limit open file handles 
+            DO k=1,lfd(i)
+                fname(k:k)=tfd(ioff+k)
+            END DO
+            IF(keepOpen > 0 .AND. fname(1:5) == 'root:') THEN
+                WRITE(*,*) "Found network input binaries - limiting active handles by enforcing `closeandreopen`"
+                keepOpen=0 
+            ENDIF
+
             CALL binopn(nBinaryFiles,ifilb,ios)
             IF(ios == 0) THEN
                 fileLevelWeight(nBinaryFiles)=ofd(i)
@@ -10272,7 +10284,6 @@ END SUBROUTINE filetx
 
 INTEGER(mpi) FUNCTION nufile(fname)
     USE mpdef
-
     IMPLICIT NONE
     INTEGER(mpi) :: ios
     INTEGER(mpi) :: l1
