@@ -11594,6 +11594,7 @@ SUBROUTINE binopn(kfile, ithr, ierr)
         ENDIF
         RETURN
     END IF
+    IF(fname(1:5) /= 'root:') THEN
     ! get status
     ios=stat(fname(1:lfn),ibuff)
     !print *, ' STAT ', ios, ibuff(10), moddate
@@ -11611,6 +11612,9 @@ SUBROUTINE binopn(kfile, ithr, ierr)
         END IF
     ELSE
         yfd(kfile)=ibuff(10)
+        END IF
+    ELSE 
+        yfd(kfile)=0    ! dummy mod date for all ROOT files read via XRD
     END IF
     RETURN
 
