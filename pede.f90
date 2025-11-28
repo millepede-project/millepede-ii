@@ -9805,6 +9805,8 @@ SUBROUTINE filetc
         WRITE(*,*) ' '
     END IF
 
+    
+
     !     open the binary Fortran (data) files on unit 11, 12, ...
 
     iosum=0
@@ -9813,8 +9815,27 @@ SUBROUTINE filetc
     nWeightedBinaryFiles=0
     ioff=0
     ifilb=0
-    IF (keepOpen < 1) ifilb=1
+
+    ! for ROOT, check the file name for XRD network files
+    ! If we find one, we enforce 'closeandreload' 
+    ! to limit open file handles 
     DO i=1,nfiles
+        IF(mfd(i) == 4) THEN
+            DO k=1,lfd(i)
+                fname(k:k)=tfd(ioff+k)
+            END DO
+            IF(keepOpen > 0 .AND. fname(1:5) == 'root:') THEN
+                WRITE(*,*) "Found network input binaries - limiting active handles by enforcing `closeandreopen`"
+                keepOpen=0 
+                EXIT
+            ENDIF
+        ENDIF
+        ioff=ioff+lfd(i)
+    END DO
+
+    ioff=0
+    IF (keepOpen < 1) ifilb=1
+    DO i=1,nfiles                   ! Fortran files
         IF(mfd(i) == 3) THEN
             nFortranFiles=nFortranFiles+1
             nBinaryFiles=nBinaryFiles+1
@@ -9873,7 +9894,7 @@ SUBROUTINE filetc
 
     nROOTFiles=-1
     ioff=0
-    DO i=1,nfiles                                 ! Cfiles
+    DO i=1,nfiles                                 ! ROOT Files
         IF(mfd(i) == 4) THEN
 #ifdef READ_ROOT_FILES
             IF(nROOTFiles < 0) THEN ! initialize
@@ -9885,17 +9906,6 @@ SUBROUTINE filetc
             ! next file name
             sfd(1,nBinaryFiles)=ioff
             sfd(2,nBinaryFiles)=lfd(i)
-
-            ! for ROOT, check the file name for XRD network files
-            ! If we find one, we enforce 'closeandreload' 
-            ! to limit open file handles 
-            DO k=1,lfd(i)
-                fname(k:k)=tfd(ioff+k)
-            END DO
-            IF(keepOpen > 0 .AND. fname(1:5) == 'root:') THEN
-                WRITE(*,*) "Found network input binaries - limiting active handles by enforcing `closeandreopen`"
-                keepOpen=0 
-            ENDIF
 
             CALL binopn(nBinaryFiles,ifilb,ios)
             IF(ios == 0) THEN
