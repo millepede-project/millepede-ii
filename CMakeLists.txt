@@ -125,7 +125,7 @@ endif()
 # ===== Reading of C files ===== 
 if (SUPPORT_READ_C)
     message ("Building with C-file support")
-    add_library(readc )
+    add_library(readc SHARED)
     target_sources(readc PRIVATE readc.c)
     target_link_libraries(pede PUBLIC readc)
     target_compile_definitions(pede PUBLIC READ_C_FILES)
@@ -144,7 +144,7 @@ if (build_ROOT_comps)
     set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
 
     # Read ROOT files
-    add_library(readROOT)
+    add_library(readROOT SHARED)
     target_sources(readROOT PRIVATE readROOT.cc)
     target_link_libraries(readROOT PUBLIC ${ROOT_LIBRARIES})
     target_include_directories(readROOT PUBLIC ${ROOT_INCLUDE_DIRS})
@@ -154,6 +154,11 @@ if (build_ROOT_comps)
         TARGETS readROOT
         DESTINATION bin
     )
+
+    # enable ROOT support in Mille
+    target_compile_definitions(Mille PUBLIC SUPPORT_ROOTIO)
+    target_link_libraries(Mille PUBLIC ${ROOT_LIBRARIES})
+    target_include_directories(Mille PUBLIC ${ROOT_INCLUDE_DIRS})
 
     # histogrammer 
     add_executable(readPedeHists readPedeHists.cpp)

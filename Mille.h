@@ -24,6 +24,14 @@
  */
 
 #include <fstream>
+#include <vector>
+
+#ifdef SUPPORT_ROOTIO 
+// fwd declare ROOT classes if needed
+class TTree;
+class TFile; 
+#endif 
+
 
 /**
  * \class Mille
@@ -50,7 +58,15 @@
 class Mille 
 {
  public:
-  Mille(const char *outFileName, bool asBinary = true, bool writeZero = false);
+
+  enum class OutputMode{
+    Cbinary=1,
+    TextFile=2,
+    RootBinary=3,
+    _nOutModes
+  };
+
+  Mille(const char *outFileName, OutputMode out= OutputMode::Cbinary, bool writeZero = false);
   ~Mille();
 
   void mille(int NLC, const float *derLc, int NGL, const float *derGl,
@@ -59,20 +75,37 @@ class Mille
   void kill();
   void end();
 
+#ifdef SUPPORT_ROOTIO 
+  void toROOT(); 
+#endif 
  private:
   void newSet();
   bool checkBufferSize(int nLocal, int nGlobal);
 
+  void openC(const std::string  & fname); 
+  void openRoot(const std::string & fname); 
+
+  void writeC(); 
+  void writeText(); 
+  void writeRoot(); 
+
+  void closeC(); 
+  void closeRoot(); 
+
   std::ofstream myOutFile; ///< C-binary for output
-  bool myAsBinary;         ///< if false output as text
+  OutputMode outputMode_ = OutputMode::Cbinary;         ///< output mode
   bool myWriteZero;        ///< if true also write out derivatives/labels ==0
   /// buffer size for ints and floats
-  enum {myBufferSize = 5000};  ///< buffer size for ints and floats
-  int   myBufferInt[myBufferSize];   ///< to collect labels etc.
-  float myBufferFloat[myBufferSize]; ///< to collect derivatives etc.
+  std::vector<int>   myBufferInt;   ///< to collect labels etc.
+  std::vector<float> myBufferFloat; ///< to collect derivatives etc.
   int   myBufferPos; ///< position in buffer
   bool  myHasSpecial; ///< if true, special(..) already called for this record
   /// largest label allowed: 2^31 - 1
   enum {myMaxLabel = (0xFFFFFFFF - (1 << 31))};
+#ifdef SUPPORT_ROOTIO 
+  TFile* rootOutFile_ = nullptr; 
+  TTree* outTree_ = nullptr; 
+  std::vector<double> myBufferDummyDouble; ///< dummy
+#endif 
 };
 #endif
