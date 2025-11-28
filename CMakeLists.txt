@@ -126,7 +126,11 @@ endif()
 if (SUPPORT_READ_C)
     message ("Building with C-file support")
     add_library(readc SHARED)
-    target_sources(readc PRIVATE readc.c)
+    target_sources(readc 
+                PRIVATE readc.c
+                PUBLIC 
+                    FILE_SET HEADERS 
+                    FILES readc.h)
     target_link_libraries(pede PUBLIC readc)
     target_compile_definitions(pede PUBLIC READ_C_FILES)
     # target_link_libraries(pede PUBLIC readc)
@@ -136,6 +140,12 @@ if (SUPPORT_READ_C)
         target_compile_definitions(readc PUBLIC USE_ZLIB)
         target_link_libraries(readc PUBLIC z)
     endif()
+    install(
+        TARGETS readc
+        LIBRARY DESTINATION lib
+        FILE_SET HEADERS 
+        DESTINATION include
+    )
 endif()
 
 if (build_ROOT_comps)
@@ -145,14 +155,20 @@ if (build_ROOT_comps)
 
     # Read ROOT files
     add_library(readROOT SHARED)
-    target_sources(readROOT PRIVATE readROOT.cc)
+    target_sources(readROOT 
+                PRIVATE readROOT.cc 
+                PUBLIC 
+                    FILE_SET HEADERS 
+                    FILES readROOT.h)
     target_link_libraries(readROOT PUBLIC ${ROOT_LIBRARIES})
     target_include_directories(readROOT PUBLIC ${ROOT_INCLUDE_DIRS})
     target_compile_definitions(pede PUBLIC READ_ROOT_FILES)
     target_link_libraries(pede PUBLIC readROOT)
-    install (
+    install(
         TARGETS readROOT
-        DESTINATION bin
+        LIBRARY DESTINATION lib
+        FILE_SET HEADERS 
+        DESTINATION include
     )
 
     # enable ROOT support in Mille
