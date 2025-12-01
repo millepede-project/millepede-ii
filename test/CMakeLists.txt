@@ -17,3 +17,13 @@ install (
     )
 add_test(NAME IOfromROOTbinary COMMAND testMilleROOT)
 endif()
+
+if (build_ROOT_comps)
+add_executable(testCtoROOT testCtoROOT.cc)
+target_link_libraries(testCtoROOT PUBLIC Mille readROOT)    
+install (
+        TARGETS testCtoROOT
+        DESTINATION bin
+    )
+add_test(NAME IOviaCtoROOT COMMAND testCtoROOT)
+endif()
