@@ -2,7 +2,7 @@
 /**
     \file Unit test for the readROOT module.
     Define a known (non-physical) set of inputs,
-    dump them using Mille, and read them back
+    dump them using Mille into ROOT, and read them back
     using readROOT. 
     \author Maximilian Goblirsch-Kolb (DESY) 
     \copyright

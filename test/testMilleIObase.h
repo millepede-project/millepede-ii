@@ -121,6 +121,21 @@ size_t writeBinary(size_t nTracks, const std::string & fname, Mille::OutputMode 
     return nMax; 
 }
 
+/// @brief Helper function to test reading back binaries and compare them to a reference.
+/// The I/O functions are passed as function pointers, allowing to test different
+/// implementations of the same interface. This would be so much nicer 
+/// using C++ polymorphism, but the methods have to be called from fortran,
+/// so we prefer different symbol names. 
+/// @param nTracks  Number of tracks used for the test (= expectation of records to find)
+/// @param binaryName  Name of the binary to read
+/// @param bufferSize Buffer size - can be set using the return of writeBinary 
+/// @param expectedFloat - expected float buffer structure for each record. 
+/// @param expectedInt - expected int buffer structure for each record 
+/// @param initfunc - initialisation function to call (e.g. initc / initroot) 
+/// @param openfunc - file open function to call (e.g. openc/openroot) 
+/// @param readfunc - reading function to call (e.g. readc/readroot) 
+/// @param rewindfunc - rewind function to call (e.g. resetc/resetroot) 
+/// @return status code - 0 is success, non-zero integers denote failure modes.
 int testReadBack(size_t nTracks, 
                  const std::string & binaryName, 
                  int bufferSize, 
@@ -210,9 +225,6 @@ int testReadBack(size_t nTracks,
         std::cerr <<" Read after rewind did not read the expected Int entries - expected "<<expectedInt.at(0).size()<<", got "<<bufSize<<std::endl; 
         return 7;
     }
-
-
-
     std::cout <<" All records read back as expected!" <<std::endl; 
 
     return 0; 

@@ -3,7 +3,7 @@
     \file Unit test for the combination of cToROOT and readROOT modules.
     Define a known (non-physical) set of inputs,
     dump them using Mille into C, convert them 
-    using cToROOT, and finally  read them back
+    using cToROOT, and finally read them back
     using readROOT. 
     \author Maximilian Goblirsch-Kolb (DESY) 
     \author Claus Kleinwort, DESY (maintenance and developement)
@@ -39,10 +39,10 @@ int main(int, char**){
     std::vector<std::vector<float>> expectedFloat{};
     std::vector<std::vector<int>> expectedInt{};
     
-    // write the dummy binary 
+    // write the dummy binary - Cfile format
     int readBufferSize = writeBinary(nTracks, binaryName, Mille::OutputMode::Cbinary, expectedFloat, expectedInt); 
 
-    // run cToROOT
+    // run cToROOT to convert to ROOT 
     int stat_c2r = system((std::string("cToRoot ")+rootName+" "+ binaryName).c_str()); 
     if (stat_c2r != 0){
         std::cerr << "Failed to run cToROOT"<<std::endl; 

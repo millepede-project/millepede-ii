@@ -2,7 +2,7 @@
 /**
     \file Unit test for the readc module.
     Define a known (non-physical) set of inputs,
-    dump them using Mille, and read them back
+    dump them using Mille as C binaries, and read them back
     using readc. 
     \author Maximilian Goblirsch-Kolb (DESY) 
     \author Claus Kleinwort, DESY (maintenance and developement)
