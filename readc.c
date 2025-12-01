@@ -1,6 +1,6 @@
 
 /** \file
- *  Read from C/C++ binary files.
+ *  Read from C/C++ binary files - implementation.
  *
  * \author Gero Flucke, University Hamburg, 2006
  * \author Claus Kleinwort, DESY (maintenance and developement)
@@ -20,43 +20,9 @@
  *  License along with this program (see the file COPYING.LIB for more
  *  details); if not, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *  C-methods to handle input of C/C++ binary files as input for
- *  the fortran **pede** program (see \ref peread).
- *  \deprecated
- *  This includes macros utilising \c cfortran.h to allow direct callability
- *  from fortran.
- *
- *  \c initc() has to be called once in the beginning,
- *  followed by one or several calls to \c openc() to open one or several files.
- *  \c readc() is then called to read the records sequentially. \c resetc()
- *  allows to rewind files.
- *
- *  If compiled with preprocessor macro \c USE_SHIFT_RFIO, uses \c libRFIO,
- *  i.e. includes \c shift.h instead of \c stdio.h
- *
- *  If compiled with preprocessor macro \c USE_ZLIB, uses \c libz,
- *  enables direct reading of gzipped files.
- *
- *  Written by Gero Flucke (gero.flucke@cern.ch) in 2006/7
- *  - update on July 14th, 2008
- *  - update on October 29th, 2008: return for file number in \c readC()
- *
- *  Major updates on April 24th, 2012 by C.Kleinwort:
- *  - skip records larger than buffer size (to determine max record length)
- *  - dynamic allocation of file pointer list (no hard-coded max number of files)
- *
- *  Major update on February 26th, 2014 by C.Kleinwort:
- *  - implement reading of records containing doubles (instead of floats)
- *    indicated by negative record length.
- *
- *  Major update on April 10th, 2019 by C.Kleinwort:
- *  - Option to close and reopen files 
- *
- *  Last major update on March 21th, 2023 by C.Kleinwort:
- *  - Fortran/C interoperability uses now 'iso_c_binding' (fortran 2003) instead of 'cfortran.h'
- *    (Proper string termination (file names) by thomas.white@desy.de)
  */
+
+#include "readc.h"
 
 #ifdef USE_SHIFT_RFIO
 #include <shift.h>

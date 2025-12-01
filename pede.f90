@@ -1772,6 +1772,19 @@ SUBROUTINE readFromBinary(more)
         END SUBROUTINE readc
     END INTERFACE
 #endif
+#ifdef READ_ROOT_FILES
+    INTERFACE
+        SUBROUTINE readroot(bufferD, bufferF, bufferI, bufferLength, lun, err) BIND(c)
+            USE iso_c_binding
+            REAL(c_double), DIMENSION(*), INTENT(OUT) :: bufferD
+            REAL(c_float), DIMENSION(*), INTENT(OUT) :: bufferF
+            INTEGER(c_int), DIMENSION(*), INTENT(OUT) :: bufferI
+            INTEGER(c_int), INTENT(INOUT) :: bufferLength
+            INTEGER(c_int), INTENT(IN), VALUE :: lun
+            INTEGER(c_int), INTENT(OUT) :: err
+        END SUBROUTINE readroot
+    END INTERFACE
+#endif
 
     DATA lprint/.TRUE./
     DATA floop/.TRUE./
@@ -1812,7 +1825,7 @@ SUBROUTINE readFromBinary(more)
     !$OMP  PARALLEL &
     !$OMP  DEFAULT(PRIVATE) &
     !$OMP  SHARED(readBufferInfo,readBufferPointer,readBufferDataI,readBufferDataD, &
-    !$OMP  readBufferDataF,nPointer,nData,skippedRecords,readBufferSize,NTHR,NFILF,FLOOP, &
+    !$OMP  readBufferDataF,nPointer,nData,skippedRecords,readBufferSize,NTHR,nFortranFiles,nCFiles,nROOTFiles,FLOOP, &
     !$OMP  integratedRecordNb,recordNbInFile,IFILE,nBinaryFiles, & 
     !$OMP  fileLevelWeight,maxRecPerFile,icheck,keepOpen,ireeof,nrderr) NUM_THREADS(NTHR)
     ! NUM_THREADS(NTHR) moved to previuos line to make OPARI2 used by scorep-8.4. happy
@@ -1834,7 +1847,7 @@ SUBROUTINE readFromBinary(more)
             nbuf=readBufferInfo(4,ithr)+1
             recordDataOffset=readBufferInfo(5,ithr)+2     ! add space for 2 header words per record
             nr=readBufferSize
-            IF(kfile <= nfilf) THEN ! Fortran file
+            IF(kfile <= nFortranFiles) THEN ! Fortran file
                 lun=kfile+10
                 ! can use threadBufferOffset for float as no header written there
                 READ(lun,IOSTAT=ierrf) n,(readBufferDataF(threadBufferOffset+i),i=1,min(n/2,nr)),&
@@ -1848,22 +1861,40 @@ SUBROUTINE readFromBinary(more)
                 END IF
                 ! IF (ierrf < 0) REWIND lun ! end-of-file ! CHK use binrwd()
                 eof=(ierrf /= 0)
-            ELSE         ! C file
-                lun=kfile-nfilf
-                IF (keepOpen < 1) lun=ithr
+            ELSE 
+                IF(kfile <= nFortranFiles+nCFiles) THEN         ! C file
+                    lun=kfile-nFortranFiles
+                    IF (keepOpen < 1) lun=ithr
 #ifdef READ_C_FILES
-                ! can use threadBufferOffset for float as no header written there
-                CALL readc(readBufferDataD(recordDataOffset+1), &
-                readBufferDataF(threadBufferOffset+1),&
-                readBufferDataI(recordDataOffset+1),nr,lun,ierrc)
-                ! nr gets filled with the number of ints / floats read.
-                ! n is the total size of the record 
-                n=nr+nr
-                ! ierrc > 4: real part uses double precision
-                IF (ierrc > 4) readBufferInfo(6,ithr)=readBufferInfo(6,ithr)+1
+                    ! can use threadBufferOffset for float as no header written there
+                    CALL readc(readBufferDataD(recordDataOffset+1), &
+                    readBufferDataF(threadBufferOffset+1),&
+                    readBufferDataI(recordDataOffset+1),nr,lun,ierrc)
+                    ! nr gets filled with the number of ints / floats read.
+                    ! n is the total size of the record 
+                    n=nr+nr
+                    ! ierrc > 4: real part uses double precision
 #else
-                ierrc=0
+                    ierrc=0
 #endif
+                ELSE        ! ROOT file 
+                    lun=kfile-nFortranFiles
+                    IF (keepOpen < 1) lun=ithr
+#ifdef READ_ROOT_FILES 
+                    ! can use threadBufferOffset for float as no header written there
+                    CALL readroot(readBufferDataD(recordDataOffset+1), &
+                    readBufferDataF(threadBufferOffset+1),&
+                    readBufferDataI(recordDataOffset+1),nr,lun,ierrc)
+                    ! nr gets filled with the number of ints / floats read.
+                    ! n is the total size of the record 
+                    n=nr+nr
+                    ! ierrc > 4: real part uses double precision
+#else
+                    ierrc=0
+#endif
+                END IF
+                ! common part for C and ROOT reading
+                IF (ierrc > 4) readBufferInfo(6,ithr)=readBufferInfo(6,ithr)+1
                 eof=(ierrc <= 0.AND.ierrc /= -4) ! allow buffer overruns -> skip record
                 ! we caught a genuine error state
                 IF(eof.AND.ierrc < 0) THEN
@@ -2050,18 +2081,18 @@ SUBROUTINE readFromBinary(more)
                     maxRecordFile=k
                 END IF
                 dw=REAL(-recordNbInFile(1,k),mpd)
-                IF (fileLevelWeight(k) /= 1.0) nfilw=nfilw+1
+                IF (fileLevelWeight(k) /= 1.0) nWeightedBinaryFiles=nWeightedBinaryFiles+1
                 ds0=ds0+dw
                 ds1=ds1+dw*REAL(fileLevelWeight(k),mpd)
                 ds2=ds2+dw*REAL(fileLevelWeight(k)**2,mpd)
             END DO
             PRINT *, 'PEREAD: file ', maxRecordFile, 'with max record size ', maxRecordSize
             ! print weight stats
-            IF (nfilw > 0.AND.ds0 > 0.0_mpd) THEN
+            IF (nWeightedBinaryFiles > 0.AND.ds0 > 0.0_mpd) THEN
                 ds1=ds1/ds0
                 ds2=ds2/ds0-ds1*ds1
                 DO lun=6,lunlog,2
-                    WRITE(lun,177) nfilw,REAL(ds1,mps),REAL(ds2,mps)
+                    WRITE(lun,177) nWeightedBinaryFiles,REAL(ds1,mps),REAL(ds2,mps)
 177                 FORMAT(/' !!!!!',i4,' weighted binary files',  &
                         /' !!!!! mean, variance of weights =',2G12.4)
                 END DO
@@ -9142,7 +9173,7 @@ SUBROUTINE xloopn                !
 
     DO lunp=6,lunlog,lunlog-6
         WRITE(lunp,*) ' '
-        IF (nfilw <= 0) THEN
+        IF (nWeightedBinaryFiles <= 0) THEN
             WRITE(lunp,*) 'Sum(Chi^2)/Sum(Ndf) =',fvalue
             WRITE(lunp,*) '                    / (',ndfsum,'-',nFitPar,')'
             WRITE(lunp,*) '                    =',dratio
@@ -9391,7 +9422,7 @@ SUBROUTINE chkrej
             END IF
         END IF
     END DO
-    IF (nfilw > 0) &
+    IF (nWeightedBinaryFiles > 0) &
         WRITE(*,"('         Weighted fraction  =',F8.2,' %')") 100.*sumrejw/sumallw
     IF (nBinaryFiles > 1) THEN
         WRITE(*,"('         File with max. fraction ',I6,' :',F8.2,' %')") kmax, 100.*fmax
@@ -9466,6 +9497,15 @@ SUBROUTINE filetc
             USE iso_c_binding
             INTEGER(c_int), INTENT(IN), VALUE :: nfiles
         END SUBROUTINE initc
+    END INTERFACE
+#endif
+
+#ifdef READ_ROOT_FILES
+    INTERFACE
+        SUBROUTINE initroot(nfiles) BIND(c)
+            USE iso_c_binding
+            INTEGER(c_int), INTENT(IN), VALUE :: nfiles
+        END SUBROUTINE initroot
     END INTERFACE
 #endif
 
@@ -9632,6 +9672,14 @@ SUBROUTINE filetc
             CYCLE
         END IF
 
+        keystx='rootfiles'
+        mat=matint(text(ia:ib),keystx,npat,ntext)
+        IF(mat == max(npat,ntext)) THEN ! exact matching
+            nuf=4
+            !         WRITE(*,*) 'ROOT files'
+            CYCLE
+        END IF
+
         keystx='Cfiles'
         mat=matint(text(ia:ib),keystx,npat,ntext)
         IF(mat == max(npat,ntext)) THEN ! exact matching
@@ -9671,7 +9719,7 @@ SUBROUTINE filetc
             IF(nu == 1) nu=nuf           !
             lenFileNames=lenFileNames+ie-ia+1 ! total length of file names
             vecFileInfo(1,nfiles)=nline  ! line number
-            vecFileInfo(2,nfiles)=nu     ! cbinary =1, text =2, fbinary=3
+            vecFileInfo(2,nfiles)=nu     ! cbinary =1, text =2, fbinary=3 rootbinary =4
             vecFileInfo(3,nfiles)=ia     ! file name start
             vecFileInfo(4,nfiles)=ie     ! file name end
             vecFileInfo(5,nfiles)=iopt   ! option start
@@ -9757,18 +9805,39 @@ SUBROUTINE filetc
         WRITE(*,*) ' '
     END IF
 
+    
+
     !     open the binary Fortran (data) files on unit 11, 12, ...
 
     iosum=0
-    nfilf=0
+    nFortranFiles=0
     nBinaryFiles=0
-    nfilw=0
+    nWeightedBinaryFiles=0
     ioff=0
     ifilb=0
-    IF (keepOpen < 1) ifilb=1
+
+    ! for ROOT, check the file name for XRD network files
+    ! If we find one, we enforce 'closeandreload' 
+    ! to limit open file handles 
     DO i=1,nfiles
+        IF(mfd(i) == 4) THEN
+            DO k=1,lfd(i)
+                fname(k:k)=tfd(ioff+k)
+            END DO
+            IF(keepOpen > 0 .AND. fname(1:5) == 'root:') THEN
+                WRITE(*,*) "Found network input binaries - limiting active handles by enforcing `closeandreopen`"
+                keepOpen=0 
+                EXIT
+            ENDIF
+        ENDIF
+        ioff=ioff+lfd(i)
+    END DO
+
+    ioff=0
+    IF (keepOpen < 1) ifilb=1
+    DO i=1,nfiles                   ! Fortran files
         IF(mfd(i) == 3) THEN
-            nfilf=nfilf+1
+            nFortranFiles=nFortranFiles+1
             nBinaryFiles=nBinaryFiles+1
             ! next file name
             sfd(1,nBinaryFiles)=ioff
@@ -9779,7 +9848,7 @@ SUBROUTINE filetc
                 IF (keepOpen < 1) CALL bincls(nBinaryFiles,ifilb)
             ELSE ! failure
                 iosum=iosum+1
-                nfilf=nfilf-1
+                nFortranFiles=nFortranFiles-1
                 nBinaryFiles=nBinaryFiles-1
             END IF
         END IF
@@ -9788,16 +9857,16 @@ SUBROUTINE filetc
 
     !     open the binary C files
 
-    nfilc=-1
+    nCFiles=-1
     ioff=0
     DO i=1,nfiles                                 ! Cfiles
         IF(mfd(i) == 1) THEN
 #ifdef READ_C_FILES
-            IF(nfilc < 0) THEN ! initialize
+            IF(nCFiles < 0) THEN ! initialize
                 CALL initc(max(nfiles,numberOfReadingThreads)) ! uncommented by GF
-                nfilc=0
+                nCFiles=0
             END IF
-            nfilc=nfilc+1
+            nCFiles=nCFiles+1
             nBinaryFiles=nBinaryFiles+1
             ! next file name
             sfd(1,nBinaryFiles)=ioff
@@ -9808,11 +9877,47 @@ SUBROUTINE filetc
                 IF (keepOpen < 1) CALL bincls(nBinaryFiles,ifilb)
             ELSE ! failure
                 iosum=iosum+1
-                nfilc=nfilc-1
+                nCFiles=nCFiles-1
                 nBinaryFiles=nBinaryFiles-1
             END IF
 #else
             WRITE(*,*) 'Opening of C-files not supported.'
+            ! GF add
+            iosum=iosum+1
+            ! GF add end
+#endif
+        END IF
+        ioff=ioff+lfd(i)
+    END DO
+
+    !     open the binary ROOT files
+
+    nROOTFiles=-1
+    ioff=0
+    DO i=1,nfiles                                 ! ROOT Files
+        IF(mfd(i) == 4) THEN
+#ifdef READ_ROOT_FILES
+            IF(nROOTFiles < 0) THEN ! initialize
+                CALL initroot(max(nfiles,numberOfReadingThreads)) ! uncommented by GF
+                nROOTFiles=0
+            END IF
+            nROOTFiles=nROOTFiles+1
+            nBinaryFiles=nBinaryFiles+1
+            ! next file name
+            sfd(1,nBinaryFiles)=ioff
+            sfd(2,nBinaryFiles)=lfd(i)
+
+            CALL binopn(nBinaryFiles,ifilb,ios)
+            IF(ios == 0) THEN
+                fileLevelWeight(nBinaryFiles)=ofd(i)
+                IF (keepOpen < 1) CALL bincls(nBinaryFiles,ifilb)
+            ELSE ! failure
+                iosum=iosum+1
+                nROOTFiles=nROOTFiles-1
+                nBinaryFiles=nBinaryFiles-1
+            END IF
+#else
+            WRITE(*,*) 'Opening of ROOT-files not supported.'
             ! GF add
             iosum=iosum+1
             ! GF add end
@@ -10179,7 +10284,7 @@ END SUBROUTINE filetx
 
 !> Inquire on file.
 !!
-!! Result = 1 for existing binary file, =2 for existing text file, else =0,
+!! Result = 1 for existing fortran/C/root binary file, =2 for existing text file, else =0,
 !! < 0 open error.
 !!
 !! Text file names are recognized by the filename extension, which
@@ -10189,7 +10294,6 @@ END SUBROUTINE filetx
 
 INTEGER(mpi) FUNCTION nufile(fname)
     USE mpdef
-
     IMPLICIT NONE
     INTEGER(mpi) :: ios
     INTEGER(mpi) :: l1
@@ -10886,6 +10990,10 @@ SUBROUTINE intext(text,nline)
         mat=matint(text(ia:ib),keystx,npat,ntext) ! comparison
         IF(mat == max(npat,ntext)) RETURN
 
+        keystx='ROOTFiles'
+        mat=matint(text(ia:ib),keystx,npat,ntext) ! comparison
+        IF(mat == max(npat,ntext)) RETURN
+
         keystx='closeandreopen'
         mat=matint(text(ia:ib),keystx,npat,ntext) ! comparison
         IF(mat == max(npat,ntext)) RETURN
@@ -11447,6 +11555,19 @@ SUBROUTINE binopn(kfile, ithr, ierr)
     END INTERFACE
 #endif
 
+
+#ifdef READ_ROOT_FILES
+    INTERFACE
+        SUBROUTINE openroot(filename, lfn, lun, ios) BIND(c)
+            USE iso_c_binding
+            CHARACTER(kind=c_char), DIMENSION(*), INTENT(IN) :: filename
+            INTEGER(c_int), INTENT(IN), VALUE :: lfn
+            INTEGER(c_int), INTENT(IN), VALUE :: lun
+            INTEGER(c_int), INTENT(INOUT) :: ios
+        END SUBROUTINE openroot
+    END INTERFACE
+#endif
+
     ierr=0
     lun=ithr
     ! modification date (=0: open for first time, >0: reopen, <0: unknown )
@@ -11460,17 +11581,26 @@ SUBROUTINE binopn(kfile, ithr, ierr)
     !print *, " opening binary ", kfile, ithr, moddate, " : ", fname(1:lfn)
     ! open
     ios=0
-    IF(kfile <= nfilf) THEN
+    IF(kfile <= nFortranFiles) THEN
         ! Fortran file
         lun=kfile+10
         OPEN(lun,FILE=fname(1:lfn),IOSTAT=ios, FORM='UNFORMATTED')
         print *, ' lun ', lun, ios
-#ifdef READ_C_FILES
-    ELSE
+    ELSEIF (kfile <= nCFiles+nFortranFiles) THEN
         ! C file
+#ifdef READ_C_FILES
         CALL openc(fname(1:lfn),lfn,lun,ios)
 #else
         WRITE(*,*) 'Opening of C-files not supported.'
+        ierr=1
+        RETURN
+#endif
+    ELSE
+        ! ROOT file 
+#ifdef READ_ROOT_FILES
+        CALL openroot(fname(1:lfn),lfn,lun,ios)
+#else
+        WRITE(*,*) 'Opening of ROOT-files not supported.'
         ierr=1
         RETURN
 #endif
@@ -11485,6 +11615,7 @@ SUBROUTINE binopn(kfile, ithr, ierr)
         ENDIF
         RETURN
     END IF
+    IF(fname(1:5) /= 'root:') THEN
     ! get status
     ios=stat(fname(1:lfn),ibuff)
     !print *, ' STAT ', ios, ibuff(10), moddate
@@ -11502,6 +11633,9 @@ SUBROUTINE binopn(kfile, ithr, ierr)
         END IF
     ELSE
         yfd(kfile)=ibuff(10)
+        END IF
+    ELSE 
+        yfd(kfile)=0    ! dummy mod date for all ROOT files read via XRD
     END IF
     RETURN
 
@@ -11528,16 +11662,30 @@ SUBROUTINE bincls(kfile, ithr)
             INTEGER(c_int), INTENT(IN), VALUE :: lun
         END SUBROUTINE closec
     END INTERFACE
+#endif 
+
+#ifdef READ_ROOT_FILES
+    INTERFACE
+        SUBROUTINE closeroot(lun) BIND(c)
+            USE iso_c_binding
+            INTEGER(c_int), INTENT(IN), VALUE :: lun
+        END SUBROUTINE closeroot
+    END INTERFACE
 #endif
 
     lun=ithr
     !print *, " closing binary ", kfile, ithr
-    IF(kfile <= nfilf) THEN ! Fortran file
+    IF(kfile <= nFortranFiles) THEN ! Fortran file
         lun=kfile+10
         CLOSE(lun)
 #ifdef READ_C_FILES
-    ELSE ! C file
+    ELSEIF (kfile <= nFortranFiles+nCFiles) THEN ! C file
         CALL closec(lun)
+#endif
+#ifdef READ_ROOT_FILES 
+    ELSE 
+        ! ROOT file 
+        call closeroot(lun) 
 #endif
     END IF
     
@@ -11564,14 +11712,28 @@ SUBROUTINE binrwd(kfile)
     END INTERFACE
 #endif
 
+#ifdef READ_ROOT_FILES
+    INTERFACE
+        SUBROUTINE resetroot(lun) BIND(c)
+            USE iso_c_binding
+            INTEGER(c_int), INTENT(IN), VALUE :: lun
+        END SUBROUTINE resetroot
+    END INTERFACE
+#endif
+
     !print *, " rewinding binary ", kfile
-    IF (kfile <= nfilf) THEN
+    IF (kfile <= nFortranFiles) THEN
         lun=kfile+10
         REWIND lun
 #ifdef READ_C_FILES
-    ELSE
-        lun=kfile-nfilf
+    ELSEIF (kFile <= nFortranFiles+nCFiles) THEN
+        lun=kfile-nFortranFiles
         CALL resetc(lun)
+#endif
+#ifdef READ_ROOT_FILES
+    ELSE 
+        lun = kfile-nFortranFiles 
+        call resetroot(lun) 
 #endif
     END IF
 

@@ -1,15 +1,23 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.26.5)
 
+
+# discover the compilers from PATH (when system install is overridden)
+find_program(gf_loc gfortran)
+find_program(gcc_loc gcc)
+find_program(gpp_loc g++)
+
+set(CMAKE_Fortran_COMPILER ${gf_loc})
+set(CMAKE_C_COMPILER ${gcc_loc})
+set(CMAKE_CXX_COMPILER ${gpp_loc})
+
+
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
-
-set(CMAKE_Fortran_COMPILER gcc)
-
-# check for ROOT 
-find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO QUIET )
+include(CTest)
 
 # Arguments for CMake
 option(DEBUG "Debug" OFF)
 option(SUPPORT_READ_C "read C files" ON)
+option(SUPPORT_ROOT "build ROOT file I/O and root plotting scripts" ON)
 option(SUPPORT_ZLIB "support Z lib for file compression" ON)
 option(SUPPORT_C_RFIO "Use C RFIO" OFF)
 option(SUPPORT_OPENMP "Support OPENMP" ON)
@@ -31,6 +39,26 @@ set(useLP_OPENBLAS false)
 if (LAPACK_OPENBLAS)
     find_package( LAPACK REQUIRED )
     set(useLP_OPENBLAS true)
+endif()
+
+set(build_ROOT_comps false)
+if(SUPPORT_ROOT)
+    # check for ROOT 
+    if (DEFINED ENV{ROOTSYS})
+        # follow ROOTSYS if it has been defined 
+        set (ROOT_DIR $ENV{ROOTSYS}/cmake) 
+        message ("Taking ROOT from ROOTSYS: $ENV{ROOTSYS}")
+    endif()
+    find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO Net QUIET PATHS ${ROOT_DIR} )
+    if (${ROOT_FOUND})
+        message("Building ROOT related components")
+        set(build_ROOT_comps true)
+    endif()
+endif()
+
+set(build_CTOROOT false)
+if (build_ROOT_comps AND SUPPORT_READ_C)
+    set(build_CTOROOT true)
 endif()
 
 if (LAPACK_MKL)
@@ -100,17 +128,78 @@ endif()
 # ===== Reading of C files ===== 
 if (SUPPORT_READ_C)
     message ("Building with C-file support")
-    add_library(readc )
-    target_sources(readc PUBLIC readc.c)
-    target_compile_definitions(pede PUBLIC READ_C_FILES)
+    add_library(readc SHARED)
+    target_sources(readc 
+                PRIVATE readc.c
+                PUBLIC 
+                    FILE_SET HEADERS 
+                    FILES readc.h)
     target_link_libraries(pede PUBLIC readc)
+    target_compile_definitions(pede PUBLIC READ_C_FILES)
+    # target_link_libraries(pede PUBLIC readc)
     # ===== LibZ for file compression ===== 
     if (SUPPORT_ZLIB)
         message ("Building with libz support")
         target_compile_definitions(readc PUBLIC USE_ZLIB)
         target_link_libraries(readc PUBLIC z)
     endif()
+    install(
+        TARGETS readc
+        LIBRARY DESTINATION lib
+        FILE_SET HEADERS 
+        DESTINATION include
+    )
 endif()
+
+if (build_ROOT_comps)
+    message ("Found ROOT - will build histogram reader and ROOT I/O lib") 
+
+    set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
+
+    # Read ROOT files
+    add_library(readROOT SHARED)
+    target_sources(readROOT 
+                PRIVATE readROOT.cc 
+                PUBLIC 
+                    FILE_SET HEADERS 
+                    FILES readROOT.h)
+    target_link_libraries(readROOT PUBLIC ${ROOT_LIBRARIES})
+    target_include_directories(readROOT PUBLIC ${ROOT_INCLUDE_DIRS})
+    target_compile_definitions(pede PUBLIC READ_ROOT_FILES)
+    target_link_libraries(pede PUBLIC readROOT)
+    install(
+        TARGETS readROOT
+        LIBRARY DESTINATION lib
+        FILE_SET HEADERS 
+        DESTINATION include
+    )
+
+    # enable ROOT support in Mille
+    target_compile_definitions(Mille PUBLIC SUPPORT_ROOTIO)
+    target_link_libraries(Mille PUBLIC ${ROOT_LIBRARIES})
+    target_include_directories(Mille PUBLIC ${ROOT_INCLUDE_DIRS})
+
+    # histogrammer 
+    add_executable(readPedeHists readPedeHists.cpp)
+    target_link_libraries(readPedeHists PRIVATE ${ROOT_LIBRARIES})
+    target_include_directories(readPedeHists PRIVATE ${ROOT_INCLUDE_DIRS})
+    install (
+        TARGETS readPedeHists
+        DESTINATION bin
+    )
+
+    # C-to-ROOT conversion 
+    if (build_CTOROOT)
+        add_executable(cToRoot cToRoot.cc)
+        target_link_libraries(cToRoot PUBLIC readc ${ROOT_LIBRARIES})
+        target_include_directories(cToRoot PRIVATE ${ROOT_INCLUDE_DIRS})
+        install (
+            TARGETS cToRoot
+            DESTINATION bin
+        )
+    endif()
+endif()
+
 # ==== OpenMP ==== 
 if (SUPPORT_OPENMP)
     message ("Building with openMP support")
@@ -159,20 +248,6 @@ install(
   TARGETS pede
   DESTINATION bin
 )
-
-# Standalone histogrammer (if we have ROOT)
-if (${ROOT_FOUND})
-    set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
-    message ("Found ROOT - will build histogram reader") 
-    add_executable(readPedeHists readPedeHists.cpp)
-    target_link_libraries(readPedeHists PRIVATE ${ROOT_LIBRARIES})
-    target_include_directories(readPedeHists PRIVATE ${ROOT_INCLUDE_DIRS})
-    install (
-        TARGETS readPedeHists
-        DESTINATION bin
-    )
-endif()
-
 # finally, prepare a setup script for the user 
 # to get pede into their environment 
 configure_file(
@@ -189,3 +264,7 @@ Please make sure to
 before invoking make with SCORE-P instrumentation
 =============================" )
 endif()
+
+
+# Unit tests 
+subdirs(test)

@@ -401,9 +401,10 @@ MODULE mpmod
     INTEGER(mpi) :: ifile  !< current file (index)
     INTEGER(mpi) :: nfiles !< number of files
     INTEGER(mpi) :: nBinaryFiles  !< number of binary files
-    INTEGER(mpi) :: nfilf  !< number of Fortran binary files
-    INTEGER(mpi) :: nfilc  !< number of C binary files
-    INTEGER(mpi) :: nfilw  !< number of weighted binary files
+    INTEGER(mpi) :: nFortranFiles  !< number of Fortran binary files
+    INTEGER(mpi) :: nCFiles  !< number of C binary files
+    INTEGER(mpi) :: nROOTFiles  !< number of C binary files
+    INTEGER(mpi) :: nWeightedBinaryFiles  !< number of weighted binary files
     INTEGER(mpi) :: readBufferSize=10000 !< default read buffer size (I/F words, half record length)
 
 END MODULE mpmod

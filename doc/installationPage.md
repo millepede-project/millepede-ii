@@ -12,7 +12,7 @@ Optionally, the package can be compiled to use
 - [OpenMP](https://www.openmp.org/) for parallelisation, 
 - [OpenBLAS](http://www.openmathlib.org/OpenBLAS/) or [Intel oneAPI MKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) to use LAPACK routines for optimised solving, 
 - [Intel MKL PARDISO](https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-c/2023-0/pardiso.html) to further improve the solution of sparse systems, 
-- [ROOT](https://root.cern/) to visualise monitoring histograms
+- [ROOT](https://root.cern/) to visualise monitoring histograms and use ROOT-based I/O 
 
 Instrumentation for profiling using [SCORE-P](https://www.vi-hps.org/projects/score-p/overview/overview.html) is implemented and can also be enabled during the build if desired. 
 
@@ -61,6 +61,7 @@ You can pass additional options / flags to CMake:
 - `-DSUPPORT_ZLIB=off`: Disable (default: on) support for lib-z compression for C-binaries. 
 - `-DSUPPORT_READ_C=off`: Disable (default: on) support for reading C-files. 
 - `-DSUPPORT_C_RFIO=on`: Enable (default: off) use of C RFIO for binary reading. 
+- `-DSUPPORT_ROOT=off`: Disable (default: on) support for ROOT for file access and histogramming, if ROOT is found. 
 
 #### Bonus: Setup script
 The build will place a `mp2setup.sh` script in your chosen installation folder.

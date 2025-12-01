@@ -34,6 +34,11 @@
 #include <fstream>
 #include <iostream>
 
+#ifdef SUPPORT_ROOTIO 
+#include "TTree.h"
+#include "TFile.h" 
+#endif 
+
 //___________________________________________________________________________
 
 /// Opens outFileName (by default as binary file).
@@ -42,26 +47,21 @@
  * \param[in] asBinary     flag for binary
  * \param[in] writeZero    flag for keeping of zeros
  */
-Mille::Mille(const char *outFileName, bool asBinary, bool writeZero) : 
-  myOutFile(outFileName, (asBinary ? (std::ios::binary | std::ios::out) : std::ios::out)),
-  myAsBinary(asBinary), myWriteZero(writeZero), myBufferPos(-1), myHasSpecial(false)
+Mille::Mille(const char *outFileName, OutputMode out, bool writeZero) : 
+  outputMode_(out), myWriteZero(writeZero), myBufferPos(-1), myHasSpecial(false)
 {
-  // Instead myBufferPos(-1), myHasSpecial(false) and the following two lines
-  // we could call newSet() and kill()...
-  myBufferInt[0]   = 0;
-  myBufferFloat[0] = 0.;
-
-  if (!myOutFile.is_open()) {
-    std::cerr << "Mille::Mille: Could not open " << outFileName 
-	      << " as output file." << std::endl;
-  }
+  if (outputMode_ != OutputMode::RootBinary) openC(outFileName);
+  else openRoot(outFileName); 
 }
 
 //___________________________________________________________________________
 /// Closes file.
 Mille::~Mille()
 {
-  myOutFile.close();
+  if (outputMode_ != OutputMode::RootBinary){
+    closeC();
+  }
+  else closeRoot(); 
 }
 
 //___________________________________________________________________________
@@ -80,35 +80,34 @@ void Mille::mille(int NLC, const float *derLc,
 		  float rMeas, float sigma)
 {
   if (sigma <= 0.) return;
-  if (myBufferPos == -1) this->newSet(); // start, e.g. new track
-  if (!this->checkBufferSize(NLC, NGL)) return;
+  if (myBufferInt.empty()) this->newSet(); // start, e.g. new track
+
+  // reserve sufficient memory to avoid frequent reallocation
+  myBufferFloat.reserve(NGL+NLC+2 + myBufferFloat.size()); 
+  myBufferInt.reserve(NGL+NLC+2 + myBufferInt.size()); 
 
   // first store measurement
-  ++myBufferPos;
-  myBufferFloat[myBufferPos] = rMeas;
-  myBufferInt  [myBufferPos] = 0;
+  myBufferFloat.push_back(rMeas);
+  myBufferInt.push_back(0);
 
   // store local derivatives and local 'lables' 1,...,NLC
   for (int i = 0; i < NLC; ++i) {
     if (derLc[i] || myWriteZero) { // by default store only non-zero derivatives
-      ++myBufferPos;
-      myBufferFloat[myBufferPos] = derLc[i]; // local derivatives
-      myBufferInt  [myBufferPos] = i+1;      // index of local parameter
+      myBufferFloat.push_back(derLc[i]);
+      myBufferInt.push_back(i+1);
     }
   }
 
   // store uncertainty of measurement in between locals and globals
-  ++myBufferPos;
-  myBufferFloat[myBufferPos] = sigma;
-  myBufferInt  [myBufferPos] = 0;
+  myBufferFloat.push_back(sigma);
+  myBufferInt.push_back(0);
 
   // store global derivatives and their labels
   for (int i = 0; i < NGL; ++i) {
     if (derGl[i] || myWriteZero) { // by default store only non-zero derivatives
       if ((label[i] > 0 || myWriteZero) && label[i] <= myMaxLabel) { // and for valid labels
-	++myBufferPos;
-	myBufferFloat[myBufferPos] = derGl[i]; // global derivatives
-	myBufferInt  [myBufferPos] = label[i]; // index of global parameter
+        myBufferFloat.push_back(derGl[i]); // global derivatives
+        myBufferInt.push_back(label[i]);  // index of global parameter
       } else {
 	std::cerr << "Mille::mille: Invalid label " << label[i] 
 		  << " <= 0 or > " << myMaxLabel << std::endl; 
@@ -127,13 +126,12 @@ void Mille::mille(int NLC, const float *derLc,
 void Mille::special(int nSpecial, const float *floatings, const int *integers)
 {
   if (nSpecial == 0) return;
-  if (myBufferPos == -1) this->newSet(); // start, e.g. new track
+  if (myBufferInt.empty()) this->newSet(); // start, e.g. new track
   if (myHasSpecial) {
     std::cerr << "Mille::special: Special values already stored for this record."
 	      << std::endl; 
     return;
   }
-  if (!this->checkBufferSize(nSpecial, 0)) return;
   myHasSpecial = true; // after newSet() (Note: MILLSP sets to buffer position...)
 
   //  myBufferFloat[.]  | myBufferInt[.]
@@ -142,18 +140,17 @@ void Mille::special(int nSpecial, const float *floatings, const int *integers)
   //  -float(nSpecial)  |      0
   //  The above indicates special data, following are nSpecial floating and nSpecial integer data.
 
-  ++myBufferPos; // zero pair
-  myBufferFloat[myBufferPos] = 0.;
-  myBufferInt  [myBufferPos] = 0;
+  // zeros 
+  myBufferFloat.push_back( 0.);
+  myBufferInt  .push_back( 0);
 
-  ++myBufferPos; // nSpecial and zero
-  myBufferFloat[myBufferPos] = -nSpecial; // automatic conversion to float
-  myBufferInt  [myBufferPos] = 0;
+  // nSpecial and zero
+  myBufferFloat.push_back( nSpecial);
+  myBufferInt  .push_back( 0);
 
   for (int i = 0; i < nSpecial; ++i) {
-    ++myBufferPos;
-    myBufferFloat[myBufferPos] = floatings[i];
-    myBufferInt  [myBufferPos] = integers[i];
+    myBufferFloat.push_back( floatings[i]);
+    myBufferInt  .push_back( integers[i]);
   }
 }
 
@@ -161,47 +158,34 @@ void Mille::special(int nSpecial, const float *floatings, const int *integers)
 /// Reset buffers, i.e. kill derivatives accumulated for current set.
 void Mille::kill()
 {
-  myBufferPos = -1;
+  myBufferFloat.clear();
+  myBufferInt.clear();
 }
 
 //___________________________________________________________________________
 /// Write buffer (set of derivatives with same local parameters) to file.
 void Mille::end()
 {
-  if (myBufferPos > 0) { // only if anything stored...
-    const int numWordsToWrite = (myBufferPos + 1)*2;
-
-    if (myAsBinary) {
-      myOutFile.write(reinterpret_cast<const char*>(&numWordsToWrite), 
-		      sizeof(numWordsToWrite));
-      myOutFile.write(reinterpret_cast<char*>(myBufferFloat), 
-		      (myBufferPos+1) * sizeof(myBufferFloat[0]));
-      myOutFile.write(reinterpret_cast<char*>(myBufferInt), 
-		      (myBufferPos+1) * sizeof(myBufferInt[0]));
-    } else {
-      myOutFile << numWordsToWrite << "\n";
-      for (int i = 0; i < myBufferPos+1; ++i) {
-	myOutFile << myBufferFloat[i] << " ";
-      }
-      myOutFile << "\n";
-      
-      for (int i = 0; i < myBufferPos+1; ++i) {
-	myOutFile << myBufferInt[i] << " ";
-      }
-      myOutFile << "\n";
+  if (myBufferInt.size() > 1) { // only if anything stored...
+    if (outputMode_ == OutputMode::Cbinary) {
+      writeC(); 
+    } else  if (outputMode_ == OutputMode::TextFile){
+      writeText(); 
+    }
+    else{
+      writeRoot(); 
     }
   }
-  myBufferPos = -1; // reset buffer for next set of derivatives
-}
+  kill(); // reset for next entry 
+} 
 
 //___________________________________________________________________________
 /// Initialize for new set of locals, e.g. new track.
 void Mille::newSet()
 {
-  myBufferPos = 0;
   myHasSpecial = false;
-  myBufferFloat[0] = 0.0;
-  myBufferInt  [0] = 0;   // position 0 used as error counter
+  myBufferFloat.push_back(0);
+  myBufferInt.push_back(0); 
 }
 
 //___________________________________________________________________________
@@ -213,16 +197,83 @@ void Mille::newSet()
  */
 bool Mille::checkBufferSize(int nLocal, int nGlobal)
 {
-  if (myBufferPos + nLocal + nGlobal + 2 >= myBufferSize) {
-    ++(myBufferInt[0]); // increase error count
-    std::cerr << "Mille::checkBufferSize: Buffer too short (" 
-	      << myBufferSize << "),"
-	      << "\n need space for nLocal (" << nLocal<< ")"
-	      << "/nGlobal (" << nGlobal << ") local/global derivatives, " 
-	      << myBufferPos + 1 << " already stored!"
-	      << std::endl;
-    return false;
-  } else {
+  // if (myBufferPos + nLocal + nGlobal + 2 >= myBufferSize) {
+  //   ++(myBufferInt[0]); // increase error count
+  //   std::cerr << "Mille::checkBufferSize: Buffer too short (" 
+	//       << myBufferSize << "),"
+	//       << "\n need space for nLocal (" << nLocal<< ")"
+	//       << "/nGlobal (" << nGlobal << ") local/global derivatives, " 
+	//       << myBufferPos + 1 << " already stored!"
+	//       << std::endl;
+  //   return false;
+  // } else {
     return true;
-  }
+  // }
 }
+
+void Mille::openC(const std::string  & fname){
+  myOutFile = std::ofstream(fname, (outputMode_ == OutputMode::Cbinary ? (std::ios::binary | std::ios::out) : std::ios::out));
+  // Instead myBufferPos(-1), myHasSpecial(false) and the following two lines
+  // we could call newSet() and kill()...
+  if (!myOutFile.is_open()) {
+    std::cerr << "Mille::openC: Could not open " << fname 
+	      << " as output file." << std::endl;
+  }
+} 
+void Mille::openRoot(const std::string & fname){
+  #ifdef SUPPORT_ROOTIO
+  rootOutFile_ = TFile::Open(fname.c_str(),"RECREATE"); 
+  if (!rootOutFile_ || !rootOutFile_->IsOpen()){
+    std::cerr << "Mille::openRoot: Could not open " << fname 
+	      << " as output file." << std::endl;
+  }
+  outTree_ = new TTree("MilleRecords","MilleRecords");
+  outTree_->SetDirectory(rootOutFile_); 
+  outTree_->Branch("floats",&myBufferFloat); 
+  outTree_->Branch("ints",&myBufferInt); 
+  outTree_->Branch("doubles",&myBufferDummyDouble); 
+  #else 
+  std::cerr << " Error: Requesting ROOT output, but Mille was not built with ROOT support. Will not do anything. "<<std::endl; 
+  #endif  
+  
+} 
+
+void Mille::writeC(){
+    const int numWordsToWrite = 2 * myBufferFloat.size(); 
+    myOutFile.write(reinterpret_cast<const char*>(&numWordsToWrite), 
+        sizeof(numWordsToWrite));
+    myOutFile.write(reinterpret_cast<char*>(myBufferFloat.data()), 
+        (myBufferFloat.size()) * sizeof(myBufferFloat[0]));
+    myOutFile.write(reinterpret_cast<char*>(myBufferInt.data()), 
+        (myBufferFloat.size()) * sizeof(myBufferInt[0]));
+  
+} 
+void Mille::writeText(){
+    const int numWordsToWrite = 2 * myBufferFloat.size(); 
+    myOutFile << numWordsToWrite << "\n";
+    for (int i = 0; i < myBufferPos+1; ++i) {
+      myOutFile << myBufferFloat[i] << " ";
+    }
+    myOutFile << "\n";
+    
+    for (int i = 0; i < myBufferPos+1; ++i) {
+      myOutFile << myBufferInt[i] << " ";
+    }
+    myOutFile << "\n";
+  
+} 
+void Mille::writeRoot(){
+#ifdef SUPPORT_ROOTIO
+  outTree_->Fill();
+#endif 
+} 
+
+void Mille::closeC(){
+  myOutFile.close();
+} 
+void Mille::closeRoot(){
+  #ifdef SUPPORT_ROOTIO
+  rootOutFile_->Write(); 
+  rootOutFile_->Close();
+  #endif  
+} 
