@@ -8,6 +8,7 @@ install (
     )
 add_test(NAME IOfromCbinary COMMAND testMilleC)
 
+if (build_ROOT_comps)
 add_executable(testMilleROOT testMilleROOT.cc)
 target_link_libraries(testMilleROOT PUBLIC Mille readROOT)    
 install (
@@ -15,3 +16,4 @@ install (
         DESTINATION bin
     )
 add_test(NAME IOfromROOTbinary COMMAND testMilleROOT)
+endif()
