@@ -3,6 +3,15 @@
 Major changes with respect to the \ref draftman_page "draft manual".
 \tableofcontents
 
+# ROOT binaries
+In addition to the Fortran- and C-binary formats, a ROOT-based binary format is also supported. 
+This can be set using the `rootfiles` steering file argument, and be mixed with the other formats as desired.
+Reading network files using XRootD is supported.
+The binary format is very close the the format used for C-files, with a `TTree` storing information. 
+Records are encoded as entries of the tree, and the floats / ints of each entry stored as `std::vector` branches. 
+A conversion program, `cToRoot`, is provided to convert existing C-files to the ROOT format.
+Performance is comparable between the C- and ROOT-binaries, the main difference is the network I/O support. 
+
 # Extended entries cut
  The [entries](option_page.html#entries) cut has now three arguments:
  1. \ref mpmod::mreqenf "mreqenf": Minimum required (number of) \ref an-entries "entries"

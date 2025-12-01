@@ -101,6 +101,18 @@
  * \c tinypede.py: **Pede** implementation in python3 with basic functionality for
    illustration or testing with small problems.
 
+In addition, there are a number of precompiled programs available: 
+## readPedeHists: Read and convert the **Millepede** histogram file <tt>millepede.his</tt>.
+   This program does the same work as the `readPedeHists.C` script, but can be run without rebuilding ROOT if `Millepede` was compiled with ROOT support. 
+   By default, outputs are written to a ROOT file and a multi-page PDF document. These can be disabled using the command line arguments `--noROOT` and `--noPDF`. Conversely, the `-r <filename>` and `-p <filename>` arguments allow to set the desired file names for the outputs, overriding the defaults. 
+
+## cToRoot: Convert C-binaries to ROOT format 
+This program converts one or several C-binary input files in the Mille-format to one file using the corresponding ROOT format.
+It is available if `Millepede` was compiled with ROOT support. 
+The call signature is `cToRoot <target ROOT file> <one or many C files to convert>`. 
+Entries will be written in the order of their appearance in the C-files, concatenating the files in order of specification. 
+The resulting file will be identical to one obtained with running `Mille` directly with ROOT output.  
+
 # Julia
  The subdirectory \c julia contains some of the above tools reimplemented in [Julia](https://julialang.org):
  * \c readMilleBinary.jl
