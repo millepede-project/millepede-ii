@@ -1,5 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.26.5)
 
+
 # discover the compilers from PATH (when system install is overridden)
 find_program(gf_loc gfortran)
 find_program(gcc_loc gcc)
@@ -11,6 +12,7 @@ set(CMAKE_CXX_COMPILER ${gpp_loc})
 
 
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
+include(CTest)
 
 # Arguments for CMake
 option(DEBUG "Debug" OFF)
@@ -261,3 +263,7 @@ Please make sure to
 before invoking make with SCORE-P instrumentation
 =============================" )
 endif()
+
+
+# Unit tests 
+subdirs(test)

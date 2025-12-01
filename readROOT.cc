@@ -105,7 +105,7 @@ class fileHandler{
         // check the length of the label array for this record 
         int entrySize = ints_->size();
         // if we fit into the buffer, copy the information into the buffers  
-        if (entrySize < maxBufferSize){
+        if (entrySize <= maxBufferSize){
             // label info
             std::memcpy(targetInt, 	  ints_->data(),   entrySize*sizeof(ints_->front()   )); 
             // double-precision float info 
