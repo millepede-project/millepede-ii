@@ -30,7 +30,7 @@ This is for example available in the `gitlab.desy.de:5555/millepede/millepede-ii
 Download the software package from the DESY \c gitlab server to
     \a target directory, e.g. (shallow clone):
 
-         git clone --depth 1 --branch V04-18-00 \
+         git clone --depth 1 --branch V04-19-00 \
              https://gitlab.desy.de/millepede/millepede-ii.git target
 
 Then compile using either of the following options: 
