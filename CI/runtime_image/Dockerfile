@@ -8,3 +8,4 @@ WORKDIR /pede/build
 RUN cmake ../src 
 RUN cmake --build . 
 RUN cmake --install .
+ENV LD_LIBRARY_PATH=/usr/local/lib
