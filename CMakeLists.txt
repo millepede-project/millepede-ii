@@ -12,6 +12,7 @@ set(CMAKE_CXX_COMPILER ${gpp_loc})
 
 
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
+set(millepedeII_VERSION 04.19.0)
 include(CTest)
 
 # Arguments for CMake
@@ -49,7 +50,7 @@ if(SUPPORT_ROOT)
         set (ROOT_DIR $ENV{ROOTSYS}/cmake) 
         message ("Taking ROOT from ROOTSYS: $ENV{ROOTSYS}")
     endif()
-    find_package(ROOT COMPONENTS Core Hist Graf Gpad RIO Net QUIET PATHS ${ROOT_DIR} )
+    find_package(ROOT CONFIG QUIET )
     if (${ROOT_FOUND})
         message("Building ROOT related components")
         set(build_ROOT_comps true)
@@ -136,7 +137,6 @@ if (SUPPORT_READ_C)
                     FILES readc.h)
     target_link_libraries(pede PUBLIC readc)
     target_compile_definitions(pede PUBLIC READ_C_FILES)
-    # target_link_libraries(pede PUBLIC readc)
     # ===== LibZ for file compression ===== 
     if (SUPPORT_ZLIB)
         message ("Building with libz support")
@@ -164,8 +164,7 @@ if (build_ROOT_comps)
                 PUBLIC 
                     FILE_SET HEADERS 
                     FILES readROOT.h)
-    target_link_libraries(readROOT PUBLIC ${ROOT_LIBRARIES})
-    target_include_directories(readROOT PUBLIC ${ROOT_INCLUDE_DIRS})
+    target_link_libraries(readROOT PUBLIC ROOT::Core ROOT::Tree ROOT::RIO ROOT::Net)
     target_compile_definitions(pede PUBLIC READ_ROOT_FILES)
     target_link_libraries(pede PUBLIC readROOT)
     install(
@@ -178,14 +177,12 @@ if (build_ROOT_comps)
 
     # enable ROOT support in Mille
     target_compile_definitions(Mille PUBLIC SUPPORT_ROOTIO)
-    target_link_libraries(Mille PUBLIC ${ROOT_LIBRARIES})
-    target_include_directories(Mille PUBLIC ${ROOT_INCLUDE_DIRS})
+    target_link_libraries(Mille PUBLIC ROOT::Core ROOT::Tree ROOT::RIO )
 
     # histogrammer 
     add_executable(readPedeHists)
     target_sources(readPedeHists PRIVATE readPedeHists.cpp)
-    target_link_libraries(readPedeHists PUBLIC ${ROOT_LIBRARIES})
-    target_include_directories(readPedeHists PUBLIC ${ROOT_INCLUDE_DIRS})
+    target_link_libraries(readPedeHists PUBLIC ROOT::Core ROOT::Tree ROOT::RIO ROOT::Graf ROOT::Gpad ROOT::Hist)
     install (
         TARGETS readPedeHists
         EXPORT millepedeII-targets
@@ -196,8 +193,7 @@ if (build_ROOT_comps)
     if (build_CTOROOT)
         add_executable(cToRoot)
         target_sources(cToRoot PRIVATE cToRoot.cc)
-        target_link_libraries(cToRoot PUBLIC readc ${ROOT_LIBRARIES})
-        target_include_directories(cToRoot PUBLIC ${ROOT_INCLUDE_DIRS})
+        target_link_libraries(cToRoot PUBLIC readc  ROOT::Core ROOT::Tree ROOT::RIO  )
         install (
             TARGETS cToRoot
             EXPORT millepedeII-targets

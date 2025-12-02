@@ -2,6 +2,19 @@
 get_filename_component(_dir "${CMAKE_CURRENT_LIST_FILE}" PATH)
 get_filename_component(_prefix "${_dir}/.." ABSOLUTE)
 
+# publish ROOT dependency if set 
+if("@build_ROOT_comps@")
+
+    # check for ROOT 
+    if (DEFINED ENV{ROOTSYS})
+        # follow ROOTSYS if it has been defined 
+        set (ROOT_DIR $ENV{ROOTSYS}/cmake) 
+        message ("Taking ROOT from ROOTSYS: $ENV{ROOTSYS}")
+    endif()
+
+    find_package(ROOT CONFIG QUIET )
+endif()
+
 # Import the targets.
 include("${_dir}/millepedeII-targets.cmake")
 
