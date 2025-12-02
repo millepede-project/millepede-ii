@@ -2,7 +2,13 @@
  
 ## Version history
 
-### Version V04-18-00 (new)
+### Version V04-19-00 (new)
+
+Option to store and read binaries in ROOT format, C-to-root binary conversion, unit tests. 
+
+(Clone Id: 6b6285a829566d03769f4dd301c5422ddb23d86e)
+
+### Version V04-18-00
 
 New CMake-based build, revised documentation, option to set number of records in internal test. 
 
