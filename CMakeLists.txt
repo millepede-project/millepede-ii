@@ -97,7 +97,7 @@ target_sources(Mille
 # ===== Pede ======== 
 add_executable(pede)
 target_sources(pede
-  PUBLIC
+  PRIVATE
     mpdef.f90 mpdalc.f90 mpmon.f90 mpbits.f90 mpqldec.f90 mptest1.f90 mptest2.f90 mille.f90 mpnum.f90 mptext.f90 mphistab.f90 
 	minresDataModule.f90 minresModule.f90 minresqlpDataModule.f90 minresqlpBlasModule.f90 minresqlpModule.f90 
     randoms.f90  vertpr.f90 linesrch.f90 Dbandmatrix.f90 mpmod.f90 mppar.f90 mplapack.f90 pede.f90
@@ -145,6 +145,7 @@ if (SUPPORT_READ_C)
     endif()
     install(
         TARGETS readc
+        EXPORT millepedeII-targets
         LIBRARY DESTINATION lib
         FILE_SET HEADERS 
         DESTINATION include
@@ -169,6 +170,7 @@ if (build_ROOT_comps)
     target_link_libraries(pede PUBLIC readROOT)
     install(
         TARGETS readROOT
+        EXPORT millepedeII-targets
         LIBRARY DESTINATION lib
         FILE_SET HEADERS 
         DESTINATION include
@@ -180,21 +182,25 @@ if (build_ROOT_comps)
     target_include_directories(Mille PUBLIC ${ROOT_INCLUDE_DIRS})
 
     # histogrammer 
-    add_executable(readPedeHists readPedeHists.cpp)
-    target_link_libraries(readPedeHists PRIVATE ${ROOT_LIBRARIES})
-    target_include_directories(readPedeHists PRIVATE ${ROOT_INCLUDE_DIRS})
+    add_executable(readPedeHists)
+    target_sources(readPedeHists PRIVATE readPedeHists.cpp)
+    target_link_libraries(readPedeHists PUBLIC ${ROOT_LIBRARIES})
+    target_include_directories(readPedeHists PUBLIC ${ROOT_INCLUDE_DIRS})
     install (
         TARGETS readPedeHists
+        EXPORT millepedeII-targets
         DESTINATION bin
     )
 
     # C-to-ROOT conversion 
     if (build_CTOROOT)
-        add_executable(cToRoot cToRoot.cc)
+        add_executable(cToRoot)
+        target_sources(cToRoot PRIVATE cToRoot.cc)
         target_link_libraries(cToRoot PUBLIC readc ${ROOT_LIBRARIES})
-        target_include_directories(cToRoot PRIVATE ${ROOT_INCLUDE_DIRS})
+        target_include_directories(cToRoot PUBLIC ${ROOT_INCLUDE_DIRS})
         install (
             TARGETS cToRoot
+            EXPORT millepedeII-targets
             DESTINATION bin
         )
     endif()
@@ -210,6 +216,7 @@ endif()
 # install headers for Mille 
 install(
   TARGETS Mille
+  EXPORT millepedeII-targets
   LIBRARY DESTINATION lib
   FILE_SET HEADERS 
   DESTINATION include
@@ -246,6 +253,7 @@ endif()
 # install pede executable 
 install(
   TARGETS pede
+  EXPORT millepedeII-targets
   DESTINATION bin
 )
 # finally, prepare a setup script for the user 
@@ -264,6 +272,23 @@ Please make sure to
 before invoking make with SCORE-P instrumentation
 =============================" )
 endif()
+
+install (EXPORT millepedeII-targets
+        DESTINATION cmake 
+)
+
+# Create and install package configuration and version files.
+configure_file(
+${millepedeII_SOURCE_DIR}/cmake/millepedeII-config.cmake.in
+${millepedeII_BINARY_DIR}/cmake/millepedeIIConfig.cmake @ONLY)
+
+configure_file(
+${millepedeII_SOURCE_DIR}/cmake/millepedeII-config-version.cmake.in
+${millepedeII_BINARY_DIR}/cmake/millepedeIIConfig-version.cmake @ONLY)
+
+install(FILES ${millepedeII_BINARY_DIR}/cmake/millepedeIIConfig.cmake
+        ${millepedeII_BINARY_DIR}/cmake/millepedeIIConfig-version.cmake
+        DESTINATION cmake/)
 
 
 # Unit tests 
