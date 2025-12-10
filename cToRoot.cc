@@ -24,16 +24,22 @@ int main(int argc, char** argv){
     std::vector<int> intBuffer (1e6,0);
 
     auto tree = std::make_unique<TTree>("MilleRecords","MilleRecords"); 
-    std::vector<double> doubles;
-    std::vector<float> floats;
-    std::vector<int> ints; 
-
+    tree->SetDirectory(fout.get()); 
+    std::vector<double> doubles{};
+    std::vector<float> floats{};
+    std::vector<int> ints{}; 
+    doubles.reserve(10000); 
+    floats.reserve(10000); 
+    ints.reserve(10000); 
+    int floatingPointFormat = 0; 
     double residual; 
     double resError; 
     int trackIndex = 0; 
-    tree->Branch("doubles",&doubles); 
     tree->Branch("ints",&ints); 
     tree->Branch("floats",&floats); 
+    tree->Branch("doubles",&doubles); 
+    tree->Branch("floatingPointFormat",&floatingPointFormat); 
+    tree->SetAutoFlush(100); 
 
     // read from C-files
     int err = 0; 
@@ -45,7 +51,9 @@ int main(int argc, char** argv){
         }
         err = 4; 
         while(err > 0){
+            floatingPointFormat = 0; 
             doubles.clear();
+            floats.clear(); 
             ints.clear();
             int lBuffers = doubleBuffer.size(); 
             readc(doubleBuffer.data() , floatBuffer.data() , intBuffer.data() , &lBuffers, iFile+1, &err); 
@@ -59,9 +67,11 @@ int main(int argc, char** argv){
                 break; 
             }
             if (err == 4){
+                floatingPointFormat = 4; 
                 floats.assign(floatBuffer.begin(),floatBuffer.begin()+lBuffers); 
             }
             else if (err == 8){
+                floatingPointFormat = 8; 
                 doubles.assign(doubleBuffer.begin(),doubleBuffer.begin()+lBuffers); 
             }
             ints.assign(intBuffer.begin(),intBuffer.begin()+lBuffers); 
