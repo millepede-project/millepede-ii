@@ -2,7 +2,19 @@
  
 ## Version history
 
-### Version V04-19-00 (new)
+### Version V04-19-02 (new)
+
+Bugfix to cToRoot program for large input binaries. 
+
+(Clone Id: 6b6285a829566d03769f4dd301c5422ddb23d86e)
+
+### Version V04-19-01
+
+Changes to CMake configuration - 'millepedeII' is now discoverable by find_package. Use location-indepedent ROOT linking 
+
+(Clone Id: 6b6285a829566d03769f4dd301c5422ddb23d86e)
+
+### Version V04-19-00 
 
 Option to store and read binaries in ROOT format, C-to-root binary conversion, unit tests. 
 
