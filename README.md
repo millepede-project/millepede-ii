@@ -10,7 +10,7 @@ Please check out the [Package Documentation](http://millepede.pages.desy.de/mill
 
 The source code of Millepede II is provided by DESY under the terms of the [LGPLv2 license](http://www.gnu.org/licenses/old-licenses/lgpl-2.0-standalone.html).
 
-The latest release recommended for use is `V04-19-00`. 
+The latest release recommended for use is `V04-19-02`. 
 
 Please see the [documentation](https://millepede.pages.desy.de/millepede-ii/installation_page.html) for compilation / installation instructions.  
 
