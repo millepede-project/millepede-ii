@@ -12,7 +12,7 @@ set(CMAKE_CXX_COMPILER ${gpp_loc})
 
 
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
-set(millepedeII_VERSION 04.19.0)
+set(millepedeII_VERSION 04.19.2)
 include(CTest)
 
 # Arguments for CMake
