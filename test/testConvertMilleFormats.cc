@@ -1,9 +1,9 @@
 
 /**
-    \file Unit test for the combination of cToROOT and readROOT modules.
+    \file Unit test for the combination of convertMilleFormats and readROOT modules.
     Define a known (non-physical) set of inputs,
     dump them using Mille into C, convert them 
-    using cToROOT, and finally read them back
+    using convertMilleFormats, and finally read them back
     using readROOT. 
     \author Maximilian Goblirsch-Kolb (DESY) 
     \author Claus Kleinwort, DESY (maintenance and developement)
@@ -24,9 +24,7 @@
     675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include "readROOT.h"
 #include "testMilleIObase.h"
-
 
 int main(int, char**){
 
@@ -40,19 +38,18 @@ int main(int, char**){
     std::vector<std::vector<int>> expectedInt{};
     
     // write the dummy binary - Cfile format
-    int readBufferSize = writeBinary(nTracks, binaryName, Mille::OutputMode::Cbinary, expectedFloat, expectedInt); 
+    int readBufferSize = writeBinary(nTracks, binaryName,  expectedFloat, expectedInt); 
 
-    // run cToROOT to convert to ROOT 
-    int stat_c2r = system((std::string("cToRoot ")+rootName+" "+ binaryName).c_str()); 
+    // run convertMilleFormats to convert to ROOT 
+    int stat_c2r = system((std::string("convertMilleFormats ")+rootName+" "+ binaryName).c_str()); 
     if (stat_c2r != 0){
-        std::cerr << "Failed to run cToROOT"<<std::endl; 
+        std::cerr << "Failed to run convertMilleFormats"<<std::endl; 
         return 9; 
     }
     // readback from the ROOT file we produced
-    int ret = testReadBack(nTracks, rootName, readBufferSize, expectedFloat, expectedInt,
-                            initroot, openroot, readroot, resetroot); 
+    int ret = testReadBack(nTracks, rootName, readBufferSize, expectedFloat, expectedInt); 
 
-    if(!ret) std::cout << " Readback test of C binary via cToROOT and readROOT OK!"<<std::endl;
+    if(!ret) std::cout << " Readback test of C binary via convertMilleFormats and readROOT OK!"<<std::endl;
     
     return ret; 
 }

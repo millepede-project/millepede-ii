@@ -24,7 +24,9 @@
 #include <vector> 
 #include <random> 
 #include <functional> 
-#include "Mille.h"
+#include <iomanip> 
+#include "Mille/writeMilleC.h"
+#include "Mille/readMilleC.h"
 
 /// @brief Write a dummy binary with randomised content, and return information on the expected content 
 /// @param [in] nTracks number of records (= tracks) to generate 
@@ -33,7 +35,7 @@
 /// @param [out] expectedFloat populate with the expected content of the float array - outer vector represents records
 /// @param [out] expectedInt populate with the expected content of the int array - outer vector represents records
 /// @return size of the largest record - defines the needed buffer length. 
-size_t writeBinary(size_t nTracks, const std::string & fname, Mille::OutputMode mode, std::vector<std::vector<float>> & expectedFloat, std::vector<std::vector<int>> & expectedInt){
+size_t writeBinary(size_t nTracks, const std::string & fname, std::vector<std::vector<float>> & expectedFloat, std::vector<std::vector<int>> & expectedInt){
 
     // seed the random engine with a constant to get reproducible behaviour 
     std::default_random_engine rdm(42); 
@@ -41,10 +43,10 @@ size_t writeBinary(size_t nTracks, const std::string & fname, Mille::OutputMode 
     std::uniform_int_distribution nMeasurements(1,6); // for multiplicity
     std::uniform_real_distribution floatDistro(-1.,1.); // for derivatives and residuals 
 
-    Mille mille(fname.c_str(),mode); 
-    std::vector<float> localDerivatives;
-    std::vector<float> globalDerivatives;
-    std::vector<int> localLabels;
+    open_mille_out(fname.c_str(),fname.size()); 
+    std::vector<double> localDerivatives;
+    std::vector<double> globalDerivatives;
+    std::vector<unsigned int> localLabels;
     std::vector<int> globalLabels;
     size_t nMax = 0; 
     for (size_t iTrack = 0; iTrack < nTracks; ++iTrack){
@@ -78,6 +80,7 @@ size_t writeBinary(size_t nTracks, const std::string & fname, Mille::OutputMode 
                 }
                 else{
                     localDerivatives.push_back(0); 
+                    localLabels.push_back(loc+1);
                 }
             }
             // roll local derivatives
@@ -96,10 +99,8 @@ size_t writeBinary(size_t nTracks, const std::string & fname, Mille::OutputMode 
             currentFloats.push_back(residual);
             
             // local derivatives
-            for (float d : localDerivatives){
-                if (d!=0) currentFloats.push_back(d); 
-            }
             currentInts.insert(     currentInts.end(),  localLabels.begin(),        localLabels.end()); 
+            currentFloats.insert(     currentFloats.end(),  localDerivatives.begin(),        localDerivatives.end()); 
             
             // measurement error 
             currentInts.push_back(0);
@@ -110,14 +111,15 @@ size_t writeBinary(size_t nTracks, const std::string & fname, Mille::OutputMode 
             currentFloats.insert(   currentFloats.end(),globalDerivatives.begin(),  globalDerivatives.end()); 
 
             // now also store in Mille 
-            mille.mille(nLoc,localDerivatives.data(),nGlob,globalDerivatives.data(),globalLabels.data(),residual,residualError); 
+            add_mille_data(residual,residualError,nLoc,localLabels.data(), localDerivatives.data(),nGlob, globalLabels.data(),globalDerivatives.data()); 
 
         }
         // check max record size
         if (currentFloats.size() >= nMax) nMax = currentFloats.size(); 
         // track done
-        mille.end();
+        write_mille_out();
     }
+    close_mille_output(); 
     return nMax; 
 }
 
@@ -140,22 +142,16 @@ int testReadBack(size_t nTracks,
                  const std::string & binaryName, 
                  int bufferSize, 
                  const std::vector<std::vector<float>> & expectedFloat, 
-                 const std::vector<std::vector<int>> & expectedInt,
-                 std::function<void(int)> initfunc,
-                 std::function<void(const char *, int , int , int *)> openfunc,
-                 std::function<void(double *, float *, int *, int *, int , int *)> readfunc,
-                 std::function<void(int)> rewindfunc)
-
+                 const std::vector<std::vector<int>> & expectedInt)
                  {  
     // book read buffer
     std::vector<double> bufferDouble(bufferSize,0);
     std::vector<float> bufferFloat(bufferSize,0);
     std::vector<int> bufferInt(bufferSize,0); 
     // init the reader 
-    initfunc(1);
     // open the file, check if successful 
     int errorFlag = 0; 
-    openfunc(binaryName.c_str(), binaryName.size(), 1, &errorFlag); 
+    open_mille(binaryName.c_str(), binaryName.size(), &errorFlag); 
     if (errorFlag){
         std::cerr << "Open failed with status "<<errorFlag<<std::endl;
         return 1; 
@@ -167,9 +163,9 @@ int testReadBack(size_t nTracks,
         bufSize = bufferSize; 
         // call read method, check return 
         errorFlag = 0; 
-        readfunc(bufferDouble.data(),bufferFloat.data(), bufferInt.data(), &bufSize, 1, &errorFlag); 
+        read_mille(bufferDouble.data(),bufferFloat.data(), bufferInt.data(), &bufSize,  &errorFlag); 
         if (errorFlag != 4){
-            std::cerr << "Read did not deliver intended error flag - expected 4, got "<<errorFlag<<std::endl; 
+            std::cerr << "Read for track # "<<k<<" did not deliver intended error flag - expected 4, got "<<errorFlag<<std::endl; 
             return 2; 
         }
         // retrieve the expected result 
@@ -177,44 +173,44 @@ int testReadBack(size_t nTracks,
         const std::vector<int> & expInt = expectedInt.at(k);
         // first check size of returned arrays - compatible with expectation? 
         if (bufSize != expInt.size()){
-            std::cerr <<" Read did not read the expected Int entries - expected "<<expInt.size()<<", got "<<bufSize<<std::endl; 
+            std::cerr <<" Read for track # "<<k<<" did not read the expected Int entries - expected "<<expInt.size()<<", got "<<bufSize<<std::endl; 
             return 3;
         }
         if (bufSize != expFloat.size()){
-            std::cerr <<" Read did not read the expected Float entries - expected "<<expFloat.size()<<", got "<<bufSize<<std::endl; 
+            std::cerr <<" Read for track # "<<k<<" did not read the expected Float entries - expected "<<expFloat.size()<<", got "<<bufSize<<std::endl; 
             return 3;
         }
-        // now also validate the content. Can't wait for std::ranges::enumarate!!  
+        // now also validate the content. Can't wait for std::ranges::enumerate!!  
         bool contentOK = true; 
-        for (size_t k = 0; k < expInt.size(); ++k){
-            if (expInt.at(k) != bufferInt.at(k)){
-                std::cerr << "Int buffer mismatch at position "<<k<<" - expect "<<expInt.at(k)<<", got "<<bufferInt.at(k)<<std::endl; 
+        for (size_t j = 0; j < expInt.size(); ++j){
+            if (expInt.at(j) != bufferInt.at(j)){
+                std::cerr << "Int buffer mismatch for track # "<<k<<" at position "<<j<<" - expect "<<expInt.at(j)<<", got "<<bufferInt.at(j)<<std::endl; 
                 contentOK=false; 
             }
-            if (std::abs(expFloat.at(k) - bufferDouble.at(k))>tolerance){
-                std::cerr << "Int buffer mismatch at position "<<k<<" - expect "<<expFloat.at(k)<<", got "<<bufferDouble.at(k)<<std::endl; 
+            if (std::abs(expFloat.at(j) - bufferDouble.at(j))>tolerance){
+                std::cerr << "Int buffer mismatch for track # "<<k<<" at position "<<j<<" - expect "<<expFloat.at(j)<<", got "<<bufferDouble.at(j)<<std::endl; 
                 contentOK=false; 
             }
         }
         if (!contentOK){
-            std::cerr <<" Read file content not compatible with expectation. See above for mismatches. "<<std::endl;
+            std::cerr <<" Read file content for track # "<<k<<" not compatible with expectation. See above for mismatches. "<<std::endl;
             return 4; 
         }
     }
     // make sure reading beyond the number of written entries results in a null exit code. 
     errorFlag = 0; 
     bufSize = bufferSize; 
-    readfunc(bufferDouble.data(),bufferFloat.data(), bufferInt.data(), &bufSize, 1, &errorFlag); 
+    read_mille(bufferDouble.data(),bufferFloat.data(), bufferInt.data(), &bufSize, &errorFlag); 
     if (errorFlag != 0){
         std::cerr << " Read did not return error code 0 at EOF, instead got "<<errorFlag<<std::endl;
         return 5;  
     }
 
     // rewind the file
-    rewindfunc(1);  
+    reset_mille();  
     errorFlag = 0; 
     bufSize = bufferSize; 
-    readfunc(bufferDouble.data(),bufferFloat.data(), bufferInt.data(), &bufSize, 1, &errorFlag); 
+    read_mille(bufferDouble.data(),bufferFloat.data(), bufferInt.data(), &bufSize, &errorFlag); 
     if (errorFlag != 4){
         std::cerr << " Read after rewind did not return expected code 4, instead got "<<errorFlag<<std::endl;
         return 6;  

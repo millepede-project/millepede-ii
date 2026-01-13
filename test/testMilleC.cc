@@ -23,27 +23,24 @@
     675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include "readc.h"
 #include "testMilleIObase.h"
-
 
 int main(int, char**){
 
     // generate a set of random inputs
     const size_t nTracks = 5; 
-    const std::string binaryName = "TestCbinary.dat";
+    const std::string binaryName = "TestROOTbinary.dat";
 
     // store the expected output 
     std::vector<std::vector<float>> expectedFloat{};
     std::vector<std::vector<int>> expectedInt{};
     
     // write the dummy binary 
-    int readBufferSize = writeBinary(nTracks, binaryName, Mille::OutputMode::Cbinary, expectedFloat, expectedInt); 
+    int readBufferSize = writeBinary(nTracks, binaryName, expectedFloat, expectedInt); 
 
-    int ret = testReadBack(nTracks, binaryName, readBufferSize, expectedFloat, expectedInt,
-                            initc, openc, readc, resetc); 
+    int ret = testReadBack(nTracks, binaryName, readBufferSize, expectedFloat, expectedInt); 
 
-    if(!ret) std::cout << " Readback test on C binary OK!"<<std::endl;
+    if(!ret) std::cout << " Readback test on ROOT binary OK!"<<std::endl;
     
     return ret; 
 }

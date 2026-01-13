@@ -12,7 +12,7 @@ set(CMAKE_CXX_COMPILER ${gpp_loc})
 
 
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
-set(millepedeII_VERSION 04.19.3)
+set(millepedeII_VERSION 05.00.0)
 include(CTest)
 
 # Arguments for CMake
@@ -57,10 +57,6 @@ if(SUPPORT_ROOT)
     endif()
 endif()
 
-set(build_CTOROOT false)
-if (build_ROOT_comps AND SUPPORT_READ_C)
-    set(build_CTOROOT true)
-endif()
 
 if (LAPACK_MKL)
     find_package( MKL REQUIRED )
@@ -73,8 +69,10 @@ endif()
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
-SET(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
+set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
 
+
+add_subdirectory(Mille)
 
 if (DEBUG)
     message("Setting flags for debug build")    
@@ -87,23 +85,15 @@ endif()
 
 # add our main targets 
 
-# ===== Mille ======= 
-add_library(Mille SHARED)
-target_sources(Mille 
-            PRIVATE Mille.cc 
-            PUBLIC 
-                FILE_SET HEADERS 
-                FILES Mille.h)
-
 # ===== Pede ======== 
 add_executable(pede)
 target_sources(pede
   PRIVATE
     mpdef.f90 mpdalc.f90 mpmon.f90 mpbits.f90 mpqldec.f90 mptest1.f90 mptest2.f90 mille.f90 mpnum.f90 mptext.f90 mphistab.f90 
 	minresDataModule.f90 minresModule.f90 minresqlpDataModule.f90 minresqlpBlasModule.f90 minresqlpModule.f90 
-    randoms.f90  vertpr.f90 linesrch.f90 Dbandmatrix.f90 mpmod.f90 mppar.f90 mplapack.f90 pede.f90
+    randoms.f90  vertpr.f90 linesrch.f90 Dbandmatrix.f90 mpmod.f90 mppar.f90 mplapack.f90 Mille/Fortran/MilleF.f90 pede.f90
 )
-target_link_libraries(pede PUBLIC gfortran m )
+target_link_libraries(pede PUBLIC gfortran m MilleC MilleF)
 
 # Special setup implementing build options
 
@@ -126,59 +116,11 @@ if (useLP_OPENBLAS)
     target_link_libraries(pede PUBLIC openblasp64)
     target_compile_definitions(pede PUBLIC LAPACK64=\"OPENBLAS\")
 endif()
-# ===== Reading of C files ===== 
-if (SUPPORT_READ_C)
-    message ("Building with C-file support")
-    add_library(readc SHARED)
-    target_sources(readc 
-                PRIVATE readc.c
-                PUBLIC 
-                    FILE_SET HEADERS 
-                    FILES readc.h)
-    target_link_libraries(pede PUBLIC readc)
-    target_compile_definitions(pede PUBLIC READ_C_FILES)
-    # ===== LibZ for file compression ===== 
-    if (SUPPORT_ZLIB)
-        message ("Building with libz support")
-        target_compile_definitions(readc PUBLIC USE_ZLIB)
-        target_link_libraries(readc PUBLIC z)
-    endif()
-    install(
-        TARGETS readc
-        EXPORT millepedeII-targets
-        LIBRARY DESTINATION lib
-        FILE_SET HEADERS 
-        DESTINATION include
-    )
-endif()
 
 if (build_ROOT_comps)
     message ("Found ROOT - will build histogram reader and ROOT I/O lib") 
 
     set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
-
-    # Read ROOT files
-    add_library(readROOT SHARED)
-    target_sources(readROOT 
-                PRIVATE readROOT.cc 
-                PUBLIC 
-                    FILE_SET HEADERS 
-                    FILES readROOT.h)
-    target_link_libraries(readROOT PUBLIC ROOT::Core ROOT::Tree ROOT::RIO ROOT::Net)
-    target_compile_definitions(pede PUBLIC READ_ROOT_FILES)
-    target_link_libraries(pede PUBLIC readROOT)
-    install(
-        TARGETS readROOT
-        EXPORT millepedeII-targets
-        LIBRARY DESTINATION lib
-        FILE_SET HEADERS 
-        DESTINATION include
-    )
-
-    # enable ROOT support in Mille
-    target_compile_definitions(Mille PUBLIC SUPPORT_ROOTIO)
-    target_link_libraries(Mille PUBLIC ROOT::Core ROOT::Tree ROOT::RIO )
-
     # histogrammer 
     add_executable(readPedeHists)
     target_sources(readPedeHists PRIVATE readPedeHists.cpp)
@@ -189,17 +131,6 @@ if (build_ROOT_comps)
         DESTINATION bin
     )
 
-    # C-to-ROOT conversion 
-    if (build_CTOROOT)
-        add_executable(cToRoot)
-        target_sources(cToRoot PRIVATE cToRoot.cc)
-        target_link_libraries(cToRoot PUBLIC readc  ROOT::Core ROOT::Tree ROOT::RIO  )
-        install (
-            TARGETS cToRoot
-            EXPORT millepedeII-targets
-            DESTINATION bin
-        )
-    endif()
 endif()
 
 # ==== OpenMP ==== 
@@ -209,14 +140,6 @@ if (SUPPORT_OPENMP)
     target_link_libraries(pede PUBLIC gomp)
 endif()
 
-# install headers for Mille 
-install(
-  TARGETS Mille
-  EXPORT millepedeII-targets
-  LIBRARY DESTINATION lib
-  FILE_SET HEADERS 
-  DESTINATION include
-)
 
 # add SCORE-P instrumentation 
 if (SCOREP)

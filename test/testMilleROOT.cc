@@ -22,7 +22,6 @@
     675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include "readROOT.h"
 #include "testMilleIObase.h"
 
 int main(int, char**){
@@ -36,10 +35,9 @@ int main(int, char**){
     std::vector<std::vector<int>> expectedInt{};
     
     // write the dummy binary 
-    int readBufferSize = writeBinary(nTracks, binaryName, Mille::OutputMode::RootBinary, expectedFloat, expectedInt); 
+    int readBufferSize = writeBinary(nTracks, binaryName, expectedFloat, expectedInt); 
 
-    int ret = testReadBack(nTracks, binaryName, readBufferSize, expectedFloat, expectedInt,
-                            initroot, openroot, readroot, resetroot); 
+    int ret = testReadBack(nTracks, binaryName, readBufferSize, expectedFloat, expectedInt); 
 
     if(!ret) std::cout << " Readback test on ROOT binary OK!"<<std::endl;
     
