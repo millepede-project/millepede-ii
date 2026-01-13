@@ -1,0 +1,3 @@
+[submodule "Mille"]
+	path = Mille
+	url = ../mille.git
