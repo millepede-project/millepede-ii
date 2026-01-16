@@ -944,7 +944,9 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = . \
+                         src/ \
                          doc/ \
+                         util/ \
                          doc/*.f90 \
                          doc/mp2main.md \
                          tools/readMilleBinary.py \
