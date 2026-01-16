@@ -102,9 +102,9 @@ endif()
 add_executable(pede)
 target_sources(pede
   PRIVATE
-    mpdef.f90 mpdalc.f90 mpmon.f90 mpbits.f90 mpqldec.f90 mptest1.f90 mptest2.f90 mille.f90 mpnum.f90 mptext.f90 mphistab.f90 
-	minresDataModule.f90 minresModule.f90 minresqlpDataModule.f90 minresqlpBlasModule.f90 minresqlpModule.f90 
-    randoms.f90  vertpr.f90 linesrch.f90 Dbandmatrix.f90 mpmod.f90 mppar.f90 mplapack.f90 pede.f90
+    src/mpdef.f90 src/mpdalc.f90 src/mpmon.f90 src/mpbits.f90 src/mpqldec.f90 src/mptest1.f90 src/mptest2.f90 src/mille.f90 src/mpnum.f90 src/mptext.f90 src/mphistab.f90 
+	src/minresDataModule.f90 src/minresModule.f90 src/minresqlpDataModule.f90 src/minresqlpBlasModule.f90 src/minresqlpModule.f90 
+    src/randoms.f90  src/vertpr.f90 src/linesrch.f90 src/Dbandmatrix.f90 src/mpmod.f90 src/mppar.f90 src/mplapack.f90 src/pede.f90
 )
 target_link_libraries(pede PUBLIC gfortran m MilleC)
 add_dependencies(pede  MilleF)
@@ -140,7 +140,7 @@ if (build_ROOT_comps)
     set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
     # histogrammer 
     add_executable(readPedeHists)
-    target_sources(readPedeHists PRIVATE readPedeHists.cpp)
+    target_sources(readPedeHists PRIVATE util/readPedeHists.cpp)
     target_link_libraries(readPedeHists PUBLIC ROOT::Core ROOT::Tree ROOT::RIO ROOT::Graf ROOT::Gpad ROOT::Hist)
     install (
         TARGETS readPedeHists

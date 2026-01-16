@@ -8,7 +8,7 @@ set(MILLE_AS_SUBDIR True)
 
 
 FetchContent_Declare(Mille 
-    GIT_REPOSITORY git@gitlab.desy.de:millepede/Mille.git
+    GIT_REPOSITORY https://gitlab.desy.de/millepede/mille.git
     GIT_TAG ${MILLE_TARGET_VERSION}
 )
 
