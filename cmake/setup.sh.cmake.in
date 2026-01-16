@@ -4,3 +4,4 @@ export PYTHONPATH=@CMAKE_INSTALL_PREFIX@/python:$PYTHONPATH
 export PEDE_BUILD_DIR=@millepedeII_BINARY_DIR@
 export PEDE_SRC_DIR=@millepedeII_SOURCE_DIR@
 export millepedeII_DIR=@CMAKE_INSTALL_PREFIX@/cmake
+if [[ ! -z "@MILLE_AS_SUBDIR@" ]]; then export Mille_DIR=@CMAKE_INSTALL_PREFIX@/cmake; fi 

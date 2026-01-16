@@ -15,6 +15,20 @@ PROJECT(millepedeII LANGUAGES Fortran C CXX)
 set(millepedeII_VERSION 05.00.0)
 include(CTest)
 
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE "${CMAKE_BINARY_DIR}/MillePedeInstall")
+  set(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT False)
+endif()
+
+
+find_package(Mille QUIET )
+if (${Mille_FOUND})
+    message ("Found existing Mille installation")
+else()
+    message ("No existing Mille installation found - will clone and build the recommended version")
+    include ("cmake/getMille.cmake")
+endif()
+
 # Arguments for CMake
 option(DEBUG "Debug" OFF)
 option(SUPPORT_READ_C "read C files" ON)
@@ -72,7 +86,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
 
 
-add_subdirectory(Mille)
 
 if (DEBUG)
     message("Setting flags for debug build")    
@@ -93,7 +106,11 @@ target_sources(pede
 	minresDataModule.f90 minresModule.f90 minresqlpDataModule.f90 minresqlpBlasModule.f90 minresqlpModule.f90 
     randoms.f90  vertpr.f90 linesrch.f90 Dbandmatrix.f90 mpmod.f90 mppar.f90 mplapack.f90 pede.f90
 )
-target_link_libraries(pede PUBLIC gfortran m MilleF)
+target_link_libraries(pede PUBLIC gfortran m MilleC)
+add_dependencies(pede  MilleF)
+target_link_libraries(pede INTERFACE MilleF)
+message ("Will include ${Mille_MODULE_DIRS}")
+target_include_directories(pede PRIVATE ${Mille_MODULE_DIRS})
 
 # Special setup implementing build options
 
