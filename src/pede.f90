@@ -98,7 +98,7 @@ PROGRAM mptwo
     CALL mvopen(lunlog,'millepede.log')
     CALL getenv('HOSTNAME',chost)
     IF (chost(1:1) == ' ') CALL getenv('HOST',chost)
-    WRITE(*,*) '($Id$)'
+    WRITE(*,*) 'Using Millepede version ',__MP_VERSION__
     iopnmp=0
     !$    iopnmp=1
     !$    WRITE(*,*) 'using OpenMP (TM)'
@@ -126,7 +126,7 @@ PROGRAM mptwo
     WRITE(*,*) '                                 ',chost
     WRITE(*,*) ' '
 
-    WRITE(8,*) '($Id$)'
+    WRITE(8,*) 'Using Millepede version ',__MP_VERSION__
     WRITE(8,*) ' '
     WRITE(8,*) 'Log-file Millepede II-P                        ', chdate
     WRITE(8,*) '                                               ', chost

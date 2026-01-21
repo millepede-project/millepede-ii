@@ -6,6 +6,12 @@
 
 Since version V04-13-00 at least fortran 2003 is required. The code complies with fortran 2023 (`gcc -std=f2023 -fall-intrinsics`).
 
+### Mille
+
+The package depends on [Mille]((https://gitlab.desy.de/millepede/Mille) to read input binaries.
+It will search for an existing installation using `MILLE_DIR` and the `CMAKE_PREFIX_PATH`. 
+If no installation is found, the recommended release will be automatically downloaded and compiled during the build of Millepede-II. 
+
 ### Optional dependencies
 
 Optionally, the package can be compiled to use 
@@ -33,40 +39,28 @@ Download the software package from the DESY \c gitlab server to
          git clone --depth 1 --branch V04-19-03 \
              https://gitlab.desy.de/millepede/millepede-ii.git target
 
-Then compile using either of the following options: 
-
- ### Classical Makefile
-Directly invoke `make` to create the **Pede** executable (in \a target directory):
-```
-            make pede
-```
-   In this workflow, you can configure the build by directly editing the `Makefile` 
-
-### CMake-based build
-Alternatively, you can build the package using `CMake`.
-In this setup, automatic dependency detection will be attempted. 
+Then compile using the following steps:
 - Create a `build` folder, outside the source folder
-- navigate into `build` and invoke `cmake <path_to_source>`   
+- navigate into `build` and invoke `cmake <path_to_source>`. Here you can set additional options (see next sub-section) to configure the build.  
 - then compile the sources by calling `make` followed by `make install`. 
+- If you wish to compile the documentation, additionally do `make doc`. 
 
 #### Configuring the CMake build
 You can pass additional options / flags to CMake: 
-- `-DCMAKE_INSTALL_PREFIX=<...>`: Set the install location for the binaries. This is needed if you have no root permissions, as the default is a system-wide installation. 
+- `-DCMAKE_INSTALL_PREFIX=<...>`: Set the install location for the binaries. The default is a subfolder `MillePedeInstall` within your build folder. 
 - `-DDEBUG=on`: Enable debug build 
 - `-DLAPACK_OPENBLAS=off`: Disable (default: on) LAPACK support using OpenBLAS 
 - `-DLAPACK_MKL=on`: Enable (default: off) LAPACK support using Intel MKL. Disables OpenBLAS if set. If you have a nonstandard installation, set `MKL_DIR` to point to your MKL installation (the standard intel oneAPI setup scripts will do this for you). 
 - `-DPARDISO=on`: Enable (default: off) support for Intel PARDISO. 
 - `-DSCOREP=on`: Enable (default: off) instrumentation for profiling with SCORE_P. If you have a nonstandard installation, set `SCOREP_DIR` to point to your Score-P installation. 
 - `-DSUPPORT_OPENMP=off`: Disable (default: on) support for parallelisation with OpenMP.
-- `-DSUPPORT_ZLIB=off`: Disable (default: on) support for lib-z compression for C-binaries. 
-- `-DSUPPORT_READ_C=off`: Disable (default: on) support for reading C-files. 
-- `-DSUPPORT_C_RFIO=on`: Enable (default: off) use of C RFIO for binary reading. 
 - `-DSUPPORT_ROOT=off`: Disable (default: on) support for ROOT for file access and histogramming, if ROOT is found. 
 
 #### Bonus: Setup script
 The build will place a `mp2setup.sh` script in your chosen installation folder.
 If this is not a folder on the default path, you can call this script to place `pede` and the standalone programs on your `PATH`, and to make the libraries visible. 
 This removes the need to point by hand to the `pede` location. 
+If the installation automatically downloaded `Mille` for you, the install script will also handle the corresponding components.  
 
 
 

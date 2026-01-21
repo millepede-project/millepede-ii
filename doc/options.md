@@ -51,7 +51,7 @@
  Set (read+write) cache size \ref mpmod::ncache "ncache" to \a number1.
  Define cache size and average fill level.
  ## Cfiles
- Following binaries are C files.
+ Following binaries are C files - this refers to any format supported by the external Mille (anything not Fortran-binary).
  ## checkinput
  Set check input flag \ref mpmod::icheck "icheck" to \a number1 [1].
  Similar to \ref opt-c "-c" or \ref opt-C "-C".

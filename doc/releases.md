@@ -2,6 +2,12 @@
  
 ## Version history
 
+### Version V05-00-00 (new)
+
+Retire Makefile build, adopt external Mille package
+
+Clone Id replaced by direct version printout starting with 05-00-00.
+
 ### Version V04-19-03 (new)
 
 Fix an FPE due to incomplete array initialisation - no impact on result, only relevant for debug builds.

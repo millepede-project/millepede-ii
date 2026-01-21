@@ -12,7 +12,7 @@ set(CMAKE_CXX_COMPILER ${gpp_loc})
 
 
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
-set(millepedeII_VERSION 05.00.0)
+set(millepedeII_VERSION 05.00.00)
 include(CTest)
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -31,24 +31,13 @@ endif()
 
 # Arguments for CMake
 option(DEBUG "Debug" OFF)
-option(SUPPORT_READ_C "read C files" ON)
 option(SUPPORT_ROOT "build ROOT file I/O and root plotting scripts" ON)
-option(SUPPORT_ZLIB "support Z lib for file compression" ON)
-option(SUPPORT_C_RFIO "Use C RFIO" OFF)
 option(SUPPORT_OPENMP "Support OPENMP" ON)
 option(LAPACK_OPENBLAS "Use LAPACK with OpenBLAS" ON)
 option(LAPACK_MKL "Use LAPACK with MKL. Define MKL_DIR if installed in a nonstandard location." OFF)
 option(PARDISO "Support Intel oneMKL PARDISO. Define MKL_DIR if installed in a nonstandard location." OFF)
 option(SCOREP "Add SCORE-P instrumentation. Define SCOREP_DIR if installed in a nonstandard location." OFF)
 
-# Check dependencies
-if (SUPPORT_ZLIB)
-    find_package(ZLIB  REQUIRED)
-endif()
-
-if (SUPPORT_C_RFIO)
-    find_package(SHIFT  REQUIRED)
-endif()
 
 set(useLP_OPENBLAS false)
 if (LAPACK_OPENBLAS)
@@ -107,6 +96,7 @@ target_sources(pede
     src/randoms.f90  src/vertpr.f90 src/linesrch.f90 src/Dbandmatrix.f90 src/mpmod.f90 src/mppar.f90 src/mplapack.f90 src/pede.f90
 )
 target_link_libraries(pede PUBLIC gfortran m MilleC)
+target_compile_definitions(pede PUBLIC __MP_VERSION__=\"${millepedeII_VERSION}\")
 add_dependencies(pede  MilleF)
 target_link_libraries(pede INTERFACE MilleF)
 message ("Will include ${Mille_MODULE_DIRS}")
