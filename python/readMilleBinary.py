@@ -91,6 +91,13 @@ import argparse
 # packing/unpacking structured binary data with Python
 import struct
 
+print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+      " NOTE: readMilleBinary.py is deprecated. \n"\
+      "   Consider using the inspectMilleBinary program from Mille instead.\n"\
+      "   readMilleBinary.py is still expected to work for uncompressed\n"
+      "   C-style binaries, but not the other formats.\n"\
+      "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
 parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description='read a mille binary file and print its data'

@@ -2601,8 +2601,8 @@ SUBROUTINE loopn
     END DO
     !     statistics per binary file
     jfd(:) = 0
-    cfd(:)=0.0
-    dfd(:)=0 
+    cfd(:) = 0.0
+    dfd(:) = 0 
     
     IF (imonit /= 0) measHists=0 ! reset monitoring histograms
     
