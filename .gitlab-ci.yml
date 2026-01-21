@@ -49,7 +49,7 @@ doc-job:       # This job runs in the build stage, which runs first.
     - cmake -DCMAKE_INSTALL_PREFIX=../install ../ 
     - make doc   
     - echo "Doc complete."
-    - cp -r buildDoc/html ../public
+    - cp -r doc/buildDoc/html ../public
   artifacts: 
     name: "Doc"
     paths:
