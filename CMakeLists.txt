@@ -192,6 +192,12 @@ install(
   EXPORT millepedeII-targets
   DESTINATION bin
 )
+
+# install python modules 
+install (FILES python/comparePedeResults.py  python/__init__.py python/compareResults.py python/tinypede.py python/readMilleBinary.py
+        DESTINATION python/Millepede)
+
+
 # finally, prepare a setup script for the user 
 # to get pede into their environment 
 configure_file(
