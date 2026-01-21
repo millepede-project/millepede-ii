@@ -2,7 +2,13 @@
  
 ## Version history
 
-### Version V04-19-02 (new)
+### Version V04-19-03 (new)
+
+Fix an FPE due to incomplete array initialisation - no impact on result, only relevant for debug builds.
+
+(Clone Id: 6b6285a829566d03769f4dd301c5422ddb23d86e)
+
+### Version V04-19-02
 
 Bugfix to cToRoot program for large input binaries. 
 
