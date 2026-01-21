@@ -2647,11 +2647,9 @@ SUBROUTINE loopn
         writeBufferHeader(-k)=0
     END DO
     !     statistics per binary file
-    DO i=1,nBinaryFiles
-        jfd(i)=0
-        cfd(i)=0.0
-        dfd(i)=0
-    END DO
+    jfd(:) = 0
+    cfd(:)=0.0
+    dfd(:)=0 
     
     IF (imonit /= 0) measHists=0 ! reset monitoring histograms
     
