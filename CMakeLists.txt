@@ -219,6 +219,24 @@ install (EXPORT millepedeII-targets
         DESTINATION cmake 
 )
 
+# add a target to generate API documentation with Doxygen
+FIND_PACKAGE(Doxygen)
+
+if(DOXYGEN_FOUND)
+
+    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/doc/Doxyfile @ONLY)
+
+    ADD_CUSTOM_TARGET(doc
+        ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doc/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc
+        COMMENT "Generating API documentation with Doxygen" VERBATIM
+    )
+
+ELSE()
+    MESSAGE( STATUS "Doxygen not installed or found -- API documentation can't be generatred!" )
+
+ENDIF(DOXYGEN_FOUND)
+
 # Create and install package configuration and version files.
 configure_file(
 ${millepedeII_SOURCE_DIR}/cmake/millepedeII-config.cmake.in
