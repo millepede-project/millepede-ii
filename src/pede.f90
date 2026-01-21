@@ -1799,7 +1799,7 @@ SUBROUTINE readFromBinary(more)
     !$OMP  PARALLEL &
     !$OMP  DEFAULT(PRIVATE) &
     !$OMP  SHARED(readBufferInfo,readBufferPointer,readBufferDataI,readBufferDataD, &
-    !$OMP  readBufferDataF,nPointer,nData,skippedRecords,readBufferSize,NTHR,nFortranFiles,nCFiles,nROOTFiles,FLOOP, &
+    !$OMP  readBufferDataF,nPointer,nData,skippedRecords,readBufferSize,NTHR,nFortranFiles,FLOOP, &
     !$OMP  integratedRecordNb,recordNbInFile,IFILE,nBinaryFiles, & 
     !$OMP  fileLevelWeight,maxRecPerFile,icheck,keepOpen,ireeof,nrderr) NUM_THREADS(NTHR)
     ! NUM_THREADS(NTHR) moved to previuos line to make OPARI2 used by scorep-8.4. happy
@@ -9606,13 +9606,6 @@ SUBROUTINE filetc
             CYCLE
         END IF
 
-        keystx='rootfiles'
-        mat=matint(text(ia:ib),keystx,npat,ntext)
-        IF(mat == max(npat,ntext)) THEN ! exact matching
-            nuf=4
-            !         WRITE(*,*) 'ROOT files'
-            CYCLE
-        END IF
 
         keystx='Cfiles'
         mat=matint(text(ia:ib),keystx,npat,ntext)
@@ -9653,7 +9646,7 @@ SUBROUTINE filetc
             IF(nu == 1) nu=nuf           !
             lenFileNames=lenFileNames+ie-ia+1 ! total length of file names
             vecFileInfo(1,nfiles)=nline  ! line number
-            vecFileInfo(2,nfiles)=nu     ! cbinary =1, text =2, fbinary=3 rootbinary =4
+            vecFileInfo(2,nfiles)=nu     ! cbinary =1, text =2, fbinary=3
             vecFileInfo(3,nfiles)=ia     ! file name start
             vecFileInfo(4,nfiles)=ie     ! file name end
             vecFileInfo(5,nfiles)=iopt   ! option start
@@ -9750,11 +9743,11 @@ SUBROUTINE filetc
     ioff=0
     ifilb=0
 
-    ! for ROOT, check the file name for XRD network files
+    ! before opening, check the file name for XRD network files
     ! If we find one, we enforce 'closeandreload' 
     ! to limit open file handles 
     DO i=1,nfiles
-        IF(mfd(i) == 4) THEN
+        IF(mfd(i) == 1) THEN
             DO k=1,lfd(i)
                 fname(k:k)=tfd(ioff+k)
             END DO
@@ -9767,8 +9760,11 @@ SUBROUTINE filetc
         ioff=ioff+lfd(i)
     END DO
 
+    ! Now we can check the files for validity and add them 
+    ! to the list if opening is successful.  
     ioff=0
     IF (keepOpen < 1) ifilb=1
+
     DO i=1,nfiles                   ! Fortran files
         IF(mfd(i) == 3) THEN
             nFortranFiles=nFortranFiles+1
@@ -9791,14 +9787,9 @@ SUBROUTINE filetc
 
     !     open the binary C files
 
-    nCFiles=-1
     ioff=0
     DO i=1,nfiles                                 ! Cfiles
         IF(mfd(i) == 1) THEN
-            IF(nCFiles < 0) THEN ! initialize
-                nCFiles=0
-            END IF
-            nCFiles=nCFiles+1
             nBinaryFiles=nBinaryFiles+1
             ! next file name
             sfd(1,nBinaryFiles)=ioff
@@ -9809,40 +9800,12 @@ SUBROUTINE filetc
                 IF (keepOpen < 1) CALL bincls(nBinaryFiles,ifilb)
             ELSE ! failure
                 iosum=iosum+1
-                nCFiles=nCFiles-1
                 nBinaryFiles=nBinaryFiles-1
             END IF
         END IF
         ioff=ioff+lfd(i)
     END DO
 
-    !     open the binary ROOT files
-
-    nROOTFiles=-1
-    ioff=0
-    DO i=1,nfiles                                 ! ROOT Files
-        IF(mfd(i) == 4) THEN
-            IF(nROOTFiles < 0) THEN ! initialize
-                nROOTFiles=0
-            END IF
-            nROOTFiles=nROOTFiles+1
-            nBinaryFiles=nBinaryFiles+1
-            ! next file name
-            sfd(1,nBinaryFiles)=ioff
-            sfd(2,nBinaryFiles)=lfd(i)
-
-            CALL binopn(nBinaryFiles,ifilb,ios)
-            IF(ios == 0) THEN
-                fileLevelWeight(nBinaryFiles)=ofd(i)
-                IF (keepOpen < 1) CALL bincls(nBinaryFiles,ifilb)
-            ELSE ! failure
-                iosum=iosum+1
-                nROOTFiles=nROOTFiles-1
-                nBinaryFiles=nBinaryFiles-1
-            END IF
-        END IF
-        ioff=ioff+lfd(i)
-    END DO
 
     DO k=1,nBinaryFiles
         recordNbInFile(1,k)=1   ! reset (negated) record counters
@@ -10908,10 +10871,6 @@ SUBROUTINE intext(text,nline)
         mat=matint(text(ia:ib),keystx,npat,ntext) ! comparison
         IF(mat == max(npat,ntext)) RETURN
 
-        keystx='ROOTFiles'
-        mat=matint(text(ia:ib),keystx,npat,ntext) ! comparison
-        IF(mat == max(npat,ntext)) RETURN
-
         keystx='closeandreopen'
         mat=matint(text(ia:ib),keystx,npat,ntext) ! comparison
         IF(mat == max(npat,ntext)) RETURN
@@ -11495,13 +11454,13 @@ SUBROUTINE binopn(kfile, ithr, ierr)
         RETURN
     END IF
     IF(fname(1:5) /= 'root:') THEN
-    ! get status
-    ios=stat(fname(1:lfn),ibuff)
-    !print *, ' STAT ', ios, ibuff(10), moddate
-    IF(ios /= 0) THEN
-        ierr=1
-        WRITE(*,*) 'STAT error for file ',fname(1:lfn), ios
-        ibuff(10)=-1
+        ! get status
+        ios=stat(fname(1:lfn),ibuff)
+        !print *, ' STAT ', ios, ibuff(10), moddate
+        IF(ios /= 0) THEN
+            ierr=1
+            WRITE(*,*) 'STAT error for file ',fname(1:lfn), ios
+            ibuff(10)=-1
     END IF
     ! check/store modification date
     IF (moddate /= 0) THEN
