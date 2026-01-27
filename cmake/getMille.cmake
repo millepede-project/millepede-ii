@@ -9,6 +9,7 @@ set(Recommended_Mille_Version V01-00-00)
 
 FetchContent_Declare(Mille 
     URL https://gitlab.desy.de/millepede/mille/-/archive/${Recommended_Mille_Version}/mille-${Recommended_Mille_Version}.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP True
 )
 
 FetchContent_GetProperties(Mille)
