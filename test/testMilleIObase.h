@@ -73,19 +73,21 @@ size_t writeBinary(size_t nTracks, const std::string & fname, std::vector<std::v
 
             // roll local derivatives
             for (int loc = 0; loc < nLoc; ++loc){
-                // make ~half of the local derivatives zero 
-                if (floatDistro(rdm) > 0){
-                    localDerivatives.push_back(floatDistro(rdm));
-                    localLabels.push_back(loc+1);
-                }
-                else{
-                    localDerivatives.push_back(0); 
-                    localLabels.push_back(loc+1);
-                }
+                double deriv = floatDistro(rdm);
+                // make ~half of the local derivatives zero - test 
+                // correct skipping of zeros in output
+                if (floatDistro(rdm) > 0) deriv = 0; 
+
+                localDerivatives.push_back(deriv);
+                localLabels.push_back(loc+1);
             }
             // roll local derivatives
             for (int glob = 0; glob < nGlob; ++glob){
-                globalDerivatives.push_back(floatDistro(rdm));
+                double globalDeriv = floatDistro(rdm);
+
+                // make ~33% of the global derivatives zero  
+                if (floatDistro(rdm) > -0.33) globalDeriv = 0; 
+                globalDerivatives.push_back(globalDeriv);
                 globalLabels.push_back(intDistro(rdm));
             }
             // roll measurement outcome 
@@ -99,16 +101,23 @@ size_t writeBinary(size_t nTracks, const std::string & fname, std::vector<std::v
             currentFloats.push_back(residual);
             
             // local derivatives
-            currentInts.insert(     currentInts.end(),  localLabels.begin(),        localLabels.end()); 
-            currentFloats.insert(     currentFloats.end(),  localDerivatives.begin(),        localDerivatives.end()); 
+        
+            // need to skip zero derivatives 
+            for (int k = 0; k < localLabels.size(); ++k){
+                if (localDerivatives[k] == 0) continue;
+                currentInts.push_back(localLabels[k]);
+                currentFloats.push_back(localDerivatives[k]);
+            }
             
             // measurement error 
             currentInts.push_back(0);
             currentFloats.push_back(residualError);
-            
-            // global derivatives
-            currentInts.insert(     currentInts.end(),  globalLabels.begin(),       globalLabels.end()); 
-            currentFloats.insert(   currentFloats.end(),globalDerivatives.begin(),  globalDerivatives.end()); 
+
+            for (int k = 0; k < globalLabels.size(); ++k){
+                if (globalDerivatives[k] == 0) continue;
+                currentInts.push_back(globalLabels[k]);
+                currentFloats.push_back(globalDerivatives[k]);
+            }
 
             // now also store in Mille 
             add_mille_data(residual,residualError,nLoc,localLabels.data(), localDerivatives.data(),nGlob, globalLabels.data(),globalDerivatives.data()); 
