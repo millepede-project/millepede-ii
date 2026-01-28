@@ -57,9 +57,9 @@ The following information is required to construct the minimisation problem, for
 Parameters are identified using **labels**, which are simply integer numbers. The labels do not have to be contiguous, and should be chosen in a way that allows them to be easily mapped back to their meaning in the problem at hand. 
 In HEP, this can involve making the label of alignment parameters encode the particular detector component and the particular alignment degree of freedom it represents.   
 
-A reference *Mille* implementation is provided in this package, which can store its output in custom C / ROOT / CSV format (pede can only read the first two). However any implementation producing the specified format (see Mille.f90) can be used. 
+A dedicated package, [Mille](https://gitlab.desy.de/millepede/Mille), provides the tools to write and read this information using a range of possible file formats.  
 
-The [GeneralBrokenLines](https://gitlab.desy.de/claus.kleinwort/general-broken-lines) track fit is frequently used in HEP detector alignment to supply a track model well-suited to fast solution in the context of Millepede, and capable of correctly describing the impact of multiple scattering along the trajectory as required for an accurate alignment. It has built-in support for writing *Mille* binaries. 
+The [GeneralBrokenLines](https://gitlab.desy.de/millepede/general-broken-lines) track fit is frequently used in HEP detector alignment to supply a track model well-suited to fast solution in the context of Millepede, and capable of correctly describing the impact of multiple scattering along the trajectory as required for an accurate alignment. It has built-in support for writing *Mille* binaries. 
 
 #### Using pede to solve the problem 
 

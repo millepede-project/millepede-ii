@@ -10,12 +10,12 @@ Please check out the [Package Documentation](http://millepede.pages.desy.de/mill
 
 The source code of Millepede II is provided by DESY under the terms of the [LGPLv2 license](http://www.gnu.org/licenses/old-licenses/lgpl-2.0-standalone.html).
 
-The latest release recommended for use is `V04-19-03`. 
+The latest release recommended for use is `V05-00-00`. 
 
 Please see the [documentation](https://millepede.pages.desy.de/millepede-ii/installation_page.html) for compilation / installation instructions.  
 
 In addition, docker images are available under `gitlab.desy.de:5555/millepede/millepede-ii/mp2runtime` 
-The `latest` image represents the current `main` branch, and for tags starting with `V04-19-00`, images are also stored for each released stable version. 
+The `latest` image represents the current `main` branch, and for tags starting with `V05-00-00`, images are also stored for each released stable version. 
 
 The software can be freely used for research and education. We expect that all publications describing work using this software quote at least one reference (see [here](http://www.desy.de/~blobel/mptalks.html) or [references](references)).
 

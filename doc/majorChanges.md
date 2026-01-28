@@ -3,14 +3,17 @@
 Major changes with respect to the \ref draftman_page "draft manual".
 \tableofcontents
 
-# ROOT binaries
-In addition to the Fortran- and C-binary formats, a ROOT-based binary format is also supported. 
-This can be set using the `rootfiles` steering file argument, and be mixed with the other formats as desired.
-Reading network files using XRootD is supported.
-The binary format is very close the the format used for C-files, with a `TTree` storing information. 
-Records are encoded as entries of the tree, and the floats / ints of each entry stored as `std::vector` branches. 
-A conversion program, `cToRoot`, is provided to convert existing C-files to the ROOT format.
-Performance is comparable between the C- and ROOT-binaries, the main difference is the network I/O support. 
+# External Mille library
+  Starting with version 05-00-00, the built-in components for reading `Mille` binaries have been replaced by an external package.
+  This can read a range of formats,
+  1. Uncompressed C-binaries - expected file extension .dat
+  2. Compressed C-binaries - expected file extension .dat.gz
+  3. ROOT binaries - expected file extension .root 
+  4. Plain text binaries - expected file extension .csv
+
+  The internal file format used in the external package is fully compatible with the existing one, all existing binaries should still work. 
+  
+
 
 # Extended entries cut
  The [entries](option_page.html#entries) cut has now three arguments:

@@ -37,6 +37,7 @@
 
         export OMP_STACKSIZE=32M
 
- For further debugging one should add the compiler options
- \"<tt>-g -fcheck=all -fbacktrace</tt>\"
- to the \c F_FLAGS in the \c Makefile and recompile.
+ To get a useful backtrace for the crash, recompile both Mille and Millepede-II with the 
+ `-DDEBUG=on` option passed to CMake. This will enable debug symbols, which can be used e.g. in 
+ combination with `gdb` to identify the cause of the crash. 
+

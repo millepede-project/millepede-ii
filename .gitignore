@@ -16,3 +16,5 @@ bin
 
 # ignore documentation build dir 
 buildDoc
+.vscode/c_cpp_properties.json
+build.log

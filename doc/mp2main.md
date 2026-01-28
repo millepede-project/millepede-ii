@@ -8,7 +8,7 @@
  \author Maximilian Goblirsch-Kolb, DESY (maintenance and developement)
 
  \copyright
- Copyright (c) 2009 - 2025 Deutsches Elektronen-Synchroton,
+ Copyright (c) 2009 - 2026 Deutsches Elektronen-Synchroton,
  Member of the Helmholtz Association, (DESY), HAMBURG, GERMANY \n\n
  This library is free software; you can redistribute it and/or modify
  it under the terms of the GNU Library General Public License as
@@ -92,26 +92,22 @@
 
 # Tools
  The subdirectory \c tools contains some useful scripts:
- * \c readMilleBinary.py: Python script to read binary files and print
-   records in text form.
- * \c compareResults.py: Python3 script to compare result files (<tt>millepede.res</tt>).
- * \c readPedeHists.C: ROOT script to read and convert the **Millepede**
-   histogram file <tt>millepede.his</tt>.
  * \c lapack: Test programs to print LAPACK (library) configuration (MKL, OpenBLAS).
+
+
+# Python
+ The subdirectory \c python contains additional helpers and scripts: 
+ * \c comparePedeResults.py: Python3 tools to compare result files (<tt>millepede.res</tt>,<tt>millepede.log</tt>,<tt>millepede.mon</tt>) - new version
+ * \c compareResults.py: Python3 script to compare result files (<tt>millepede.res</tt>) - original version.
  * \c tinypede.py: **Pede** implementation in python3 with basic functionality for
    illustration or testing with small problems.
+ * \c readMilleBinary.py: Python script to read binary files and print
+   records in text form. Outdated - consider using inspectMilleBinary (from Mille package) directly.
 
-In addition, there are a number of precompiled programs available: 
+In addition, there is one precompiled program available: 
 ## readPedeHists: Read and convert the **Millepede** histogram file <tt>millepede.his</tt>.
    This program does the same work as the `readPedeHists.C` script, but can be run without rebuilding ROOT if `Millepede` was compiled with ROOT support. 
    By default, outputs are written to a ROOT file and a multi-page PDF document. These can be disabled using the command line arguments `--noROOT` and `--noPDF`. Conversely, the `-r <filename>` and `-p <filename>` arguments allow to set the desired file names for the outputs, overriding the defaults. 
-
-## cToRoot: Convert C-binaries to ROOT format 
-This program converts one or several C-binary input files in the Mille-format to one file using the corresponding ROOT format.
-It is available if `Millepede` was compiled with ROOT support. 
-The call signature is `cToRoot <target ROOT file> <one or many C files to convert>`. 
-Entries will be written in the order of their appearance in the C-files, concatenating the files in order of specification. 
-The resulting file will be identical to one obtained with running `Mille` directly with ROOT output.  
 
 # Julia
  The subdirectory \c julia contains some of the above tools reimplemented in [Julia](https://julialang.org):
