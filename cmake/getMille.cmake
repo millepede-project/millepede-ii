@@ -5,7 +5,7 @@ include(FetchContent)
 # Flag to adapt config file creation later on 
 set(MILLE_AS_SUBDIR True) 
 
-set(Recommended_Mille_Version V01-00-00)
+set(Recommended_Mille_Version V01-00-02)
 
 FetchContent_Declare(Mille 
     URL https://gitlab.desy.de/millepede/mille/-/archive/${Recommended_Mille_Version}/mille-${Recommended_Mille_Version}.tar.gz

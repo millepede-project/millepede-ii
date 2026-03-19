@@ -22,6 +22,11 @@ Optionally, the package can be compiled to use
 
 Instrumentation for profiling using [SCORE-P](https://www.vi-hps.org/projects/score-p/overview/overview.html) is implemented and can also be enabled during the build if desired. 
 
+For the LAPACK libraries, 64-bit integer interface are required. 
+By default, the build routine tries to find LAPACK on the system and will enable the corresponding features if successful.
+If multiple LAPACK installations are found, by default MKL is preferred over OpenBLAS which takes priority over all others. 
+See the configuration options below for how to enforce a strict requirement of a certain LAPACK flavour. 
+
 ### Documentation
 
 To build the documentation, [doxygen](https://www.doxygen.nl/) version 1.9.8 or later is required to correctly generate internal links between the pages. 
@@ -36,7 +41,7 @@ This is for example available in the `gitlab.desy.de:5555/millepede/millepede-ii
 Download the software package from the DESY \c gitlab server to
     \a target directory, e.g. (shallow clone):
 
-         git clone --depth 1 --branch V05-00-00 \
+         git clone --depth 1 --branch V05-01-00 \
              https://gitlab.desy.de/millepede/millepede-ii.git target
 
 Then compile using the following steps:
@@ -47,6 +52,19 @@ Then compile using the following steps:
 
 #### Configuring the CMake build
 You can pass additional options / flags to CMake: 
+- `-DCMAKE_INSTALL_PREFIX=<...>`: Set the install location for the binaries. The default is a subfolder `MillePedeInstall` within your build folder. 
+- `-DDEBUG=on`: Enable debug build 
+- `-SUPPORT_LAPACK=off`: Disable (default: on) LAPACK support. 
+- `-DLAPACK_OPENBLAS=on`: Require (default: off) the use of OpenBLAS for LAPACK. Will throw a fatal error if OpenBLAS is not found. 
+- `-DLAPACK_MKL=on`: Require (default: off) the use of Intel MKL for LAPACK. Priority over OpenBLAS if that flag is set as well. If you have a nonstandard installation, set `MKL_DIR` to point to your MKL installation (the standard intel oneAPI setup scripts will do this for you).  Will throw a fatal error if MKL is not found. 
+- `-DPARDISO=on`: Enable (default: off) support for Intel PARDISO. Depends on MKL (and will enable the corresponding hard requirement automatically).  
+- `-DSCOREP=on`: Enable (default: off) instrumentation for profiling with SCORE_P. If you have a nonstandard installation, set `SCOREP_DIR` to point to your Score-P installation. 
+- `-DSUPPORT_OPENMP=off`: Disable (default: on) support for parallelisation with OpenMP.
+- `-DSUPPORT_ROOT=off`: Disable (default: on) support for ROOT for file access and histogramming, if ROOT is found. 
+
+
+##### Before V05-01-00 
+Up to and including V05-00-00, the build options were slightly different: 
 - `-DCMAKE_INSTALL_PREFIX=<...>`: Set the install location for the binaries. The default is a subfolder `MillePedeInstall` within your build folder. 
 - `-DDEBUG=on`: Enable debug build 
 - `-DLAPACK_OPENBLAS=off`: Disable (default: on) LAPACK support using OpenBLAS 
