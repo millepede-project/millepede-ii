@@ -21,6 +21,10 @@
 !! 675 Mass Ave, Cambridge, MA 02139, USA.
 !!
 
+#ifdef PARDISO
+    INCLUDE 'mkl_pardiso.f90'
+#endif
+
 MODULE mplapack    
     USE mpmod
     USE mpdalc
@@ -552,7 +556,6 @@ MODULE mplapack
     END SUBROUTINE lpavat
 
 #ifdef PARDISO
-    INCLUDE 'mkl_pardiso.f90'
     !===============================================================================
     ! Copyright 2004-2022 Intel Corporation.
     !

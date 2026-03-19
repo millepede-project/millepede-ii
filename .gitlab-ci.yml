@@ -24,13 +24,13 @@ stages:          # List of stages for jobs, and their order of execution
 variables:  
   GIT_SUBMODULE_STRATEGY: recursive
 
-build-job:       # This job runs in the build stage, which runs first.
+build-job:       
   image: ${CI_REGISTRY_IMAGE}/mp2dev_base 
   stage: build
   script:
     - mkdir build install
     - cd build  
-    - cmake -DCMAKE_INSTALL_PREFIX=../install ../ 
+    - cmake -DCMAKE_INSTALL_PREFIX=../install -DBUILD_TESTS=on ../ 
     - make 
     - make install
     - echo "Compile complete."
@@ -40,7 +40,7 @@ build-job:       # This job runs in the build stage, which runs first.
       - install/
       - build/ 
 
-doc-job:       # This job runs in the build stage, which runs first.
+doc-job:  
   image: ${CI_REGISTRY_IMAGE}/mp2dev_base 
   stage: build
   script:

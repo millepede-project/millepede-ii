@@ -12,7 +12,7 @@ set(CMAKE_CXX_COMPILER ${gpp_loc})
 
 
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
-set(millepedeII_VERSION 05.00.00)
+set(millepedeII_VERSION 05.01.00)
 include(CTest)
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -33,16 +33,29 @@ endif()
 option(DEBUG "Debug" OFF)
 option(SUPPORT_ROOT "build ROOT file I/O and root plotting scripts" ON)
 option(SUPPORT_OPENMP "Support OPENMP" ON)
-option(LAPACK_OPENBLAS "Use LAPACK with OpenBLAS" ON)
-option(LAPACK_MKL "Use LAPACK with MKL. Define MKL_DIR if installed in a nonstandard location." OFF)
+option(SUPPORT_LAPACK "Support LAPACK. Will auto-discover, prioritising MKL > OpenBLAS > others. Overridden by the specific options below" ON)
+option(LAPACK_OPENBLAS "Require LAPACK with OpenBLAS" OFF)
+option(LAPACK_MKL "Require LAPACK with MKL. Define MKL_DIR if installed in a nonstandard location." OFF)
 option(PARDISO "Support Intel oneMKL PARDISO. Define MKL_DIR if installed in a nonstandard location." OFF)
 option(SCOREP "Add SCORE-P instrumentation. Define SCOREP_DIR if installed in a nonstandard location." OFF)
+option(BUILD_TESTS "compile unit tests" OFF)
 
+# if requesting PARDISO, we need MKL
+if (PARDISO) 
+    set (SUPPORT_LAPACK True)
+    set (LAPACK_MKL True)
+endif() 
 
-set(useLP_OPENBLAS false)
-if (LAPACK_OPENBLAS)
-    find_package( LAPACK REQUIRED )
-    set(useLP_OPENBLAS true)
+# get LAPACK if required
+if (SUPPORT_LAPACK)
+    include("cmake/getLAPACK.cmake")
+    if (NOT LAPACK_FOUND)
+        if (${LAPACK_OPENBLAS} OR ${LAPACK_MKL})
+            message( FATAL_ERROR "LAPACK not found but explicitly required")
+        else()
+            message ("No LAPACK library found - will build without.")
+        endif()
+    endif()
 endif()
 
 set(build_ROOT_comps false)
@@ -60,21 +73,11 @@ if(SUPPORT_ROOT)
     endif()
 endif()
 
-
-if (LAPACK_MKL)
-    find_package( MKL REQUIRED )
-    set(useLP_OPENBLAS false)
-endif()
-
-
-
 # Destination targets for build results
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
-
-
 
 if (DEBUG)
     message("Setting flags for debug build")    
@@ -102,32 +105,22 @@ target_link_libraries(pede INTERFACE MilleF)
 message ("Will include ${Mille_MODULE_DIRS}")
 target_include_directories(pede PRIVATE ${Mille_MODULE_DIRS})
 
-# Special setup implementing build options
 
-# ===== LAPACK with MKL ===== 
-if (LAPACK_MKL)
-    message ("Building with LAPACK support via MKL")
-    target_include_directories(pede PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_link_libraries(pede PUBLIC mkl_rt)
-    target_compile_definitions(pede PUBLIC LAPACK64=\"MKL\")
-    target_link_directories(pede PUBLIC ${MKL_ROOT}/lib/${MKL_ARCH})
+if (SUPPORT_LAPACK AND ${LAPACK_FOUND})
+    target_link_libraries(pede PUBLIC LAPACK::LAPACK)
+    message ("Building with LAPACK support via ${LAPACK_FLAVOUR}")
+    target_compile_definitions(pede PUBLIC LAPACK64=\"${LAPACK_FLAVOUR}\")
     if (PARDISO)
         message ("Using Intel oneMKL PARDISO")
         target_compile_definitions(pede PUBLIC PARDISO)
-        target_include_directories(pede PUBLIC ${MKL_ROOT}/include)
+        # needed for mkl_pardiso.f90 module
+        target_include_directories(pede PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
-endif()
-# ===== LAPACK with OpenMP ===== 
-if (useLP_OPENBLAS)
-    message ("Building with LAPACK support via OpenBLAS")
-    target_link_libraries(pede PUBLIC openblasp64)
-    target_compile_definitions(pede PUBLIC LAPACK64=\"OPENBLAS\")
 endif()
 
 if (build_ROOT_comps)
     message ("Found ROOT - will build histogram reader and ROOT I/O lib") 
 
-    set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
     # histogrammer 
     add_executable(readPedeHists)
     target_sources(readPedeHists PRIVATE util/readPedeHists.cpp)
@@ -242,4 +235,6 @@ install(FILES ${millepedeII_BINARY_DIR}/cmake/millepedeIIConfig.cmake
 
 
 # Unit tests 
+if (BUILD_TESTS)
 subdirs(test)
+endif()
