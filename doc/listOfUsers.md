@@ -54,6 +54,7 @@ In the first years of operation Belle II has become the second main user.
 - The [CrystFEL software](https://www.desy.de/~twhite/crystfel) for
 serial X-ray crystallography uses Millepede-II for detector alignment
 since version 0.11.0. [Read more here](https://gitlab.desy.de/thomas.white/crystfel/-/blob/master/doc/man/align_detector.1.md).
+- Detector alignment for X-ray crystallography using Millepede-II, T.A. White,  J. Appl. Cryst. 59. (2026), [doi:10.1107/S1600576726001287](https://journals.iucr.org/j/issues/2026/02/00/jo5129/index.html)
   
 ### Hades
 - The alignment strategy of HADES, O. Pechenova et al., NIM A, 785 (2015), 57570, pp. 
