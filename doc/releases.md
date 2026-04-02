@@ -2,7 +2,11 @@
  
 ## Version history
 
-### Version V05-01-00 (new)
+### Version V05-01-01 
+
+Pick up latest Mille library in case of default dependency, updates to build system
+
+### Version V05-01-00 
 
 New way of looking up LAPACK during build (change to build flags)
 
@@ -10,7 +14,7 @@ Clean-up of ROOT dependency and compiler version treatment.
 
 Bugfix to PARDISO builds - now compiles successfully. 
 
-### Version V05-00-00 (new)
+### Version V05-00-00
 
 Retire Makefile build, adopt external Mille package
 
