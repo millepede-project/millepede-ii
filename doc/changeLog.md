@@ -3,6 +3,7 @@
 # Full list of recent changes
 
 Changes are presented in reverse chronological order.
+-  2026-04-02: Push default Mille version, fine-tune build system
 -  2026-03-19: Updates to the build system - more flexible LAPACK discovery. Fixed PARDISO compilation. 
 -  2026-01-21: Fix an FPE in debug builds (no impact on fit outcome) 
 -  2025-12-11: Fix a rare crash in cToRoot when converting very large binaries 

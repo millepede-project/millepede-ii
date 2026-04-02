@@ -41,7 +41,7 @@ This is for example available in the `gitlab.desy.de:5555/millepede/millepede-ii
 Download the software package from the DESY \c gitlab server to
     \a target directory, e.g. (shallow clone):
 
-         git clone --depth 1 --branch V05-01-00 \
+         git clone --depth 1 --branch V05-01-01 \
              https://gitlab.desy.de/millepede/millepede-ii.git target
 
 Then compile using the following steps:

@@ -12,7 +12,7 @@ set(CMAKE_CXX_COMPILER ${gpp_loc})
 
 
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
-set(millepedeII_VERSION 05.01.00)
+set(millepedeII_VERSION 05.01.01)
 include(CTest)
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
