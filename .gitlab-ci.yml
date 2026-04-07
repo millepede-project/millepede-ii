@@ -23,10 +23,11 @@ stages:          # List of stages for jobs, and their order of execution
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  # Use the parent project's pre-built dev image by default so that forks
-  # do not need to build the dev-image themselves before CI can run.
-  # Override MP2_DEV_IMAGE in project CI/CD settings to use a custom image.
+  # Use the parent project's pre-built images by default so that forks
+  # do not need to build these images themselves before CI can run.
+  # Override these variables in project CI/CD settings to use custom images.
   MP2_DEV_IMAGE: ${CI_REGISTRY}/millepede/millepede-ii/mp2dev_base:latest
+  MP2_RUNTIME_IMAGE: ${CI_REGISTRY}/millepede/millepede-ii/mp2runtime:latest
 
 build-job:
   image: ${MP2_DEV_IMAGE}
@@ -83,7 +84,7 @@ pede-runs:
 
 generate-ref: 
   stage: test
-  image: ${CI_REGISTRY_IMAGE}/mp2runtime:latest
+  image: ${MP2_RUNTIME_IMAGE}
   script: 
     - source /pede/build/mp2setup.sh
     - pede -t=BRLF -n=100000
