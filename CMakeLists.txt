@@ -113,6 +113,10 @@ target_sources(pede
 	src/minresDataModule.f90 src/minresModule.f90 src/minresqlpDataModule.f90 src/minresqlpBlasModule.f90 src/minresqlpModule.f90 
     src/randoms.f90  src/vertpr.f90 src/linesrch.f90 src/Dbandmatrix.f90 src/mpmod.f90 src/mppar.f90 src/mplapack.f90 src/pede.f90
 )
+# gfortran provides stat_() in libgfortran; supply a compatible C shim for other compilers
+if(NOT CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    target_sources(pede PRIVATE src/stat_compat.c)
+endif()
 target_link_libraries(pede PUBLIC $<$<Fortran_COMPILER_ID:GNU>:gfortran> m MilleC)
 target_compile_definitions(pede PUBLIC __MP_VERSION__=\"${millepedeII_VERSION}\")
 add_dependencies(pede  MilleF)
