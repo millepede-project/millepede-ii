@@ -1,14 +1,21 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.26.5)
 
 
-# discover the compilers from PATH (when system install is overridden)
-find_program(gf_loc gfortran)
-find_program(gcc_loc gcc)
-find_program(gpp_loc g++)
-
-set(CMAKE_Fortran_COMPILER ${gf_loc})
-set(CMAKE_C_COMPILER ${gcc_loc})
-set(CMAKE_CXX_COMPILER ${gpp_loc})
+# Discover compilers from PATH when not already specified (e.g. via -DCMAKE_Fortran_COMPILER
+# or the FC/CC/CXX environment variables). Defaults to gfortran/gcc/g++ for standalone
+# cmake invocations.
+if(NOT DEFINED CACHE{CMAKE_Fortran_COMPILER} AND NOT DEFINED ENV{FC})
+    find_program(gf_loc gfortran)
+    set(CMAKE_Fortran_COMPILER ${gf_loc})
+endif()
+if(NOT DEFINED CACHE{CMAKE_C_COMPILER} AND NOT DEFINED ENV{CC})
+    find_program(gcc_loc gcc)
+    set(CMAKE_C_COMPILER ${gcc_loc})
+endif()
+if(NOT DEFINED CACHE{CMAKE_CXX_COMPILER} AND NOT DEFINED ENV{CXX})
+    find_program(gpp_loc g++)
+    set(CMAKE_CXX_COMPILER ${gpp_loc})
+endif()
 
 
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
@@ -80,11 +87,19 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
 
 if (DEBUG)
-    message("Setting flags for debug build")    
-    set(CMAKE_Fortran_FLAGS "-Wall -fautomatic -fno-backslash -O3  -g -fcheck=all -fbacktrace -cpp -ffpe-trap=zero,overflow,underflow")
+    message("Setting flags for debug build")
+    if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+        set(CMAKE_Fortran_FLAGS "-Wall -fautomatic -fno-backslash -O3 -g -fcheck=all -fbacktrace -cpp -ffpe-trap=zero,overflow,underflow")
+    else()
+        set(CMAKE_Fortran_FLAGS "-Wall -O3 -g -cpp")
+    endif()
     set(CMAKE_C_FLAGS "-Wall -Wno-unused-function -O3")
 else()
-    set(CMAKE_Fortran_FLAGS "-Wall -fautomatic -fno-backslash -O3 -cpp")
+    if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+        set(CMAKE_Fortran_FLAGS "-Wall -fautomatic -fno-backslash -O3 -cpp")
+    else()
+        set(CMAKE_Fortran_FLAGS "-Wall -O3 -cpp")
+    endif()
     set(CMAKE_C_FLAGS "-Wall -Wno-unused-function -O3")
 endif()
 
@@ -98,7 +113,7 @@ target_sources(pede
 	src/minresDataModule.f90 src/minresModule.f90 src/minresqlpDataModule.f90 src/minresqlpBlasModule.f90 src/minresqlpModule.f90 
     src/randoms.f90  src/vertpr.f90 src/linesrch.f90 src/Dbandmatrix.f90 src/mpmod.f90 src/mppar.f90 src/mplapack.f90 src/pede.f90
 )
-target_link_libraries(pede PUBLIC gfortran m MilleC)
+target_link_libraries(pede PUBLIC $<$<Fortran_COMPILER_ID:GNU>:gfortran> m MilleC)
 target_compile_definitions(pede PUBLIC __MP_VERSION__=\"${millepedeII_VERSION}\")
 add_dependencies(pede  MilleF)
 target_link_libraries(pede INTERFACE MilleF)
@@ -136,8 +151,8 @@ endif()
 # ==== OpenMP ==== 
 if (SUPPORT_OPENMP)
     message ("Building with openMP support")
-    target_compile_options(pede PUBLIC -fopenmp)
-    target_link_libraries(pede PUBLIC gomp)
+    find_package(OpenMP REQUIRED COMPONENTS Fortran)
+    target_link_libraries(pede PUBLIC OpenMP::OpenMP_Fortran)
 endif()
 
 
