@@ -212,7 +212,7 @@ std::unique_ptr<TH1> ReadPedeHists::readNextHist(std::ifstream &file)
   if (num == -1 || version == -1 || type == -1) {
     ::Error(method, "Problems reading hist number, version or type, so skip it.");
     proceedTo(file, "end of histogram");
-    return 0;
+    return nullptr;
   }
   //   type 1: normal 1D histogram
   //        2: 1D histogram with bins in log_10
@@ -280,7 +280,7 @@ std::unique_ptr<TH1> ReadPedeHists::readNextHist(std::ifstream &file)
   }
   TH1 *h = new TH1F(Form("hist%d_version%d", num, version), title,
 		    binContent.size(), nBinsUpLow[1], nBinsUpLow[2]);
-  h->SetDirectory(0); 
+  h->SetDirectory(nullptr); 
   h->SetBinContent(0, underInOver[0]);
   for (UInt_t iBin = 1; iBin <= binContent.size(); ++iBin) {
     h->SetBinContent(iBin, binContent[iBin - 1]);
@@ -321,8 +321,8 @@ std::pair<std::unique_ptr<TGraph>,  std::string> ReadPedeHists::readNextGraph(st
   // graph and drawing option...
   // Key 'XY-Data' assumed to be already read!
 
-  TGraph *graph = 0;
-  Option_t *drawOpt = 0; // fine to use simple pointer since assigned only hardcoded strings
+  TGraph *graph = nullptr;
+  Option_t *drawOpt = nullptr; // fine to use simple pointer since assigned only hardcoded strings
 
   // Until graph title we have a fixed order to read in these numbers:
   Int_t num = -1; // graph number
@@ -419,8 +419,8 @@ std::pair<std::unique_ptr<TGraph>,  std::string> ReadPedeHists::readNextGraph(st
 bool ReadPedeHists::readNext(std::ifstream &file, std::unique_ptr<TH1> &hist,
 			     std::pair<std::unique_ptr<TGraph>, std::string> &graphOpt)
 {
-  hist = 0;
-  graphOpt.first = 0;
+  hist = nullptr;
+  graphOpt.first = nullptr;
   graphOpt.second = "";
 
   TString type;
