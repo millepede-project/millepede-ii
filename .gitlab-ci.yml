@@ -21,11 +21,16 @@ stages:          # List of stages for jobs, and their order of execution
   - test
   - deploy
 
-variables:  
+variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  # Use the parent project's pre-built images by default so that forks
+  # do not need to build these images themselves before CI can run.
+  # Override these variables in project CI/CD settings to use custom images.
+  MP2_DEV_IMAGE: ${CI_REGISTRY}/millepede/millepede-ii/mp2dev_base:latest
+  MP2_RUNTIME_IMAGE: ${CI_REGISTRY}/millepede/millepede-ii/mp2runtime:latest
 
-build-job:       
-  image: ${CI_REGISTRY_IMAGE}/mp2dev_base 
+build-job:
+  image: ${MP2_DEV_IMAGE}
   stage: build
   script:
     - mkdir build install
@@ -41,7 +46,7 @@ build-job:
       - build/ 
 
 doc-job:  
-  image: ${CI_REGISTRY_IMAGE}/mp2dev_base 
+  image: ${MP2_DEV_IMAGE}
   stage: build
   script:
     - mkdir build
@@ -58,7 +63,7 @@ doc-job:
 
 unit-tests: 
   stage: test
-  image: ${CI_REGISTRY_IMAGE}/mp2dev_base 
+  image: ${MP2_DEV_IMAGE}
   needs: 
     - build-job
   script: 
@@ -69,7 +74,7 @@ unit-tests:
 
 pede-runs: 
   stage: test
-  image: ${CI_REGISTRY_IMAGE}/mp2dev_base 
+  image: ${MP2_DEV_IMAGE}
   needs: 
     - build-job
   script: 
@@ -79,7 +84,7 @@ pede-runs:
 
 generate-ref: 
   stage: test
-  image: ${CI_REGISTRY_IMAGE}/mp2runtime:latest
+  image: ${MP2_RUNTIME_IMAGE}
   script: 
     - source /pede/build/mp2setup.sh
     - pede -t=BRLF -n=100000
@@ -102,7 +107,7 @@ test-align:
   needs: 
     - generate-ref
     - build-job
-  image: ${CI_REGISTRY_IMAGE}/mp2dev_base 
+  image: ${MP2_DEV_IMAGE}
   script: 
     - source install/mp2setup.sh
     - pede CI/mp2str.txt | tee test.run.log
