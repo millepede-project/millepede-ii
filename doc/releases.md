@@ -2,6 +2,12 @@
  
 ## Version history
 
+### Version V05-01-02 
+
+More improvements to build system and CI chain. 
+
+Support non-GNU compiler chains. 
+
 ### Version V05-01-01 
 
 Pick up latest Mille library in case of default dependency, updates to build system

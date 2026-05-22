@@ -51,19 +51,8 @@
  \c NVGB-NCGB for elimination of constraints or \c NVGB+NCGB for Lagrange multipliers.
 
  \section test_brlf_prep Preparations
- 1. Download the software package from the DESY \c gitlab server to
-    \a target directory, e.g. (shallow clone):
-
-         git clone --depth 1 \
-             https://gitlab.desy.de/millepede/millepede-ii.git target
-
- 2. Create **Pede** executable (in \a target directory):
-
-         make pede
-
- 3. Optionally cleanup:
-
-         rm mp2???.???
+ 
+ Download and install the software package following the instructions in \subpage installation_page 
 
  \section test_brlf_create Create pede files
 
@@ -828,6 +817,6 @@ Detected Fortran binary file
  <a href="https://www.desy.de/~kleinwrt/GBL/doc/python/html/">Python2</a> or
  <a href="https://www.desy.de/~kleinwrt/GBL/doc/python3/html/">Python3</a>)
  are included in the
- <a href="https://gitlab.desy.de/claus.kleinwort/general-broken-lines/-/wikis/home">
+ <a href="https://millepede.pages.desy.de/general-broken-lines/">
  GeneralBrokenLines package</a> to explore track fitting and track based alignment with MP2.
  Those will produce binary files of \ref sssec-fileinf "type" <tt>Cfiles</tt>.
