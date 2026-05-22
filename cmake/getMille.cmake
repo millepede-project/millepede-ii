@@ -14,5 +14,4 @@ FetchContent_Declare(Mille
 )
 
 FetchContent_MakeAvailable(Mille)
-add_subdirectory(${mille_SOURCE_DIR} ${mille_BINARY_DIR})
 set(Mille_MODULE_DIRS ${mille_BINARY_DIR}/modules)
