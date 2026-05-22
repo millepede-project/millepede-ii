@@ -19,7 +19,7 @@ endif()
 
 
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
-set(millepedeII_VERSION 05.01.01)
+set(millepedeII_VERSION 05.01.02)
 include(CTest)
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
