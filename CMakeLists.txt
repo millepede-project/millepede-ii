@@ -100,10 +100,7 @@ target_sources(pede
 )
 target_link_libraries(pede PUBLIC gfortran m MilleC)
 target_compile_definitions(pede PUBLIC __MP_VERSION__=\"${millepedeII_VERSION}\")
-add_dependencies(pede  MilleF)
-target_link_libraries(pede INTERFACE MilleF)
-message ("Will include ${Mille_MODULE_DIRS}")
-target_include_directories(pede PRIVATE ${Mille_MODULE_DIRS})
+target_link_libraries(pede PRIVATE MilleF)
 
 
 if (SUPPORT_LAPACK AND ${LAPACK_FOUND})
