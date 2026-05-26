@@ -47,7 +47,7 @@
 !!         ...
 !!     NR  global derivative       label of global derivative
 !!
-!! The 0's in the integer array allow to recognize the start
+!! The 0''s in the integer array allow to recognize the start
 !! of a new set, the measured value and the error. The local and
 !! the global derivatives are inbetween, with a positive value in
 !! the integer array, the index of the local derivative or the

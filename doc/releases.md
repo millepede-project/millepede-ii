@@ -2,6 +2,11 @@
  
 ## Version history
 
+### Version V05-01-03 
+
+Remove non-matched apostrophes in comments. Needed to make 
+particularily unfriendly ninja build setups happy. 
+
 ### Version V05-01-02 
 
 More improvements to build system and CI chain. 

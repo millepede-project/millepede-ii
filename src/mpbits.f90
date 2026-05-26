@@ -1291,7 +1291,7 @@ SUBROUTINE spbits(npgrp,nsparr,nsparc)               ! collect elements
                 END IF
             END DO
 
-            ! extended storage ('2nd half' too) ?
+            ! extended storage ('2nd half' too) ? 
             IF (iextnd > 0) THEN
                 noffj=(i-1)*nspc
                 m=INT(MOD(noffj,INT(bs,mpl)),mpi)+jb

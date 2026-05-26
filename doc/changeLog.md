@@ -3,6 +3,7 @@
 # Full list of recent changes
 
 Changes are presented in reverse chronological order.
+-  2026-05-26: Avoid unmatched apostrophes in comments 
 -  2026-05-22: Simplify retrieval of Mille as a subproject
 -  2026-04-20: Fix zero-as-nullptr warnings
 -  2026-04-08: Improvements to CI in forks, support for non-GNU compilers

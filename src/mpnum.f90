@@ -730,7 +730,7 @@ END SUBROUTINE devinv
 !!
 !!  - G = symmetric matrix, in symmetric storage mode
 !!
-!!  - L = unit triangular matrix (1's on diagonal)
+!!  - L = unit triangular matrix (1''s on diagonal)
 !!
 !!  - D = diagonal matrix (elements store on diagonal of L)
 !!
@@ -873,7 +873,7 @@ END SUBROUTINE cholin
 !!
 !!  - G = symmetric matrix, in symmetric storage mode, positive definite
 !!
-!!  - L = unit (upper!) triangular matrix (1's on diagonal)
+!!  - L = unit (upper!) triangular matrix (1''s on diagonal)
 !!
 !!  - D = diagonal matrix (elements store on diagonal of L)
 !!
@@ -1384,7 +1384,7 @@ END SUBROUTINE dbgax
 !! \param [in,out] W  symmetric M-by-M matrix
 !! \param [in]     N  columns of A
 !! \param [in]     M rows of A
-!! \param [in]     iopt (<>0: don't reset W)
+!! \param [in]     iopt (<>0: don''t reset W)
 !!
 SUBROUTINE dbavat(v,a,w,n,m,iopt)
     USE mpdef
@@ -1458,7 +1458,7 @@ END SUBROUTINE dbavat
 !! \param [in,out] W  symmetric M-by-M matrix
 !! \param [in]     N  columns of A
 !! \param [in]     M  rows of A 
-!! \param [in]     iopt (<>0: don't reset W)
+!! \param [in]     iopt (<>0: don''t reset W)
 !! \param [in]     SC scratch array
 !!
 !! Sparsity structure:

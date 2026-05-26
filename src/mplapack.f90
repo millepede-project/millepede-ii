@@ -563,7 +563,7 @@ MODULE mplapack
     ! your use of  them is  governed by the  express license  under which  they were
     ! provided to you (License).  Unless the License provides otherwise, you may not
     ! use, modify, copy, publish, distribute,  disclose or transmit this software or
-    ! the related documents without Intel's prior written permission.
+    ! the related documents without Intel''s prior written permission.
     !
     ! This software and the related documents  are provided as  is,  with no express
     ! or implied  warranties,  other  than those  that are  expressly stated  in the
@@ -781,7 +781,7 @@ MODULE mplapack
 #ifdef SCOREP_USER_ENABLE
         SCOREP_USER_REGION_BY_NAME_BEGIN("UR_mspd33", SCOREP_USER_REGION_TYPE_COMMON)
 #endif
-        iparm(6) = 0 ! don't update r.h.s. with solution
+        iparm(6) = 0 ! don''t update r.h.s. with solution
         phase = 33 ! only solving
         CALL pardiso_64(pt, maxfct, mnum, mtype, phase, INT(npdblk,mpl), globalMatD, csr3RowOffsets, csr3ColumnList, &
             idum, nrhs, iparm, msglvl, b, x, error)
