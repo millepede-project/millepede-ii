@@ -45,7 +45,7 @@ MODULE mpqldec
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: nparBlock !< number of parameters in block
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: ioffBlock !< block offset (1. constraint -1)
     INTEGER(mpl), DIMENSION(:), ALLOCATABLE :: ioffRow !< row offsets in matV (for constrint block)
-    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: ioffPar !< parameter number offsets for matV ( " )
+    INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: ioffPar !< parameter number offsets for matV ( "" )
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: irangeParNZ !< range for non zero part (except vecVk)
 
 END MODULE mpqldec
@@ -739,8 +739,8 @@ SUBROUTINE qlpssq(aprod,B,m,t)
     REAL(mpd) :: vtAvp
     REAL(mpd) :: vtvp
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: vecAv    ! A*v 
-    REAL(mpd), DIMENSION(:), ALLOCATABLE :: matvtvp  ! v^t*v' 
-    REAL(mpd), DIMENSION(:), ALLOCATABLE :: matvtAvp ! v^t*(A*v')
+    REAL(mpd), DIMENSION(:), ALLOCATABLE :: matvtvp  ! v^t*v'' 
+    REAL(mpd), DIMENSION(:), ALLOCATABLE :: matvtAvp ! v^t*(A*v'')
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: matCoeff ! coefficients (d(A*v)=sum(c_i*v_i)) 
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: irangeCoeff !< range for non zero part
 
@@ -798,7 +798,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
         vecAv(1:npar)=0._mpd
         CALL aprod(npar,0_mpl,vecN(1:npar),ifirst,ilast,vecAv(1:npar))
         CALL aprod(npar,0_mpl,vecN(1:npar),kn,kn,vecAv(1:npar))
-        ! products v^t*v'               
+        ! products v^t*v''               
         DO j2=j+1,ncon
             k2=j2
             IF (t) k2=ncon+1-j2
@@ -812,7 +812,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
             ! overlap regions
             l1=max(ifirst,ifirst2)
             l2=min(ilast,ilast2)
-            vtvp=vecN(kn2)*vecVk(k2)+vecN(kn)*v2kn ! v^t*v'
+            vtvp=vecN(kn2)*vecVk(k2)+vecN(kn)*v2kn ! v^t*v''
             IF (l1 <= l2) vtvp=vtvp+dot_product(vecN(l1:l2), &
                 matV(ioffRow(k2)+1+l1-ifirst2:ioffRow(k2)+1+l2-ifirst2))
             ! significant term?
@@ -822,7 +822,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
             END IF    
         END DO
         matvtvp(ioff1+k)=1.0_mpd
-        ! products v^t*(A*v')                 
+        ! products v^t*(A*v'')                 
         DO j2=1,j
             k2=j2
             IF (t) k2=ncon+1-j2
@@ -832,7 +832,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
             ilast2=irangeParNZ(2,k2)
             ! non-zero regions
             matvtAvp(ioff1+k2)=vecVk(k2)*vecAv(kn2)+dot_product(vecAv(ifirst2:ilast2), &
-                matV(ioffRow(k2)+1:ioffRow(k2)+1+ilast2-ifirst2)) ! v'^t*(A*v)
+                matV(ioffRow(k2)+1:ioffRow(k2)+1+ilast2-ifirst2)) ! v''^t*(A*v)
         END DO
         ! update with (initial) A*v
         ioff2=0
@@ -854,7 +854,7 @@ SUBROUTINE qlpssq(aprod,B,m,t)
         END DO
     END DO
 
-    ! corrections for A*v (as linear combination of v's)
+    ! corrections for A*v (as linear combination of v''s)
     DO j=1,ncon
         k=j
         IF (t) k=ncon+1-j
@@ -913,12 +913,12 @@ SUBROUTINE qlpssq(aprod,B,m,t)
             IF (t) k2=ncon+1-j2
             kn2=npar+k2-ncon
             ioff2=INT(k2-1,mpl)*INT(ncon,mpl)
-            vtvp=matvtvp(ioff1+k2) ! v^t*v'
+            vtvp=matvtvp(ioff1+k2) ! v^t*v''
             ! non-zero regions
             l1=irangeCoeff(1,k2)
             l2=irangeCoeff(2,k2)
             vtAvp=matvtAvp(ioff2+k)
-            IF (l1 <= l2) vtAvp=vtAvp+dot_product(matCoeff(ioff2+l1:ioff2+l2),matvtvp(ioff1+l1:ioff1+l2)) ! v^t*(A*v')
+            IF (l1 <= l2) vtAvp=vtAvp+dot_product(matCoeff(ioff2+l1:ioff2+l2),matvtvp(ioff1+l1:ioff1+l2)) ! v^t*(A*v'')
             l1=min(l1,k)
             l2=max(l2,k)
             matCoeff(ioff2+k)=matCoeff(ioff2+k)+2.0_mpd*(2.0_mpd*vtAv*vtvp-vtAvp)

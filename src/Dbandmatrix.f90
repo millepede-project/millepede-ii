@@ -152,7 +152,7 @@
 !!
 !!    Historical remark: the square-root algorithm was invented by the
 !!    french Mathematician Andre-Louis Cholesky (1875 - 1918).
-!!    Cholesky's method of computing solutions to the normal equations was
+!!    Cholesky''s method of computing solutions to the normal equations was
 !!    published 1924, after the death of Cholesky, by Benoit.
 !!    The method received little attention after its publication in 1924.
 !!    In 1948 the method was analysed in a paper by Fox, Huskey and

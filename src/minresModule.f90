@@ -95,24 +95,24 @@ contains
     !! and  b  is an approximate eigenvector,  x  might prove to be
     !! a better approximate eigenvector, as in the methods of
     !! inverse iteration and/or Rayleigh-quotient iteration.
-    !! However, we're not yet sure on that -- it may be better to use SYMMLQ.
+    !! However, we''re not yet sure on that -- it may be better to use SYMMLQ.
     !!
     !! A further option is that of preconditioning, which may reduce
-    !! the number of iterations required.  If M = C C' is a positive
+    !! the number of iterations required.  If M = C C'' is a positive
     !! definite matrix that is known to approximate  (A - shift*I)
     !! in some sense, and if systems of the form  My = x  can be
     !! solved efficiently, the parameters precon and Msolve may be
     !! used (see below).  When  precon = .true., MINRES will
     !! implicitly solve the system of equations
     !!
-    !!    P (A - shift*I) P' xbar  =  P b,
+    !!    P (A - shift*I) P'' xbar  =  P b,
     !!
     !! i.e.             Abar xbar  =  bbar
     !! where                    P  =  C**(-1),
-    !!                       Abar  =  P (A - shift*I) P',
+    !!                       Abar  =  P (A - shift*I) P'',
     !!                       bbar  =  P b,
     !!
-    !! and return the solution       x  =  P' xbar.
+    !! and return the solution       x  =  P'' xbar.
     !! The associated residual is rbar  =  bbar - Abar xbar
     !!                                  =  P (b - (A - shift*I)x)
     !!                                  =  P r.
@@ -236,7 +236,7 @@ contains
     !!                    For vectors satisfying My = v and Mr = y, the
     !!                    products y'y and r'v differ significantly.
     !!
-    !!           8        An inner product of the form  x' M**(-1) x
+    !!           8        An inner product of the form  x'' M**(-1) x
     !!                    was not positive, so the preconditioning matrix
     !!                    M does not appear to be positive definite.
     !!
@@ -246,7 +246,7 @@ contains
     !! itn     output     The number of iterations performed.
     !!
     !! Anorm   output     An estimate of the norm of the matrix operator
-    !!                    Abar = P (A - shift*I) P',   where P = C**(-1).
+    !!                    Abar = P (A - shift*I) P'',   where P = C**(-1).
     !!
     !! Acond   output     An estimate of the condition of Abar above.
     !!                    This will usually be a substantial
@@ -257,7 +257,7 @@ contains
     !!                       P (b  -  (A - shift*I) x).
     !!
     !! ynorm   output     An estimate of the norm of xbar.
-    !!                    This is sqrt( x'Mx ).  If precon is false,
+    !!                    This is sqrt( x''Mx ).  If precon is false,
     !!                    ynorm is an estimate of norm(x).
     !!-------------------------------------------------------------------
     !! MINRES is an implementation of the algorithm described in
@@ -285,7 +285,7 @@ contains
     !!              minres.f added to http://www.stanford.edu/group/SOL/.
     !!
     !! 16 Oct 2007: Added a stopping rule for singular systems,
-    !!              as derived in Sou-Cheng Choi's PhD thesis.
+    !!              as derived in Sou-Cheng Choi''s PhD thesis.
     !!              Note that ||Ar|| small => r is a null vector for A.
     !!              Subroutine minrestest2 in minresTestModule.f90
     !!              tests this option.  (NB: Not yet working.)
@@ -372,8 +372,8 @@ contains
 
     !-------------------------------------------------------------------
     ! Set up y and v for the first Lanczos vector v1.
-    ! y = beta1 P' v1, where P = C**(-1).
-    ! v is really P' v1.
+    ! y = beta1 P'' v1, where P = C**(-1).
+    ! v is really P'' v1.
     !-------------------------------------------------------------------
     y      = b
     r1     = b
@@ -464,9 +464,9 @@ contains
        ! The general iteration is similar to the case k = 1 with v0 = 0:
        !
        !   p1      = Operator * v1  -  beta1 * v0,
-       !   alpha1  = v1'p1,
+       !   alpha1  = v1''p1,
        !   q2      = p2  -  alpha1 * v1,
-       !   beta2^2 = q2'q2,
+       !   beta2^2 = q2''q2,
        !   v2      = (1/beta2) q2.
        !
        ! Again, y = betak P vk,  where  P = C**(-1).

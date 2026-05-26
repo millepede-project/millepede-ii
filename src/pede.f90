@@ -490,7 +490,7 @@ PROGRAM mptwo
     IF (icheck <= 0) CALL explfc(8)
 
     WRITE(*,*) ' '
-    WRITE(*,*) '  <  Millepede II-P ending   ... ', chdate ! with exit code',ITEXIT,' >'
+    WRITE(*,*) '  <  Millepede II-P ending   ... ', chdate ! , 'with exit code',ITEXIT,' >'
     WRITE(*,*) ' '
     gbu=1.0E-9*REAL(maxwordsalloc*(BIT_SIZE(1_mpi)/8),mps)             ! GB used
     WRITE(*,105) gbu
@@ -1966,7 +1966,7 @@ SUBROUTINE readFromBinary(more)
         END IF
     END DO
     !  did we hit the record limit ?
-    !  If yes, we don't want to continue reading
+    !  If yes, we don''t want to continue reading
     IF (mxrec > 0.AND.(ntot+nrd) >= mxrec) THEN
         nrd=mxrec-ntot
         more=-1
@@ -6597,7 +6597,7 @@ SUBROUTINE loop2
     nEmptyRecords =0  ! 'empty' records (no variable global parameters)
     nRecordsWithFixed =0  ! records with fixed global parameters
     nEQwithGlobal=0  ! count number of equations (with global der.)
-    nEQwithFixed=0  ! count number of equations ( " , fixed)
+    nEQwithFixed=0  ! count number of equations ( "" , fixed)
     nEQtotal=0  ! all
     WRITE(lunlog,*) 'LOOP2: start event reading'
     !     monitoring for sparse matrix?
@@ -9615,7 +9615,7 @@ SUBROUTINE filetc
             CYCLE
         END IF
 
-        keystx='closeandreopen' ! don't keep binary files open
+        keystx='closeandreopen' ! don''t keep binary files open
         mat=matint(text(ia:ib),keystx,npat,ntext)
         IF(mat == max(npat,ntext)) THEN ! exact matching
             keepOpen=0

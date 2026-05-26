@@ -110,25 +110,25 @@ contains
     !!     However, we are not yet sure on that -- it may be better
     !!     to use SYMMLQ.
     !!
-    !!     In this documentation, ' denotes the transpose of
+    !!     In this documentation, '' denotes the transpose of
     !!     a vector or a matrix.
     !!
     !!     A further option is that of preconditioning, which may reduce
-    !!     the number of iterations required.  If M = C C' is a positive
+    !!     the number of iterations required.  If M = C C'' is a positive
     !!     definite matrix that is known to approximate  (A - shift*I)
     !!     in some sense, and if systems of the form  My = x  can be
     !!     solved efficiently, the parameter Msolve may be used (see below).
     !!     When an external procedure Msolve is supplied, MINRESQLP will
     !!     implicitly solve the system of equations
     !!
-    !!             P (A - shift*I) P' xbar  =  P b,
+    !!             P (A - shift*I) P'' xbar  =  P b,
     !!
     !!     i.e.                  Abar xbar  =  bbar
     !!     where                         P  =  C**(-1),
-    !!                                Abar  =  P (A - shift*I) P',
+    !!                                Abar  =  P (A - shift*I) P'',
     !!                                bbar  =  P b,
     !!
-    !!     and return the solution       x  =  P' xbar.
+    !!     and return the solution       x  =  P'' xbar.
     !!     The associated residual is rbar  =  bbar - Abar xbar
     !!                                      =  P (b - (A - shift*I)x)
     !!                                      =  P r.
@@ -274,7 +274,7 @@ contains
     !!                        For vectors satisfying My = v and Mr = y, the
     !!                        products y'y and r'v differ significantly.
     !!
-    !!               11       An inner product of the form  x' M**(-1) x
+    !!               11       An inner product of the form  x'' M**(-1) x
     !!                        was not positive, so the preconditioning matrix
     !!                        M does not appear to be positive definite.
     !!
@@ -298,7 +298,7 @@ contains
     !!     itn     output     The number of iterations performed.
     !!
     !!     Anorm   output     An estimate of the norm of the matrix operator
-    !!                        Abar = P (A - shift*I) P',   where P = C**(-1).
+    !!                        Abar = P (A - shift*I) P'',   where P = C**(-1).
     !!
     !!     Acond   output     An estimate of the condition of Abar above.
     !!                        This will usually be a substantial
@@ -309,7 +309,7 @@ contains
     !!                           P (b  -  (A - shift*I) x).
     !!
     !!     xnorm   output     An estimate of the norm of xbar.
-    !!                        This is sqrt( x'Mx ).  If Msolve is absent,
+    !!                        This is sqrt( x''Mx ).  If Msolve is absent,
     !!                        xnorm is an estimate of norm(x).
     !!
     !!   maxxnorm  input      An upper bound on norm(x). Default value is 1e7.
@@ -363,7 +363,7 @@ contains
     !!------------------------------------------------------------------
     !!
     !!     MINRESQLP development:
-    !!     14 Dec 2006: Sou-Cheng's thesis completed.
+    !!     14 Dec 2006: Sou-Cheng''s thesis completed.
     !!                  MINRESQLP includes a stopping rule for singular
     !!                  systems (using an estimate of ||Ar||) and very many
     !!                  other things(!).
@@ -633,8 +633,8 @@ contains
 
     !------------------------------------------------------------------
     ! Set up y and v for the first Lanczos vector v1.
-    ! y  =  beta1 P'v1,  where  P = C**(-1).
-    ! v is really P'v1.
+    ! y  =  beta1 P''v1,  where  P = C**(-1).
+    ! v is really P''v1.
     !------------------------------------------------------------------
     y  = b
     r1 = b
@@ -760,9 +760,9 @@ contains
        ! The general iteration is similar to the case k = 1 with v0 = 0:
        !
        !   p1      = Operator * v1  -  beta1 * v0,
-       !   alpha1  = v1'p1,
+       !   alpha1  = v1''p1,
        !   q2      = p2  -  alpha1 * v1,
-       !   beta2^2 = q2'q2,
+       !   beta2^2 = q2''q2,
        !   v2      = (1/beta2) q2.
        !
        ! Again, y = betak P vk,  where  P = C**(-1).
@@ -1314,7 +1314,7 @@ end subroutine MINRESQLP
     !!
     !!  REFERENCES:
     !!    Algorithm 4.9, stable unsymmetric Givens rotations in
-    !!     Golub and van Loan's book Matrix Computations, 3rd edition.
+    !!     Golub and van Loan''s book Matrix Computations, 3rd edition.
     !!
     !!  MODIFICATION HISTORY:
     !!    20/08/2012: Fixed a bug to ensure the 2x2 Hermitian reflectors

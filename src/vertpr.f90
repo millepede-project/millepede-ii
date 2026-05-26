@@ -149,7 +149,7 @@ SUBROUTINE pzvert(n,x)
         IF(MOD(j,2) /= 1) THEN
             i=MOD(j,10)+1
             px(jm+1)(6+j:6+j)=ch(i)      ! last digit of even bin numbers
-            IF(i == 1) THEN              ! ten'th column
+            IF(i == 1) THEN              ! ten''th column
                 i=MOD(j/10,10)+1
                 px(jm)(6+j:6+j)=ch(i)
       
