@@ -2,6 +2,10 @@
  
 ## Version history
 
+### Version V05-01-05
+
+Address a few clang warnings
+
 ### Version V05-01-04
 
 Build without touching the `CMAKE_XYZ_COMPILER` variables 

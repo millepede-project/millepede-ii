@@ -1,7 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.26.5)
 
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
-set(millepedeII_VERSION 05.01.04)
+set(millepedeII_VERSION 05.01.05)
 include(CTest)
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -82,7 +82,8 @@ else()
     else()
         set(CMAKE_Fortran_FLAGS "-Wall -O3 -cpp")
     endif()
-    set(CMAKE_C_FLAGS "-Wall -Wno-unused-function -O3")
+    set(CMAKE_C_FLAGS "-Wall -Wno-unused-function -O3 -Wfloat-conversion")
+    set(CMAKE_CXX_FLAGS "-Wall -Wno-unused-function -O3 -Wfloat-conversion")
 endif()
 
 # add our main targets 
