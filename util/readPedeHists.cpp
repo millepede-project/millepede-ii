@@ -295,7 +295,7 @@ std::unique_ptr<TH1> ReadPedeHists::readNextHist(std::ifstream &file)
     ::Warning(method, "Unknown histogram type %d.", type);
   }
 
-  if (mean || sigma) { // overwrite ROOT's approximations from bin contents
+  if (mean != 0. || sigma != 0.) { // overwrite ROOT's approximations from bin contents
     Double_t stats[11] = {0.}; // no way to get this '11' from TH1... :-(
     h->GetStats(stats);
     stats[0] = stats[1] = h->GetEntries();// sum w and w^2
@@ -303,7 +303,7 @@ std::unique_ptr<TH1> ReadPedeHists::readNextHist(std::ifstream &file)
     stats[3] = (sigma * sigma + mean * mean) * stats[0]; // sum wx^2
     h->PutStats(stats);
   }
-  if (min || max) {
+  if (min != 0. || max != 0.) {
     TPaveText *text = new TPaveText(.175, .675, .45, .875, "NDC");
     text->AddText(Form("min = %g", min));
     text->AddText(Form("max = %g", max));
