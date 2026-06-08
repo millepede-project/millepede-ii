@@ -2,6 +2,10 @@
  
 ## Version history
 
+### Version V05-01-04
+
+Build without touching the `CMAKE_XYZ_COMPILER` variables 
+
 ### Version V05-01-03 
 
 Remove non-matched apostrophes in comments. Needed to make 

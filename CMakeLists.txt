@@ -1,25 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.26.5)
 
-
-# Discover compilers from PATH when not already specified (e.g. via -DCMAKE_Fortran_COMPILER
-# or the FC/CC/CXX environment variables). Defaults to gfortran/gcc/g++ for standalone
-# cmake invocations.
-if(NOT DEFINED CACHE{CMAKE_Fortran_COMPILER} AND NOT DEFINED ENV{FC})
-    find_program(gf_loc gfortran)
-    set(CMAKE_Fortran_COMPILER ${gf_loc})
-endif()
-if(NOT DEFINED CACHE{CMAKE_C_COMPILER} AND NOT DEFINED ENV{CC})
-    find_program(gcc_loc gcc)
-    set(CMAKE_C_COMPILER ${gcc_loc})
-endif()
-if(NOT DEFINED CACHE{CMAKE_CXX_COMPILER} AND NOT DEFINED ENV{CXX})
-    find_program(gpp_loc g++)
-    set(CMAKE_CXX_COMPILER ${gpp_loc})
-endif()
-
-
 PROJECT(millepedeII LANGUAGES Fortran C CXX)
-set(millepedeII_VERSION 05.01.03)
+set(millepedeII_VERSION 05.01.04)
 include(CTest)
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
