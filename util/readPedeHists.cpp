@@ -274,7 +274,7 @@ std::unique_ptr<TH1> ReadPedeHists::readNextHist(std::ifstream &file)
 
   // now create histogram
   if (nBinsUpLow[1] == nBinsUpLow[2]) { // causes ROOT drawing errors
-    nBinsUpLow[2] = nBinsUpLow[1] + 1.;
+    nBinsUpLow[2] = nBinsUpLow[1] + 1.0f;
     ::Error(method, "Hist %d (version %d): same upper and lower edge (%f), set upper %f.",
 	    num, version, nBinsUpLow[1], nBinsUpLow[2]);
   }
