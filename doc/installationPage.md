@@ -6,6 +6,10 @@
 
 Since version V04-13-00 at least fortran 2003 is required. The code complies with fortran 2023 (`gcc -std=f2023 -fall-intrinsics`).
 
+### CMake 
+
+The package is built using the `CMake` build system, and at least version 3.26.2 is required for the latest release. 
+
 ### Mille
 
 The package depends on [Mille]((https://gitlab.desy.de/millepede/Mille) to read input binaries.
@@ -41,7 +45,7 @@ This is for example available in the `gitlab.desy.de:5555/millepede/millepede-ii
 Download the software package from the DESY \c gitlab server to
     \a target directory, e.g. (shallow clone):
 
-         git clone --depth 1 --branch V05-01-05 \
+         git clone --depth 1 --branch V05-01-06 \
              https://gitlab.desy.de/millepede/millepede-ii.git target
 
 Then compile using the following steps:

@@ -2,6 +2,10 @@
  
 ## Version history
 
+### Version V05-01-06
+
+Allow slightly older CMake versions, update default Mille version
+
 ### Version V05-01-05
 
 Address a few clang warnings
