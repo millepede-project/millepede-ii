@@ -3534,7 +3534,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
     !$OMP      writeBufferData,writeBufferIndices,writeBufferUpdates,globalVector,globalCounter, &
     !$OMP      globalParameter,globalParLabelIndex,globalIndexUsage,backIndexUsage, &
     !$OMP      measBins,numMeas,measIndex,measRes,measHists,globalAllParToGroup,globalAllIndexGroups, &
-    !$OMP      localCorrections,localEquations,integratedRecordNb, &
+    !$OMP      localCorrections,localWeights,localEquations,integratedRecordNb, &
     !$OMP      nAllActivePar,nVarGlobalPar,nGlobalMaxPerRec,ICALCM,ICHUNK,NLOOPN,NRECER,NPRDBG,IPRDBG, &
     !$OMP      NEWITE,CHICUT,LHUBER,CHUBER,ITERAT,NRECPR,nOMPThreads,NSPC,nEqMaxPerRec, &
     !$OMP      DWCUT,CHHUGE,NRECP2,CAUCHY,LFITNP,LFITBB,IMONIT,IMONMD,MONPG1,LUNLOG,MDEBUG,CNDLMX) &
@@ -3796,6 +3796,7 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
                         wght=wght/(1.0+(resid/rerr/cauchy)**2)
                     END IF
                 END IF
+                localWeights(ioffq+ieq)=wght ! weight used in this local-fit pass
 
                 IF(lprnt.AND.iter /= 1.AND.nter /= 1) THEN
                     chast='   '
@@ -4170,10 +4171,15 @@ SUBROUTINE loopbf(nrej,numfil,naccf,chi2f,ndff)
     
             IF(nloopn /= 1.AND.lhuber /= 0) THEN       ! check residual
                 resid=ABS(rmeas)
-                IF(resid > chuber*rerr) THEN
-                    wght=wght*chuber*rerr/resid          ! down-weighting
-                    dchi2=2.0*chuber*(resid/rerr-0.5*chuber) ! modified contribution
+                IF(nter <= 3) THEN
+                    IF(resid > chuber*rerr) THEN
+                        dchi2=2.0*chuber*(resid/rerr-0.5*chuber) ! modified contribution (Huber)
+                    END IF
+                ELSE
+                    dchi2=LOG(1.0_mpd+(resid/rerr/cauchy)**2)*cauchy**2 ! modified contribution (Cauchy)
                 END IF
+                ! Use the weights of the last local fit for consistent global equations.
+                wght=localWeights(ioffq+ieq)
             END IF
             ! sum up
             summ=summ+dchi2
@@ -7662,6 +7668,7 @@ SUBROUTINE vmprep(msize)
     lenGlobalVec=nAllActivePar
     length=nEqMaxPerRec*nOMPThreads
     CALL mpalloc(localCorrections,length,'residual vector of one record')
+    CALL mpalloc(localWeights,length,'weight vector of one record')
     CALL mpalloc(localEquations,three,length,'mesurements indices (decodeNextMeasurement) of one record')
     length=nLocalMaxPerRec*nLocalMaxPerRec
     CALL mpalloc(aux,length,' local fit scratch array: aux')

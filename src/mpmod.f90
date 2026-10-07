@@ -343,6 +343,7 @@ MODULE mpmod
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE:: scflag         !< local fit workspace (I)
     INTEGER(mpi), DIMENSION(:,:), ALLOCATABLE :: localEquations !< indices (decodeNextMeasurement) for local equations (measurements)
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: localCorrections !< local fit corrections (to residuals)
+    REAL(mpd), DIMENSION(:), ALLOCATABLE :: localWeights !< weights used in the last local fit iteration
     REAL(mpd), DIMENSION(:), ALLOCATABLE :: localGlobalMatrix !< matrix correlating local and global par, content
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: localGlobalMap !< matrix correlating local and global par, map (counts)
     INTEGER(mpi), DIMENSION(:), ALLOCATABLE :: localGlobalStructure !< matrix correlating local and global par, (sparsity) structure
