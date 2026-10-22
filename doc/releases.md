@@ -2,6 +2,10 @@
  
 ## Version history
 
+### Version V05-01-07
+
+Bugfix for inconsistent weights when running iterative outlier downweighting. 
+
 ### Version V05-01-06
 
 Allow slightly older CMake versions, update default Mille version

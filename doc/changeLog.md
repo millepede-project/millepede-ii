@@ -3,6 +3,7 @@
 # Full list of recent changes
 
 Changes are presented in reverse chronological order.
+-  2026-10-22: Bugfix: Inconsistent weights with iterative outlier downweighting  
 -  2026-10-06: Update auto-downloaded Mille version to latest recommended 
 -  2026-06-08: Fix Clang warnings on hisogram plotter 
 -  2026-06-08: Update CMakeLists file - do not force compiler versions 
