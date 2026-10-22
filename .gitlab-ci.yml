@@ -82,38 +82,19 @@ pede-runs:
     - source install/mp2setup.sh
     - pede -t 
 
-generate-ref: 
-  stage: test
-  image: ${MP2_RUNTIME_IMAGE}
-  script: 
-    - source /pede/build/mp2setup.sh
-    - pede -t=BRLF -n=100000
-    - pede CI/mp2str.txt | tee ref.run.log
-    - mv millepede.log ref.log 
-    - mv millepede.res ref.res 
-    - mv millepede.mon ref.mon 
-    - mv millepede.his ref.his 
-  artifacts:
-    name: "RefOut"
-    paths:
-      - ref.*
-      - mp2tst.bin
-      - mp2con.txt 
-      - millepede.* 
-    expire_in: 1 hour
 
 test-align: 
   stage: test
   needs: 
-    - generate-ref
     - build-job
   image: ${MP2_DEV_IMAGE}
   script: 
     - source install/mp2setup.sh
+    - pede -t=BRLF -n=100000  
     - pede CI/mp2str.txt | tee test.run.log
-    - python3 -m Millepede.comparePedeResults ref.res millepede.res 
-    - python3 -m Millepede.comparePedeResults ref.log millepede.log 
-    - python3 -m Millepede.comparePedeResults ref.mon millepede.mon 
+    - python3 -m Millepede.comparePedeResults CI/refFiles/millepede.res millepede.res 
+    - python3 -m Millepede.comparePedeResults CI/refFiles/millepede.log millepede.log 
+    - python3 -m Millepede.comparePedeResults CI/refFiles/millepede.mon millepede.mon 
   allow_failure:  
     exit_codes:
       - 99
