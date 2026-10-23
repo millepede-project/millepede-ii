@@ -45,8 +45,7 @@
 
  The Millepede method and the initial implementation has been
  developed by [V. Blobel](http://www.desy.de/~blobel) from the University of Hamburg.
- Meanwhile the code is maintained at DESY by the statistics tools group of the
- analysis center of the Helmholtz [Terascale](https://terascale.de) alliance
+ Today, the code is maintained and developed by the [CMS group](https://cms.desy.de/) of the [Particle Physics division](https://particle-physics.desy.de/index_eng.html) at DESY
  using [GitLab](https://about.gitlab.com) ([code and wiki](https://gitlab.desy.de)).
 
  The Millepede II software is provided by DESY under the terms of the
