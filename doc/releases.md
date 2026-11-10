@@ -2,6 +2,10 @@
  
 ## Version history
 
+### Version V05-01-08
+
+update default Mille version
+
 ### Version V05-01-07
 
 Bugfix for inconsistent weights when running iterative outlier downweighting. 
