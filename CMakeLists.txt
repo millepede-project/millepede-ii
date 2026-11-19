@@ -105,7 +105,7 @@ target_compile_definitions(pede PUBLIC __MP_VERSION__=\"${millepedeII_VERSION}\"
 target_link_libraries(pede PRIVATE MilleF)
 
 
-if (SUPPORT_LAPACK AND ${LAPACK_FOUND})
+if (SUPPORT_LAPACK AND LAPACK_FOUND)
     target_link_libraries(pede PUBLIC LAPACK::LAPACK)
     message ("Building with LAPACK support via ${LAPACK_FLAVOUR}")
     target_compile_definitions(pede PUBLIC LAPACK64=\"${LAPACK_FLAVOUR}\")
